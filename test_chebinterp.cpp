@@ -12,11 +12,11 @@ int main()
     const int N = 100000;
     const int dim = 3;
 
-    typedef float TSCAL;
+    typedef double TSCAL;
     typedef std::complex<TSCAL> T;
     Eigen::Array<TSCAL, dim, Eigen::Dynamic> points = Eigen::Array<TSCAL, dim, Eigen::Dynamic, Eigen::ColMajor>::Random(dim, N)+0.01;
 
-    const TSCAL H = 0.5f;
+    const TSCAL H = 0.5;
     const TSCAL k = 1;
     typedef Eigen::Vector<TSCAL, dim> Point;
     const Point xc{0, H / 2.0f,0};
@@ -49,11 +49,11 @@ int main()
     Eigen::Array<T, Eigen::Dynamic, 1> approx_values(N);
     //Eigen::internal::set_is_malloc_allowed(false);
 
-    ChebychevInterpolation::parallel_evaluate<T, dim,1,TSCAL>(points, interp_values, approx_values,ns);
+    ChebychevInterpolation::parallel_evaluate<T, dim,1>(points, transformed_values, approx_values,ns);
 
     std::cout<<"done";
-    //std::cout<<"approx="<<approx_values<<std::endl;
-    //std::cout<<"ex="<<values<<std::endl;
+    std::cout<<"approx="<<approx_values[11]<<std::endl;
+    std::cout<<"ex="<<values[11]<<std::endl;
     //Eigen::internal::set_is_malloc_allowed(true);
 
     approx_values -= values;
