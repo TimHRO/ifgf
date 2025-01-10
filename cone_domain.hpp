@@ -3,6 +3,8 @@
 
 #include <Eigen/Dense>
 #include <memory>
+#include "config.hpp"
+
 
 #ifdef USE_FAST_HASH
 #include "unordered_dense.h"
