@@ -1,12 +1,16 @@
 #ifndef _OCTREE_HPP_
 #define _OCTREE_HPP_
 
+#include "Eigen/src/Core/VectorBlock.h"
+#include "config.hpp"
+
 #include <Eigen/Dense>
 #include <memory>
 #include <map>
 #include <vector>
 #include <execution>
 #include <iostream>
+#include <unordered_set>
 
 #include "util.hpp"
 #include "boundingbox.hpp"
@@ -14,8 +18,18 @@
 #include "chebinterp.hpp"
 #include "cone_domain.hpp"
 
+#include <tbb/queuing_mutex.h>
 #include <tbb/spin_mutex.h>
 typedef std::pair<size_t, size_t> IndexRange;
+
+// #define  EXACT_INTERP_RANGE
+
+#ifdef BE_FAST
+const int N_STEPS=4;
+#else
+const int N_STEPS=2;
+#endif
+
 
 
 template<typename T, size_t DIM>
@@ -24,8 +38,14 @@ class Octree
 
 public:
     enum {N_Children = 1 << DIM };
-    typedef Eigen::Matrix<double, DIM, Eigen::Dynamic> PointArray;
+    enum TransformationMode { Decomposition, TwoGrid , Regular};
+    typedef Eigen::Array<double, DIM, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<double, DIM> Point;
+
+    struct FieldInfo {
+	Eigen::Vector<size_t, Eigen::Dynamic> indices;
+	Eigen::Vector<size_t, Eigen::Dynamic> starts;
+    };
 
     class OctreeNode
     {
@@ -38,10 +58,9 @@ public:
 	std::vector<IndexRange> m_farTargets;
 	std::vector<IndexRange> m_nearTargets;
 
-        IndexRange m_srcRange;
-        IndexRange m_targetRange;
+        IndexRange m_pntRange;
 
-	ConeDomain<DIM> m_coneDomain;
+	std::array<ConeDomain<DIM>,N_STEPS> m_coneDomain;
 
         BoundingBox<DIM> m_bbox;
 
@@ -72,26 +91,16 @@ public:
             return m_id;
         }
 
-        IndexRange srcRange() const
+        IndexRange pntRange() const
         {
-            return m_srcRange;
-        }
-
-        IndexRange targetRange() const
-        {
-            return m_targetRange;
+            return m_pntRange;
         }
 
 
-        void setSrcRange(const IndexRange &range)
+        void setPntRange(const IndexRange &range)
         {
-            m_srcRange = range;
+            m_pntRange = range;
 
-        }
-
-        void setTargetRange(const IndexRange &range)
-        {
-            m_targetRange = range;
         }
 
         void setChild(size_t idx, std::shared_ptr<OctreeNode> node)
@@ -102,20 +111,20 @@ public:
 	    }
         }
 
-	void setConeDomain(const ConeDomain<DIM>& domain)
+	void setConeDomain(const ConeDomain<DIM>& domain, int substep=0)
 	{
-	    m_coneDomain=domain;
+	    m_coneDomain[substep]=domain;
 	}
 
-	const ConeDomain<DIM>& coneDomain() const
+	const ConeDomain<DIM>& coneDomain(int substep=0) const
 	{
-	    return m_coneDomain;
+	    return m_coneDomain[substep];
 	}
 
 
-	BoundingBox<DIM> interpolationRange() const
+	BoundingBox<DIM> interpolationRange(int substep=0) const
 	{
-	    return m_coneDomain.domain();
+	    return m_coneDomain[substep].domain();
 	}
 
         const std::shared_ptr<const OctreeNode> child(size_t idx) const
@@ -143,9 +152,9 @@ public:
             return m_isLeaf;
         }
 
-        bool hasSources() const
+        bool hasPoints() const
         {            
-            return m_srcRange.first != m_srcRange.second;
+            return m_pntRange.first != m_pntRange.second;
         }
 
         unsigned int level() const
@@ -153,10 +162,6 @@ public:
             return m_level;
         }
 
-	bool hasTargets() const
-	{
-	    return  m_targetRange.first !=m_targetRange.second;
-	}
 
         const std::weak_ptr<const OctreeNode> parent() const
         {
@@ -165,14 +170,14 @@ public:
 
 	void addNearInteraction(const OctreeNode& target)
 	{
-	    if(target.hasTargets())
-		m_nearTargets.push_back(target.targetRange());
+	    if(target.hasPoints())
+		m_nearTargets.push_back(target.pntRange());
 	}
 	
 	void addFarInteraction(const OctreeNode& target)
 	{
-	    if(target.hasTargets())
-		m_farTargets.push_back(target.targetRange());
+	    if(target.hasPoints())
+		m_farTargets.push_back(target.pntRange());
 	}
 
 	
@@ -195,11 +200,11 @@ public:
             std::cout << "----";
 
             std::cout << m_id << " ";
-            std::cout << "(" << m_srcRange.first << " " << m_srcRange.second << ")"; //<<std::endl;
+            std::cout << "(" << m_pntRange.first << " " << m_pntRange.second << ")"; //<<std::endl;
             //std::cout << m_bbox.min().transpose() << "   " << m_bbox.max().transpose() << std::endl;
 	    std::cout<< m_isLeaf <<std::endl;
 
-            //std::cout<<"("<<m_srcRange.first<<" "<<m_srcRange.second<<")"<<std::endl;
+            //std::cout<<"("<<m_pntRange.first<<" "<<m_pntRange.second<<")"<<std::endl;
             //std::cout<<" "<<m_bbox.min().transpose()<<" to "<<m_bbox.max().transpose()<<std::endl;
             /*std::cout<<m_id<<" ";
             if(m_parent)
@@ -224,7 +229,7 @@ public:
         m_maxLeafSize(maxLeafSize)
     {
 
-	double eta=(double) sqrt((double) DIM);;
+	double eta=(double) sqrt((double) DIM);
 	m_isAdmissible= [eta] (const BoundingBox<DIM>& src,const BoundingBox<DIM>& target) { return target.exteriorDistance(src.center()) >= eta* src.sideLength();};
 
     }
@@ -234,23 +239,19 @@ public:
 
     }
 
-    void build(const PointArray &srcs, const PointArray &targets)
+    void build(const PointArray &pnts)
     {
-        std::cout << "building a new octree" << srcs.cols() << ", " << targets.cols() << std::endl;
+        std::cout << "building a new octree" << pnts.cols()<<std::endl;
 
         std::cout << "finding bbox" << std::endl;
-        Point min = srcs.col(0);
-        Point max = srcs.col(0);
+        Point min = pnts.col(0);
+        Point max = pnts.col(0);
 
-        for (size_t i = 0; i < srcs.cols(); i++) {
-            min = min.array().min(srcs.col(i).array());
-            max = max.array().max(srcs.col(i).array());
+        for (size_t i = 0; i < pnts.cols(); i++) {
+            min = min.array().min(pnts.col(i).array());
+            max = max.array().max(pnts.col(i).array());
         }
 
-        for (size_t i = 0; i < targets.cols(); i++) {
-            min = min.array().min(targets.col(i).array());
-            max = max.array().max(targets.col(i).array());
-        }
 
         //make the bbox slightly larger to not have to deal with boundary issues
         min.array() -= 1e-8 * min.norm();
@@ -261,26 +262,20 @@ public:
 
         //sort the points by their morton order for better locality later on
         std::cout << "sorting..." << std::endl;
-        m_src_permutation = Util::sort_with_permutation(std::execution::par, srcs.colwise().begin(), srcs.colwise().end(), zorder_knn::Less<Point, DIM>(bbox));
-        m_srcs = Util::copy_with_permutation(srcs, m_src_permutation);
-
-        m_target_permutation = Util::sort_with_permutation(std::execution::par, targets.colwise().begin(), targets.colwise().end(), zorder_knn::Less<Point, DIM>(bbox));
-        m_targets = Util::copy_with_permutation(targets, m_target_permutation);
-
+        m_permutation = Util::sort_with_permutation( pnts.colwise().begin(), pnts.colwise().end(), zorder_knn::Less<Point, DIM>(bbox));
+	m_pnts.resize(DIM, pnts.cols());
+        Util::copy_with_permutation_colwise<double,DIM>(pnts, m_permutation,m_pnts);
 
 	m_diameter=bbox.diagonal().norm();
 
 	m_levels = 0;
-	m_depth=-1;
-        m_root = buildOctreeNode(0, std::make_pair(0, m_srcs.cols()), std::make_pair(0, m_targets.cols()), bbox);
+	m_depth = -1;
+        m_root = buildOctreeNode(0, std::make_pair(0, m_pnts.cols()), bbox);
 	m_depth=m_levels;
 
 
         std::cout << "building the nodes up to level"<<m_depth << std::endl;
-        
-	
-        buildInteractionList(m_root,m_root);
-	//m_root->print();
+  
 
 	
     }
@@ -294,14 +289,24 @@ public:
 
 	for( auto far : src->farTargets()) {
 	    std::cout<<far.first<<" "<<far.second<<std::endl;
-	}
-
+	}	
 		    
     }
 
-    void buildInteractionList(std::shared_ptr<OctreeNode>  src,std::shared_ptr<OctreeNode>  target)
+    void buildInteractionList(const Octree&  target_tree)
     {
-	if(!src || !target || !src->hasSources() || ! target->hasTargets()) {
+	buildInteractionList(m_root,target_tree.m_root);
+
+	/*printInteractionList(m_root);
+	for(int i=0;i<N_Children;i++){
+	    printInteractionList(m_root->child(i));
+	    }*/
+
+    }
+
+    void buildInteractionList(std::shared_ptr<OctreeNode>  src,std::shared_ptr<const OctreeNode>  target)
+    {
+	if(!src || !target || !src->hasPoints() || ! target->hasPoints()) {
 	    return;
 	}
 
@@ -353,16 +358,55 @@ public:
 	target->print();
     }
 
-    void calculateInterpolationRange(  std::function<Eigen::Vector<int,DIM>(double)> order_for_H,std::function<Eigen::Vector<size_t,DIM>(double)> N_for_H)
+    void calculateInterpolationRange(  std::function<Eigen::Vector<int,DIM>(double,int)> order_for_H,
+				       std::function<Eigen::Vector<size_t,DIM>(double,int )> N_for_H,
+				       std::function<double(double)> smin_for_H,
+				       const Octree& target)
     {
-	BoundingBox<DIM> global_box;
-	global_box.min().fill(0);
-	global_box.max().fill(0);
+
+	m_farFieldBoxes.resize(levels());
+	m_nearFieldBoxes.resize(levels());
 	
+	BoundingBox<DIM> global_box;
+	//global_box.min().fill(10);
+	//global_box.max().fill(0);
+
+#ifdef BE_FAST
+	TransformationMode mode=Decomposition;
+#else
+	TransformationMode mode=TwoGrid;
+#endif
+
+#ifdef RECURSIVE_MULT
+	
+	int min_boxes=MIN_RECURSIVE_BOXES;
+	int min_recursive_level=0;
+        for(;min_recursive_level<levels();min_recursive_level++) {
+            if(numBoxes(min_recursive_level) > min_boxes) {
+                break;
+            }
+        }
+
+	
+#else
+	const size_t min_recursive_level = levels();
+#endif
+
+	std::cout<<"min rec"<<min_recursive_level;
+	
+
+	const auto & target_points=target.points();
+	tbb::queuing_mutex activeConeMutex;
+
+	std::vector<tbb::spin_mutex> target_mutexes(target.numPoints());
 	Eigen::Vector<size_t,DIM> oldN;
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
+	    std::cout<<"l= "<<level<<std::endl;
 	    //update all nodes in this level
+
+	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
+	    std::vector<ConeRef> leafCones;
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0,numBoxes(level)), [&](tbb::blocked_range<size_t> r) {
             for(size_t n=r.begin();n<r.end();++n) {
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
@@ -370,33 +414,36 @@ public:
 
 
 		//do nothing  if there are no sources
-		if(node==0 || node->srcRange().first==node->srcRange().second)
+		//TODO this breaks some corner cases where the boxId
+		//is no longer the index in certain vectors
+		/*if(node==0 || node->pntRange().first==node->pntRange().second) {
 		    continue;
-
+		    }*/
 
 		const Point xc=node->boundingBox().center();
-		const double H=node->boundingBox().sideLength();
+		
+		const double H=node->boundingBox().sideLength();		
 		const std::vector<IndexRange> farTargets=node->farTargets();
+#ifdef EXACT_INTERP_RANGE
+
 		
 		for(const IndexRange& iR : farTargets)
 		{
 		    for(int i=iR.first;i<iR.second;i++) {
 			//std::cout<<"asd"<<node->boundingBox().exteriorDistance(m_targets.col(i))<<" "<<H<<std::endl;
 			
-			const auto s=Util::cartToInterp<DIM>(m_targets.col(i),xc,H);
+			const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);
 			assert(s[0]<=sqrt(DIM)/DIM);
 			
 			box.extend(s); //make sure the target is in the interpolation domain
 		    }
 		}
-
+		
 		BoundingBox<DIM> pBox;
 		std::shared_ptr<const OctreeNode> parent=node->parent().lock();
 		//now also add all the parents targets	       
 		if(parent && parentHasFarTargets(node))
-		{
-
-		    
+		{	    
 		    pBox=parent->interpolationRange();
 		    const Point pxc=parent->boundingBox().center();
 		    const double pH=parent->boundingBox().sideLength();
@@ -415,13 +462,13 @@ public:
 
 			//TODO check if this is necessary
 			const ConeDomain<DIM>& p_grid=parent->coneDomain();
-			auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH));
-			for(size_t el : p_grid.activeCones() ) {			
-			    for (size_t i=0;i<chebNodes.cols();i++) {
+			auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,0));
+			for(size_t el : p_grid.activeCones() ) {
+			    for (size_t i = 0; i < chebNodes.cols(); i++) {
 				auto pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
 				box.extend(Util::cartToInterp<DIM>(pnt,xc,H).matrix());
 			    }
-			} 
+			}
 		    }
 		}
 
@@ -430,78 +477,358 @@ public:
 		    box.extend((box.min().array()-1e-06).matrix());
 		    box.extend((box.max().array()+1e-06).matrix());
 		}
-		
+#else
 
-		ConeDomain<DIM> domain(N_for_H(H),box);
-		if(N_for_H(H)!=oldN) {
-		    oldN=N_for_H(H);
-		    std::cout<<"n="<<N_for_H(H).transpose()<<std::endl;
-		    std::cout<<"box="<<box<<" "<<box.isNull()<<std::endl;
+		//just use a default value for the boxes
+
+		double smax=sqrt(DIM)/DIM;
+		//if the sources and targets are well-separated we don't have to cover the near field 
+		const double dist=0;//bbox(0,0).exteriorDistance(target.bbox(0,0));
+		if(dist >0) {
+		    smax=std::min(smax, H/dist);
+		}
+
+                
+		std::shared_ptr<const OctreeNode> parent=node->parent().lock();
+		BoundingBox<DIM> pBox;
+		//now also add all the parents targets	       
+		if(parent && parentHasFarTargets(node))
+		{	    
+		    pBox=parent->interpolationRange();
+		}
+
+		
+                const double dist_t=0;//target.bbox(0,0).exteriorDistance(xc);
+		double smin= smin_for_H(H);
+
+		/*
+                if(!pBox.isNull()) {
+		    //std::cout<<"diam:"<<m_diameter<<" "<<pBox.min()[0]<<std::endl;
+                    smin=std::min(smin,0.75/(sqrt(DIM)/3.0+2.0/pBox.min()[0]));
+		    //smin=std::min(smin, pBox.min()[0]/2.0);
+		}
+		smin=1e-3;
+		*/
+                //1e-3;//H/(m_diameter+dist+target.m_diameter);
+
+
+		if(smin >=smax) {
+		    smin=smax-0.05;
+		}
+		
+		box.min()(0)=smin;
+		box.max()(0)=smax;
+
+			
+		if constexpr(DIM==2) {	    
+		    box.min()(1)=-M_PI;
+		    box.max()(1)=M_PI;
+		}else{
+		    box.min()(1)=0;
+		    box.max()(1)=M_PI;
+			    
+		    box.min()(2)=-M_PI;
+		    box.max()(2)=M_PI;
+		}
+	
+		    
+		
+#endif		
+
+		BoundingBox<DIM> tbox(pBox);
+
+		
+		ConeDomain<DIM> domain(N_for_H(H,0),box);
+		ConeDomain<DIM> trans_domain(N_for_H(2*H,1),tbox);
+
+		auto hoN=N_for_H(H,1);
+
+		ConeDomain<DIM> coarseDomain(hoN,box);
+
+		    
+		assert(H>0);
+		if(N_for_H(H,0)!=oldN) {
+		    oldN=N_for_H(H,0);
+		    std::cout<<"n="<<N_for_H(H,0).transpose()<<"/"<<N_for_H(H,1).transpose()<<std::endl;
+		    std::cout<<"box="<<box<<" "<<box.isNull()<<"H="<<H<<std::endl;
 		}
 
 		if(!box.isNull())
 		    global_box.extend(box);
 
 		//now we need to do the whole thing again to figure out which cones are active...
-		std::vector<bool> is_cone_active(domain.n_elements());
-		std::fill(is_cone_active.begin(),is_cone_active.end(),false);
-		/*for (int i=0;i<domain.n_elements();i++) {
-		    assert(is_cone_active[i]==0);
-		    }*/
+		// 0: where do i need to compute the points directly/from the children in order to be able to sample FF and first rotation
+		// 1: where do i need to compute the points using  the first rotation in order to be able to compute the translation
+		// 2: where do i need to compute the points using the translation in order to be able to compute the second rotation
 		
-		//now also add all the parents targets		
+		std::array<IndexSet,N_STEPS> is_cone_active; 
+		
+
+		PointArray s(DIM,32);
 		for(const IndexRange& iR : farTargets)
-		{				    
-		    for(int i=iR.first;i<iR.second;i++)
+		{
+		    s.resize(DIM,std::max((size_t) s.cols(),iR.second-iR.first));
+		    Util::cartToInterp2<DIM>(target_points.middleCols(iR.first,iR.second-iR.first),xc,H,s.leftCols(iR.second-iR.first).array());			  
+		    for(int i=0;i<iR.second-iR.first;i++)
 		    {
-			const auto s=Util::cartToInterp<DIM>(m_targets.col(i),xc,H);			  
-			
-			auto coneId=domain.elementForPoint(s);
-			is_cone_active[coneId]=true;
+			//const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);			  
+			auto coneId=domain.elementForPoint(s.col(i));
+			auto coneId2=coarseDomain.elementForPoint(s.col(i));
+			if(coneId2<SIZE_MAX)
+			    is_cone_active[1].insert(coneId2);
+			if(coneId<SIZE_MAX)
+			    is_cone_active[0].insert(coneId);
 		    }
 		}
 
+		
+		//now also add all the parents targets
 		if(!pBox.isNull())
 		{
 		    const Point pxc=parent->boundingBox().center();
 		    const double pH=parent->boundingBox().sideLength();
 
-		    const ConeDomain<DIM>& p_grid=parent->coneDomain();		    
-		    auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH));
+		    const ConeDomain<DIM>& p_grid=parent->coneDomain(1);
 
-		    for(size_t el : p_grid.activeCones() ) {			
-		    	for (size_t i=0;i<chebNodes.cols();i++) {
-			    auto cart_pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
-			    auto interp_pnt=Util::cartToInterp<DIM>(cart_pnt,xc,H);
-			    auto coneId=domain.elementForPoint(interp_pnt);
-			    is_cone_active[coneId]=true;
+		    if(parentHasFarTargets(level,n))
+		    {		    
+			if(mode==Decomposition){			
+			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(H,1));
+
+			    //now we add all the points used in the point-and-shoot method. Second rotation:
+			    for(size_t el : p_grid.activeCones() ) {
+				const auto direction=xc-pxc;
+
+				auto points=p_grid.rotated_points(el,chebNodes,direction, false);
+
+				for (size_t i=0;i<points.cols();i++) {
+				    auto coneId=trans_domain.elementForPoint(points.col(i));
+				    if(coneId<SIZE_MAX)
+					is_cone_active[3].insert(coneId);
+				}
+			    }
+
+
+			    //translation
+			    for(size_t el : is_cone_active[3] ) {	    	    
+				auto points=trans_domain.translated_points(el,chebNodes,xc,H,pxc,pH);
+
+				for (size_t i=0;i<points.cols();i++) {
+				    auto coneId=coarseDomain.elementForPoint(points.col(i));
+				    if(coneId<SIZE_MAX)
+					is_cone_active[2].insert(coneId);
+				}			
+			    }
+
+
+			    //first rotation
+			    for(size_t el : is_cone_active[2] ) {	    	    
+				const auto direction=xc-pxc;
+				PointArray points=coarseDomain.rotated_points(el,chebNodes,direction, true);
+
+				for (size_t i=0;i<points.cols();i++) {
+				    auto coneId=domain.elementForPoint(points.col(i));
+				    auto coneId2=coarseDomain.elementForPoint(points.col(i));
+				    if(coneId2<SIZE_MAX)
+					is_cone_active[1].insert(coneId2);
+				    if(coneId<SIZE_MAX)
+					is_cone_active[0].insert(coneId);
+				}			    
+			    }
+			}
+			else if(mode==TwoGrid) {
+			    //We use a coarse grid with high order and a fine grid of lower order
+			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,1));			
+			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
+			    //
+
+			    PointArray pnts(DIM,HoChebNodes.cols());
+			    PointArray interp_pnts(DIM,HoChebNodes.cols());
+			    for(size_t el : p_hoGrid.activeCones() ) {
+				pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),pxc,pH);
+				Util::cartToInterp2<DIM>(pnts.array(),xc,H,interp_pnts.array());
+				for (size_t i=0;i<HoChebNodes.cols();i++) {
+				    auto coneId=domain.elementForPoint(interp_pnts.col(i));
+				    auto coneId2=coarseDomain.elementForPoint(interp_pnts.col(i));
+				    if(coneId2<SIZE_MAX)
+					is_cone_active[1].insert(coneId2);
+				    if(coneId<SIZE_MAX)
+					is_cone_active[0].insert(coneId);
+				}
+			    }			
+
+			}
+			else   {
+			    //now we add all the points used in the regular method
+			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,0));
+			    for(size_t el : p_grid.activeCones() ) {	    
+				for (size_t i=0;i<chebNodes.cols();i++) {
+				    Point cart_pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
+				    Point interp_pnt=Util::cartToInterp<DIM>(cart_pnt,xc,H);
+
+				    auto coneId=domain.elementForPoint(interp_pnt);
+				    if(coneId<SIZE_MAX)
+					is_cone_active[0].insert(coneId);
+				}
+			    }
 			}
 		    }
 		}
 
 
-		std::vector<size_t> active_cones;
-		std::vector<size_t> cone_map(domain.n_elements());
-		for(size_t i=0;i<domain.n_elements();i++)
-		{
-		    if(is_cone_active[i]) {
-			active_cones.push_back(i);
-			cone_map[i]=active_cones.size()-1;
-		    }
-		    
+		/*
+		if(mode==TwoGrid) {
+		    //mark all children of active elements in the coarse grid also as active.
+		    //reinterpolation step from HO to regular
+		    const int n_children=domain.n_elements()/coarseDomain.n_elements();
+		    const int factor=domain.n_elements(0)/coarseDomain.n_elements(0);
+		    for(size_t cone : is_cone_active[1]) {
+			Eigen::Vector<size_t, DIM> indices=coarseDomain.indicesFromId(cone);
+			indices*=factor;
+			for(int i=0;i<n_children;i++) {
+			    //compute the different indices given the id
+			    Eigen::Vector<size_t, DIM> d;
+			    size_t tmp=i;
+			    for(int l=0;l<DIM;l++) {
+				const size_t idx=tmp % factor;
+				tmp=tmp / factor;
+	    
+				d[l]=idx;
+			    }
+			    
+			    const size_t childId=domain.idFromIndices(indices+d);
+			    is_cone_active[0].insert(childId);
+			}
+			}
+			}*/
+		
+		for (int step=0;step<N_STEPS;step++ ) {
+		     std::vector<size_t> local_active_cones;
+		     IndexMap cone_map;
+		     //local_active_cones.reserve(domain.n_elements());
+		     for( size_t i : is_cone_active[step])
+		     {			 
+			 ConeRef cone(level, i, local_active_cones.size(), n);
+			 
+			     
+			     if(level< min_recursive_level) { //We dont need the active cone map if we are in the recursive stage
+				 tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+				 activeCones[step].push_back(cone);
+
+				 int leafStep=0;
+				 if(mode!=Regular) {
+				     leafStep=1;
+				 }
+			     
+				 if(node->isLeaf() && step==leafStep) {
+				     leafCones.push_back(cone);
+				 }
+
+			     }
+
+			     local_active_cones.push_back(i);
+			     cone_map[i]=local_active_cones.size()-1;
+			 
+		     }
+
+		     //local_active_cones.trim();
+		     ConeDomain d0=coarseDomain;
+		     if(step==3 && mode==Decomposition) {
+			 d0=trans_domain;
+		     }
+		     if(step==0 && mode!=Regular) {
+			 d0=domain;
+		     }
+		     d0.setActiveCones(local_active_cones);		
+		     d0.setConeMap(cone_map);		     
+
+		     //std::cout<<"level"<<node->level()<<"range:"<<box.min().transpose()<<" "<<box.max().transpose()<<std::endl;
+		     node->setConeDomain(d0,step);		     
 		}
-
-		//std::cout<<"active="<<(100*active_cones.size())/domain.n_elements()<<std::endl;
-		domain.setActiveCones(active_cones);
-		domain.setConeMap(cone_map);
-
-		//std::cout<<"level"<<node->level()<<"range:"<<box.min().transpose()<<" "<<box.max().transpose()<<std::endl;
-		node->setConeDomain(domain);
 		//node->setInterpolationRange(box);
 	    }});
+	    {
+		tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+		std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
+		std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
+		std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
+	    }
+	    m_activeCones.push_back(activeCones);
+	    m_leafCones.push_back(leafCones);
+
+
+	    if(level< min_recursive_level) {
+		//compute the farFieldBoxes
+		m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
+		m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
+		
+		
+	    }
+
+
 	}
 
 	std::cout<<"interp_domain:" <<global_box<<std::endl;
+
+    }
+
+
+    FieldInfo computeFieldInfo(int level, const Octree& target, bool isFarField=true) const
+    {
+	FieldInfo info;
+
+	//we start out by computing how much storage we might need
+	size_t cnt=0;
+	Eigen::Vector<size_t, Eigen::Dynamic> nBoxPerTarget(target.points().size());
+	nBoxPerTarget.fill(0);
+
+	for(size_t n=0;n<numBoxes(level);++n) {
+	    std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+	    const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
+	    for( const auto tRange : targets) {
+		cnt+=tRange.second-tRange.first;
+		for(size_t trg=tRange.first;trg<tRange.second;++trg) {
+		    nBoxPerTarget[trg]++;
+		}
+	    }
+	}
+	if(cnt>0)
+	{
+	    //now we populate	
+	    info.indices.resize(cnt);
+	    info.starts.resize(target.points().size()+1);
+
+	    //now fill the starts vector
+	    info.starts[0]=0;
+	    for(size_t trg=1;trg<info.starts.size();trg++) {
+		info.starts[trg]=info.starts[trg-1]+nBoxPerTarget[trg-1];
+
+	    }
+
+	    assert(info.starts[target.points().size()]==cnt);
+
+	    nBoxPerTarget.fill(0);
+		    	    
+	    for(size_t n=0;n<numBoxes(level);++n) {		
+		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+		const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
+		for( const auto tRange : targets) {		
+		    for(size_t trg=tRange.first;trg<tRange.second;++trg) {
+			info.indices[info.starts[trg]+nBoxPerTarget[trg]]=n;
+			nBoxPerTarget[trg]++;
+		    }
+		}
+	    }
+
+
+	}else{
+	    info.indices.resize(0);
+	    info.starts.resize(target.points().size()+1);
+	    info.starts.fill(0);		
+		    
+	}
+	return info;
+		
     }
 
 
@@ -534,7 +861,7 @@ public:
         aC.reserve(N_Children);
         for (int i=0;i<N_Children;i++) {
             const auto child=node->child(i);
-            if(child->hasSources()) {
+            if(child->hasPoints()) {
                 aC.push_back(child->id());
             }
         }
@@ -546,33 +873,32 @@ public:
         return m_numBoxes[level];
     }
 
-    const auto sourcePoints(IndexRange index) const
+    const auto points(IndexRange index) const
     {
-        return m_srcs.middleCols(index.first, index.second - index.first);
+        return m_pnts.middleCols(index.first, index.second - index.first);
     }
 
-    const auto targetPoints(IndexRange index) const
+    const auto point(size_t id) const
     {
-        return m_targets.middleCols(index.first, index.second - index.first);
+        return m_pnts.col(id);
     }
 
-    const std::vector<size_t> src_permutation() const
+
+    const std::vector<size_t> permutation() const
     {
-        return m_src_permutation;
+        return m_permutation;
     }
 
-    const std::vector<size_t>  target_permutation() const
-    {
-        return m_target_permutation;
-    }
 
-    const IndexRange sources(unsigned int level, size_t i) const
+
+
+    const IndexRange points(unsigned int level, size_t i) const
     {
 	assert(level< m_nodes.size());
 	assert(i < m_nodes[level].size());
 	std::shared_ptr<OctreeNode> node = m_nodes[level][i];
 
-        return node->srcRange();
+        return node->pntRange();
     }
 
     inline const std::vector<IndexRange> nearTargets(unsigned int level, size_t i) const
@@ -587,9 +913,19 @@ public:
         return node->farTargets();
     }
 
+
+    bool hasFarTargetsIncludingAncestors(unsigned int level, size_t i) const
+    {
+	const std::shared_ptr<const OctreeNode>& node = m_nodes[level][i];
+	if(node) {
+	    return node->farTargets().size()>0 ||parentHasFarTargets(node);
+	}
+	return false;
+    }
+
     bool parentHasFarTargets(const std::shared_ptr<const OctreeNode>& node) const
     {
-	const std::shared_ptr<const OctreeNode>& parent = node->parent().lock();
+	const std::shared_ptr<const OctreeNode>& parent = node->parent().lock();	
 	if(parent) {
 	    return parent->farTargets().size()>0 || parentHasFarTargets(parent);
 	}else{
@@ -606,79 +942,6 @@ public:
 	return false;
     }
 
-    /*    const IndexRange siblingSources(unsigned int level, size_t i) const
-    {
-        std::shared_ptr<OctreeNode> node = m_nodes[level][i];
-        IndexRange srcs = node->srcRange();
-        for (int j = 0; j < Octree::N_Children; j++) {
-            const std::shared_ptr<const OctreeNode > sibling = node->parent()->child(j);
-            if (sibling && node->boundingBox().squaredExteriorDistance(sibling->boundingBox()) <= std::numeric_limits<double>::epsilon()) {
-                srcs.first = std::min(srcs.first, sibling->srcRange().first);
-                srcs.second = std::max(srcs.second, sibling->srcRange().second);
-            }
-        }
-
-        return srcs;
-    }
-
-    inline const IndexRange siblingTargets(unsigned int level, size_t i) const
-    {
-        std::shared_ptr<OctreeNode> node = m_nodes[level][i];
-        return siblingTargets(*node);
-    }
-
-    inline const IndexRange siblingTargets(const OctreeNode &node) const
-    {
-        IndexRange targets = node.parent()->targetRange();
-
-        return targets;
-    }
-
-    inline const std::vector<IndexRange> neighborTargets(unsigned int level, size_t i) const
-    {
-        std::shared_ptr<OctreeNode> node = m_nodes[level][i];
-        return neighborTargets(*node);
-    }
-
-    const std::vector<IndexRange> neighborTargets(const OctreeNode &node) const
-    {
-        std::vector<IndexRange> neighbors;
-
-        for (auto nb : node.neighbors()) {
-            neighbors.push_back(nb->targetRange());
-        }
-        return neighbors;
-
-    }
-    const std::vector<IndexRange> cousinTargets(unsigned int level, size_t i) const
-    {
-        std::shared_ptr<OctreeNode> node = m_nodes[level][i];
-	assert(node->id()>=0);
-	return cousinTargets(node);
-    }
-
-    const std::vector<IndexRange> cousinTargets(std::shared_ptr<OctreeNode> node) const
-    {        
-        std::vector<IndexRange> cousins;
-
-	const double H=node->boundingBox().sideLength();
-        //add some of the children of the parents neighbours
-        for (auto p_nb : node->parent()->neighbors()) {
-            //add all the (possible) cousins which have positive distance to the current node (i.e., not neighbors)
-            for (int l = 0; l < N_Children; l++) {
-                const std::shared_ptr<const OctreeNode > cousin = p_nb->child(l);
-                if (cousin && node->boundingBox().squaredExteriorDistance(cousin->boundingBox())>H*H)
-		{
-                    cousins.push_back(cousin->targetRange());
-                }
-            }
-
-        }
-
-        return cousins;
-
-    }
-    */
     const BoundingBox<DIM> bbox(unsigned int level, size_t i) const
     {
         return m_nodes[level][i]->boundingBox();
@@ -695,7 +958,25 @@ public:
         return m_nodes[level][i]->coneDomain();
     }
 
+    const ConeDomain<DIM> coneDomain(unsigned int level, size_t i,size_t substep) const
+    {
+        return m_nodes[level][i]->coneDomain(substep);
+    }
 
+
+
+    const std::vector<size_t> childBoxes(unsigned int level, size_t i) const
+    {
+	auto parent=m_nodes[level][i];
+	std::vector<size_t> children;
+	for(int i=0;i<N_Children;i++) {
+	    const auto child=parent->child(i);
+	    if(child) {
+		children.push_back(child->id());
+	    }	    
+	}
+	return children;
+    }
     
     const size_t parentId(unsigned int level, size_t i) const
     {
@@ -705,9 +986,9 @@ public:
         return id;
     }
 
-    const bool hasSources(unsigned int level, size_t i) const
+    const bool hasPoints(unsigned int level, size_t i) const
     {
-        const auto range = sources(level, i);
+        const auto range = points(level, i);
         return range.first != range.second;
     }
 
@@ -716,17 +997,68 @@ public:
 	return m_nodes[level][i]->isLeaf();        
     }
 
+    size_t numActiveCones(size_t level,size_t step=0) const {
+	return m_activeCones[level][step].size();
+    }
+
+    ConeRef activeCone(size_t level,size_t id,size_t step=0) const
+    {
+	return m_activeCones[level][step][id];
+    }
+
+
+    size_t numLeafCones(size_t level) const
+    {
+	return m_leafCones[level].size();
+    }
+
+    ConeRef leafCone(size_t level, size_t num) const
+    {
+	return m_leafCones[level][num];
+    }
+
+
+    const auto farfieldBoxes(size_t level, size_t targetPoint) const
+    {
+	const auto& ffB=m_farFieldBoxes[level];
+
+	//	assert(targetPoint+1<ffB.starts.size());
+	const size_t start=ffB.starts[targetPoint];
+	const size_t end=ffB.starts[targetPoint+1];
+
+
+	
+	return ffB.indices.segment(start, end-start);
+    }
+
+    const auto nearFieldBoxes(size_t level, size_t targetPoint) const
+    {
+	const auto& nfB=m_nearFieldBoxes[level];
+
+	//	assert(targetPoint+1<ffB.starts.size());
+	const size_t start=nfB.starts[targetPoint];
+	const size_t end=nfB.starts[targetPoint+1];
+
+
+	
+	return nfB.indices.segment(start, end-start);
+    }
+
+
+    size_t numPoints() const {
+	return m_pnts.size();
+    }
 
     void sanitize()
     {
-	Eigen::VectorXi leaf_indices(m_srcs.cols());	
+	Eigen::VectorXi leaf_indices(m_pnts.cols());	
 	leaf_indices.fill(0);
         for (int level = 0; level < m_levels; level++) {
-            Eigen::VectorXi indices(m_srcs.cols());
+            Eigen::VectorXi indices(m_pnts.cols());
 	    indices=leaf_indices;            
             for (int i = 0; i < m_nodes[level].size(); i++) {
-                size_t a = m_nodes[level][i]->srcRange().first;
-                size_t b = m_nodes[level][i]->srcRange().second;
+                size_t a = m_nodes[level][i]->pntRange().first;
+                size_t b = m_nodes[level][i]->pntRange().second;
 		
                 for (int l = a; l < b; l++) {
                     indices[l] += 1;
@@ -740,43 +1072,18 @@ public:
             for (int i = 0; i < indices.size(); i++) {
                 if (indices[i] != 1) {
                     std::cout << "wrong" << indices[i] << " " << i << " level" << level << std::endl;
-                    std::cout << " at " << m_srcs.col(i) << std::endl;
+                    std::cout << " at " << m_pnts.col(i) << std::endl;
                 }
                 assert(indices[i] == 1);
             }
         }
-
-	leaf_indices.fill(0);
-        for (int level = 0; level < m_levels; level++) {
-            Eigen::VectorXi indices(m_targets.cols());	    
-            indices=leaf_indices;
-            for (int i = 0; i < m_nodes[level].size(); i++) {
-                size_t a = m_nodes[level][i]->targetRange().first;
-                size_t b = m_nodes[level][i]->targetRange().second;
-
-                for (int l = a; l < b; l++) {
-                    indices[l] += 1;
-		    if(m_nodes[level][i]->isLeaf()) {
-			leaf_indices[l]+=1;
-		    }
-                }
-            }
-
-            for (int i = 0; i < indices.size(); i++) {
-                if (indices[i] != 1) {
-                    std::cout << "wrong22" << indices[i] << " " << i << std::endl;
-                }
-                assert(indices[i] == 1);
-            }
-        }
-
     }
 
 private:
-    std::shared_ptr<OctreeNode> buildOctreeNode(std::shared_ptr<OctreeNode > parent, const IndexRange &src_range, const IndexRange &target_range, const BoundingBox<DIM> &bbox, unsigned int level = 0)
+    std::shared_ptr<OctreeNode> buildOctreeNode(std::shared_ptr<OctreeNode > parent, const IndexRange &pnt_range, const BoundingBox<DIM> &bbox, unsigned int level = 0)
     {
 	
-	if(src_range.first==src_range.second && target_range.first==target_range.second) //we only keep non-empty nodes around
+	if(pnt_range.first==pnt_range.second) //we only keep non-empty nodes around
 	{
 	    return 0;
 	}
@@ -789,13 +1096,8 @@ private:
 
 	auto node = std::make_shared<OctreeNode >(parent, level);
 
-	for(size_t i=target_range.first;i<target_range.second;i++) {
-	    assert(bbox.contains(m_targets.col(i)));
-	}
-
 	
-	node->setSrcRange(src_range);
-	node->setTargetRange(target_range);
+	node->setPntRange(pnt_range);
 	    
 	node->setBoundingBox(bbox);
 
@@ -805,19 +1107,16 @@ private:
 	m_nodes[level].push_back(node);
 	
 
-
-	//check how big we are. If the number of sources and targets
+	//check how big we are. If the number of points
 	//is small enough we create a new leaf.
-	const size_t N= std::max(src_range.second-src_range.first,
-				 target_range.second-target_range.first);
+	const size_t N= pnt_range.second-pnt_range.first;
 
 	
 	if( N<= m_maxLeafSize ) {
 	    return node;
 	}
 
-        size_t src_idx = src_range.first;
-        size_t target_idx = target_range.first;
+        size_t pnt_idx = pnt_range.first;
 
         for (int j = 0; j < N_Children; j++) {
             Point min;
@@ -839,26 +1138,19 @@ private:
 
             //std::cout<<"building child "<<j<<" at"<<child_bbox.min().transpose()<<" "<<child_bbox.max().transpose()<<std::endl;
 
-            size_t end_src = src_idx;
-            size_t end_target = target_idx;
+            size_t end_pnt = pnt_idx;
 
-            while (end_src < src_range.second && child_bbox.contains(m_srcs.col(end_src))) {
-                ++end_src;
-            }
-
-            while (end_target < target_range.second && child_bbox.contains(m_targets.col(end_target))) {
-                ++end_target;
+            while (end_pnt < pnt_range.second && child_bbox.contains(m_pnts.col(end_pnt).matrix())) {
+                ++end_pnt;
             }
 
 
             //assert(src_idx>=src_range.first && end_src <=src_range.second);
             //std::cout<<"src:"<<src_idx<<end_src<<std::endl;
-            const IndexRange src(src_idx, end_src);
-            const IndexRange target(target_idx, end_target);
-            node->setChild(j, buildOctreeNode(node, src, target, child_bbox, level + 1));
+            const IndexRange pnts(pnt_idx, end_pnt);
+            node->setChild(j, buildOctreeNode(node, pnts, child_bbox, level + 1));
 
-            src_idx = end_src;
-            target_idx = end_target;
+            pnt_idx = end_pnt;
         }
 
         return node;
@@ -881,18 +1173,25 @@ private:
 
     }
 
+    const auto& points() const {
+	return m_pnts;
+    }
+
+
 private:
     std::shared_ptr<OctreeNode > m_root;
     std::vector<std::vector<std::shared_ptr<OctreeNode> > > m_nodes;
+    std::vector<std::array<std::vector<ConeRef>,N_STEPS> > m_activeCones;
+    std::vector<std::vector<ConeRef> > m_leafCones;
+    std::vector< FieldInfo > m_farFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield
+    std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield 
     std::vector<unsigned int> m_numBoxes;
     unsigned int m_levels;
 
     unsigned int m_depth;
     size_t m_maxLeafSize;
-    PointArray m_srcs;
-    PointArray m_targets;
-    std::vector<size_t> m_src_permutation;
-    std::vector<size_t>  m_target_permutation;
+    PointArray m_pnts;
+    std::vector<size_t> m_permutation;
     double m_diameter;
 
     std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;

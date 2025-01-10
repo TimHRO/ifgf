@@ -1,29 +1,58 @@
-#include <iostream>
 #include <Eigen/Dense>
+#include <iostream>
+
 #include <cmath>
 
 #include "helmholtz_ifgf.hpp"
 #include "ifgfoperator.hpp"
 #include "octree.hpp"
 
+#include "grad_helmholtz_ifgf.hpp"
+
 const int dim=3;
 
-const std::complex<double>  k = std::complex<double>(0, 32);
+typedef std::complex<double> Complex;
+const Complex  kappa = Complex(0,-10);
 typedef Eigen::Vector<double,dim> Point;
-std::complex<double> kernel(const Point& x, const Point& y)
-{
-    double d = (x - y).norm();
+std::complex<double> kernel(const Point& x, const Point& y, const Point& normal)
+{    
+    double norm = (x-y).norm();
+    double nxy = -normal.dot(x-y);
+    if(norm < 1e-14) return 0;
+    /*auto kern = exp(Complex(0,kappa)*norm) / (4 * M_PI * norm*norm*norm)
+	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
+	// return kern;*/
 
-    return d == 0 ? 0 : (1 / (4 * M_PI)) * exp(-k * d) / d;
+    auto kern = exp(-kappa*norm) / (4 * M_PI * norm);
+    //x	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
+	// return kern;*/
+    
+
+    return kern;
 }
 
-
+#include <random>
 #include <cstdlib>
 #include <tbb/task_arena.h>
 #include <tbb/global_control.h>
 #include <fenv.h>
 
-#include <coz.h>
+
+Eigen::Vector3d randomPointOnSphere() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    
+    double theta = dis(gen) * 2.0 * M_PI; // Random angle theta
+    double phi = acos(2.0 * dis(gen) - 1.0); // Random angle phi
+
+    double x = sin(phi) * cos(theta);
+    double y = sin(phi) * sin(theta);
+    double z = cos(phi);
+
+    return Eigen::Vector3d(x, y, z);
+}
+
 
 
 int main()
@@ -38,16 +67,35 @@ int main()
     //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
     //oneapi::tbb::task_arena arena(1);
 
-    HelmholtzIfgfOperator<dim> op(k,10,7,2);
+    HelmholtzIfgfOperator<dim> op(-kappa.imag(),10,10,1,-1); //3
+    //GradHelmholtzIfgfOperator<dim> op(kappa,10,3,1,1e-5); //3
+    //op.setDx(-1);
 
-    PointArray srcs = (PointArray::Random(dim,N).array());
-    PointArray targets = (PointArray::Random(dim, N).array());
+    PointArray srcs(3,N);
+    //PointArray srcs=load_csv_arma<PointArray>("srcs.csv");
+
+    //std::cout<<"s"<<srcs<<std::endl;
+    //size_t  N=srcs.cols();
+    //(dim,N);
+    //srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
+    for(int i=0;i<srcs.cols();i++){
+	srcs.col(i)=randomPointOnSphere();
+    }
+    PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
+    PointArray targets = srcs;//(PointArray::Random(dim, N).array());
+    /*for(int i=0;i<targets.cols();i++){
+	targets.col(i)=randomPointOnSphere();
+	}*/
+
+
+    normals.colwise().normalize();
+
 
     feenableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
-    op.init(srcs, targets);
+    op.init(srcs, targets);//,normals);
 
-    Eigen::Vector<std::complex<double>, Eigen::Dynamic> weights(N);
-    weights = Eigen::VectorXd::Random(N);
+    Eigen::Vector<std::complex<double>, Eigen::Dynamic> weights(srcs.cols());
+    weights = Eigen::VectorXd::Random(srcs.cols());
 
     Eigen::Vector<std::complex<double>, Eigen::Dynamic> result;
     for(int i=0;i<10;i++) {
@@ -63,7 +111,7 @@ int main()
         int index = rand() % targets.cols();
         //std::cout<<"idx"<<index<<std::endl;
         for (int i = 0; i < srcs.cols(); i++) {
-            val += weights[i] * kernel(srcs.col(i), targets.col(index));
+            val += weights[i] * kernel(srcs.col(i), targets.col(index),normals.col(i));
         }
 
         double e = std::abs(val - result[index]);

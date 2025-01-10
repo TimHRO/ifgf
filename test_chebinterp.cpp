@@ -36,6 +36,9 @@ int main()
 
         interp_values[i] = kernel(pnt);
     }
+
+    Eigen::Array<T, Eigen::Dynamic, 1> transformed_values(interp_nodes.cols());
+    ChebychevInterpolation::chebtransform<T,dim>(interp_values,transformed_values, ns);
     std::cout<<"1"<<std::endl;
 
     Eigen::Array<T, Eigen::Dynamic, 1> values(N);

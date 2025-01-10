@@ -5,55 +5,61 @@
 #include <numeric>
 
 #include <algorithm>
+#include <oneapi/tbb/parallel_for.h>
+#include <tbb/parallel_sort.h>
 
 namespace Util
 {
-template <class ExecutionPolicy, typename RandomIt, class Compare>
-auto sort_with_permutation(ExecutionPolicy&& policy, RandomIt cbegin, RandomIt cend, Compare comp)
-{
-    auto len = std::distance(cbegin, cend);
-    std::vector<size_t> perm(len);
-    std::iota(perm.begin(), perm.end(), 0U);
-    std::sort(policy, perm.begin(), perm.end(),
-    [&](const size_t &a, const size_t &b) {
-        return comp(*(cbegin + a), *(cbegin + b));
-    });
-    return perm;
-}
+    template <typename RandomIt, class Compare>
+    auto sort_with_permutation( RandomIt cbegin, RandomIt cend, Compare comp)
+    {
+	auto len = std::distance(cbegin, cend);
+	std::vector<size_t> perm(len);
+	std::iota(perm.begin(), perm.end(), 0U);
+	std::sort (perm.begin(), perm.end(),
+			    [&](const size_t &a, const size_t &b) {
+				return comp(*(cbegin + a), *(cbegin + b));
+			    });
+	return perm;
+    }
 
-template <typename T>
-typename T::PlainObject copy_with_permutation(const T &v, const std::vector<size_t> &permutation)
-{
-    typename T::PlainObject data(v.rows(), v.cols());
-    if constexpr (T::ColsAtCompileTime==1) {	
+    template <typename T, int DIMOUT>
+    void copy_with_permutation_rowwise(const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> > &v, const std::vector<size_t> &permutation,
+				       Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > target)
+    {
 	for (size_t i = 0; i < v.rows(); i++) {	
-	    data.row(i) = v.row(permutation[i]);
-	}
-    }else{
-	for (size_t i = 0; i < v.cols(); i++) {	
-	    data.col(i) = v.col(permutation[i]);
+	    target.row(i) = v.row(permutation[i]);
 	}
     }
-    return data;
-}
-    
-template <typename T>
-typename T::PlainObject copy_with_inverse_permutation(const T &v, const std::vector<size_t> &permutation)
-{
 
-    typename T::PlainObject data(v.rows(), v.cols());
-    if constexpr (T::ColsAtCompileTime==1) {
-	for (size_t i = 0; i < v.rows(); i++) {	
-	    data.row(permutation[i]) = v.row(i);
-	}
-    }else{
+    template <typename T, int DIMOUT>
+    void copy_with_permutation_colwise(const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic> > &v, const std::vector<size_t> &permutation,
+				       Eigen::Ref<Eigen::Array<T, DIMOUT, Eigen::Dynamic> > target)
+    {
 	for (size_t i = 0; i < v.cols(); i++) {	
-	    data.col(permutation[i]) = v.col(i);
+	    target.col(i) = v.col(permutation[i]);
+	}    
+    }
+
+
+    template <typename T, int DIMOUT>
+    void copy_with_inverse_permutation_colwise(const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic> > &v, const std::vector<size_t> &permutation,
+					       Eigen::Ref<Eigen::Array<T, DIMOUT,Eigen::Dynamic> > target)
+    {
+	for (size_t i = 0; i < v.cols(); i++) {	
+	    target.col(permutation[i]) = v.col(i);	    
 	}
     }
-    return data;
 
-}
+    template <typename T, int DIMOUT>
+    void copy_with_inverse_permutation_rowwise(const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> > &v, const std::vector<size_t> &permutation,
+					       Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > target)
+    {
+	for (size_t i = 0; i < v.rows(); i++) {
+	    //std::cout<<"permutation"<<permutation[i]<<" "<<target.rows()<<" "<<std::endl;
+	    target.row(permutation[i]) = v.row(i);
+	}       
+    }
 
     //assumes: p[0] in (0,1) and p[1] in (-pi,pi)
     template<size_t DIM,long int POINTS>
@@ -65,7 +71,7 @@ typename T::PlainObject copy_with_inverse_permutation(const T &v, const std::vec
 	    res.row(0)= p.row(0)*Eigen::cos(p.row(1));
 	    res.row(1)= p.row(0)*Eigen::sin(p.row(1));
         }else {
-            assert(DIM==3);
+            static_assert(DIM==3);
 	    res.row(0)=p.row(0)*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(1)=p.row(0)*Eigen::sin(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(2)=p.row(0)*Eigen::cos(p.row(1));	    
@@ -85,7 +91,7 @@ typename T::PlainObject copy_with_inverse_permutation(const T &v, const std::vec
 	    res.row(0)= xc[0]+(H/p.row(0))*Eigen::cos(p.row(1));
 	    res.row(1)= xc[1]+(H/p.row(0))*Eigen::sin(p.row(1));
         }else {
-            assert(DIM==3);
+            static_assert(DIM==3);
 	    res.row(0)=xc[0]+(H/p.row(0))*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(1)=xc[1]+(H/p.row(0))*Eigen::sin(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(2)=xc[2]+(H/p.row(0))*Eigen::cos(p.row(1));	    
@@ -117,7 +123,7 @@ typename T::PlainObject copy_with_inverse_permutation(const T &v, const std::vec
             return  res;
 
         }else{
-            assert(DIM==3);
+            static_assert(DIM==3);
             const double phi = std::atan2(xp[1], xp[0]);
             const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
             const double theta= std::atan2(sqrt(a),xp[2]);
@@ -158,6 +164,54 @@ typename T::PlainObject copy_with_inverse_permutation(const T &v, const std::vec
 
 	return ps;
     }
+
+    template<int DIM>
+    inline Eigen::Vector<size_t,DIM> indicesFromId(size_t j, const Eigen::Ref<const Eigen::Vector<size_t,DIM> > &ns)  {
+	Eigen::Vector<size_t,DIM> indices;	
+	for(int i=0;i<DIM;i++) {
+	    const size_t idx=j % ns[i];
+	    j=j / ns[i];
+	    
+	    indices[i]=idx;
+	}
+
+	return indices;
+    }
+
+
+    template<int DIM>
+    inline size_t indicesToId(const Eigen::Ref<const Eigen::Vector<size_t,DIM> >& idcs, const Eigen::Ref<const Eigen::Vector<size_t,DIM> > &ns)  {
+	size_t id=0;
+	size_t stride=1;
+	for(int i=0;i<DIM;i++) {
+	    id+=idcs[i]*stride;
+	    stride*=ns[i];
+	}
+
+	return id;
+    }
+
+
+
+    template <typename T,int DIM,int DIMOUT>
+    double compute_slice_norm(const Eigen::Ref<const Eigen::Array<T,Eigen::Dynamic, DIMOUT> >& data, const Eigen::Vector<size_t, DIM>& ns,int axis, int layers=1)
+    {
+	double v1=0;
+	double v2=0;
+	
+	for(size_t idx=0;idx<data.rows();idx++) {
+	    Eigen::Vector<size_t,DIM> split=indicesFromId<DIM>(idx,ns);
+	    double n=data.row(idx).matrix().squaredNorm();
+	    
+	    v1+=n;
+	    if(split[axis]==ns[axis]-layers) {
+		v2+=n;
+	    }
+	}
+
+	return sqrt(v2)/std::max(1.,sqrt(v1));
+    }
+
 
 
     

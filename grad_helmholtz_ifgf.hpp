@@ -18,8 +18,10 @@ public:
                           size_t order,
 			      size_t n_elem=1,double tolerance=-1):
         IfgfOperator<std::complex<double>, dim, 1, GradHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tolerance),
-        k(waveNumber)
+        k(waveNumber),
+	m_dx(-1)
     {
+	std::cout<<"creating grad helmholtz waveNr="<<waveNumber<<std::endl;
     }
 
     ~GradHelmholtzIfgfOperator()
@@ -54,8 +56,8 @@ public:
 
 	if constexpr(dx==-1) {
 	    double d = x.norm();
-	    return (d == 0) ? 0 : (1 / (4 * M_PI)) * exp(-k * d) / d;
-	}else{
+	    return (d < 1e-12) ? 0 : (1 / (4 * M_PI)) * exp(-k * d) / d;
+  	}else{
 	    return d<1e-12 ? 0.0:   -(1.0 / (4.0 * M_PI)) * (1.0/(d*d)) * exp(-k * d) *(-k-1.0/d)*x[m_dx];
 	}
     }
@@ -105,7 +107,7 @@ public:
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> d2=(x.matrix().colwise()-xc).colwise().squaredNorm().array();
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> dp2=(x.matrix().colwise()-pxc).colwise().squaredNorm().array();
 
-	const auto invd=Eigen::rsqrt(d2);
+	const auto invd=(d2 > 1e-12).select(Eigen::rsqrt(d2),d2.Zero(d2.rows(),d2.cols()));
 
 	const auto dp=Eigen::sqrt(dp2);
 	const auto d=d2*invd;
@@ -129,8 +131,9 @@ public:
     }
 
 
+    template<int TARGETS_AT_COMPILE_TIME>
     void evaluateKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y, const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &w,
-                        Eigen::Ref<Eigen::Vector<T, Eigen::Dynamic> >  result,IndexRange srcIds) const
+                        Eigen::Ref<Eigen::Vector<T,  TARGETS_AT_COMPILE_TIME> >  result,IndexRange srcIds) const
     {
         assert(result.size() == y.cols());
         assert(w.size() == x.cols());
@@ -185,7 +188,7 @@ public:
 
 		for (int i = 0; i < x.cols(); i++) {
 		    const double d2 = (x.col(i) - y.col(j)).matrix().squaredNorm();
-		    const double id=1.0/sqrt(d2);
+		    const double id=d2>1e-12 ? 1.0/sqrt(d2) : 0.0;
 		    const double d=d2*id;
 
 		    const double w=  (dc) *id;
@@ -213,23 +216,71 @@ public:
 	}
         return result;
     }
- 
-    inline Eigen::Vector<int,dim> orderForBox(double H, unsigned int baseOrder) const
+
+    
+
+
+
+    
+    
+    inline Eigen::Vector<int,dim> orderForBox(double H, Eigen::Vector<int,dim> baseOrder,int step=0) const
     {
 	
-	Eigen::Vector<int,dim> order;
-	order.fill(baseOrder);
-	order[0]=std::max((int)  baseOrder-2,1);
+	Eigen::Vector<int,dim> order=baseOrder;
+
+	//order[2]=std::round(order[2]*1.5);
+	// order.fill(baseOrder);
+	// order[0]=std::max((int) baseOrder-3,1);
+	// order[1]=baseOrder;
+	// order[2]=std::round(baseOrder*1.5);
+
+	if(step==0) {
+	    order=(baseOrder.array()-3).cwiseMax(2);//(baseOrder.array().template cast<double>()*Eigen::log(4./baseOrder.array().template cast<double>())).template cast<int>();
+		//std::cout<<"order="<<order.transpose()<<std::endl;
+	    //order[0]-=2;
+	    //order[2]=std::round(baseOrder[2]/1.3);
+	    //order[2]=baseOrder;
+	    
+	    //order.array()-=2;
+	    //order.array()-=2;
+	}
+	
         return order;
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, unsigned int baseOrder,Eigen::Vector<size_t,dim> base) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
     {
-	const unsigned int order=orderForBox(H,baseOrder).minCoeff();
-	double delta=std::max( 1.5*abs(imag(k))*H/(order*(1.0+real(k))) , 1.0); //make sure that k H/p is bounded. this guarantees spectral convergence w.r.t. p.
-	base*=(int) ceil(delta);
-	return base;	    
+	const auto orders=orderForBox(H,baseOrder,step);
+	Eigen::Vector<size_t,dim> els;
+
+	if(step==0){
+	    base*=3;
+	    //base[2]*=2;
+	}
+	    
+	for(int i=0;i<dim;i++) {
+	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
+	    double delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
+	    
+
+	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
+	}
+	    
+	return els;	    
     }
+
+
+    inline  double  cutoff_limit(double H) const
+    {
+	if(this->tolerance()>0) {
+	    return  std::max(1e-4,std::abs(k.real())*H/abs(log(this->tolerance())));
+	}else {
+	    return  1e-4;
+	}
+    }
+
+   
+ 
 
 
 private:

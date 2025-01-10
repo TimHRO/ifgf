@@ -31,12 +31,20 @@ public:
 
     void init(const PointArray &srcs, const PointArray targets, const PointArray& normals)
     {
+	m_normals=normals;
 	IfgfOperator<T,dim,1,DoubleLayerHelmholtzIfgfOperator<dim> >::init(srcs,targets);
-
-	m_normals=Util::copy_with_permutation(normals, this->octree().src_permutation());
+	
     }
 
-    
+    //once the octree is ready, we can reorder it such that the morton-order is observed
+    void onOctreeReady()
+    {
+	PointArray sorted(dim, m_normals.cols());
+	Util::copy_with_permutation_colwise<double,dim>(m_normals, this->src_octree().permutation(),sorted);
+	m_normals=sorted;
+    }
+   
+   
     
     typedef std::complex<double > T ;
 
@@ -106,8 +114,9 @@ public:
     }
 
 
+    template<int TARGETS_AT_COMPILE_TIME>
     void evaluateKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y, const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &w,
-                        Eigen::Ref<Eigen::Vector<T, Eigen::Dynamic> >  result,IndexRange srcIds) const
+                        Eigen::Ref<Eigen::Array<T, TARGETS_AT_COMPILE_TIME,1> >  result,IndexRange srcIds) const
     {
         assert(result.size() == y.cols());
         assert(w.size() == x.cols());
@@ -146,24 +155,57 @@ public:
 	}
         return result;
     }
- 
-    inline Eigen::Vector<int,dim> orderForBox(double H, unsigned int baseOrder) const
+
+
+        
+    inline Eigen::Vector<int,dim> orderForBox(double H, Eigen::Vector<int,dim> baseOrder,int step=0) const
     {
 	
-	Eigen::Vector<int,dim> order;
-	order.fill(baseOrder);
-	order[0]=std::max((int)  baseOrder-2,1);
+	Eigen::Vector<int,dim> order=baseOrder;
+
+	//order[2]=std::round(order[2]*1.5);
+	// order.fill(baseOrder);
+	// order[0]=std::max((int) baseOrder-3,1);
+	// order[1]=baseOrder;
+	// order[2]=std::round(baseOrder*1.5);
+
+	if(step==0) {
+	    order=baseOrder.array()-3;//(baseOrder.array().template cast<double>()*Eigen::log(4./baseOrder.array().template cast<double>())).template cast<int>();
+		//std::cout<<"order="<<order.transpose()<<std::endl;
+	    //order[0]-=2;
+	    //order[2]=std::round(baseOrder[2]/1.3);
+	    //order[2]=baseOrder;
+	    
+	    //order.array()-=2;
+	    //order.array()-=2;
+	}
+	
         return order;
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, unsigned int baseOrder,Eigen::Vector<size_t,dim> base) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
     {
-	const unsigned int order=orderForBox(H,baseOrder).minCoeff();
-	double delta=std::max( abs(imag(k))*H/(order*(1.0+real(k))) , 1.0); //make sure that k H/p is bounded. this guarantees spectral convergence w.r.t. p.
-	base*=(int) ceil(delta);
-	return base;	    
+	const auto orders=orderForBox(H,baseOrder,step);
+	Eigen::Vector<size_t,dim> els;
+
+	if(step==0){
+	    base*=3;
+	    //base[2]*=2;
+	}
+	    
+	for(int i=0;i<dim;i++) {
+	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
+	    double delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
+	    
+
+	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
+	}
+	    
+	return els;	    
     }
 
+    
+    
 
 private:
     std::complex<double> k;

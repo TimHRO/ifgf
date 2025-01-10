@@ -17,11 +17,12 @@ project(ifgf CXX)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE " -Ofast -fno-math-errno -ffast-math -funroll-loops")
-string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -Ofast ")
-string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O2 ")
-add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE  )
-#add_definitions(-DEIGEN_INITIALIZE_MATRICES_BY_ZERO)
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -Ofast -fno-math-errno -ffast-math -funroll-loops  -UUSE_NGSOLVE -flto=auto")
+string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -Ofast  -flto=auto")
+string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O2  -flto=auto")
+add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE   )
+
+find_package(unordered_dense CONFIG )
 
 
 

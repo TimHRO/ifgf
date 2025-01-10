@@ -1,29 +1,23 @@
-#ifndef __HELMHOLTZ_IFGF_HPP__
-#define __HELMHOLTZ_IFGF_HPP__
+#ifndef __MOD_HELMHOLTZ_IFGF_HPP__
+#define __MOD_HELMHOLTZ_IFGF_HPP__
 
 #include "ifgfoperator.hpp"
 
 
 template<size_t dim >
-class HelmholtzIfgfOperator : public IfgfOperator<std::complex<double>, dim,
-                                                  1, HelmholtzIfgfOperator<dim> >
+class ModifiedHelmholtzIfgfOperator : public IfgfOperator<std::complex<double>, dim,
+                                                  1, ModifiedHelmholtzIfgfOperator<dim> >
 {
 public:
     typedef Eigen::Array<double, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<double,dim> Point;
-    HelmholtzIfgfOperator(double waveNumber,
+    ModifiedHelmholtzIfgfOperator(std::complex<double> waveNumber,
                           size_t leafSize,
                           size_t order,
                           size_t n_elem=1,double tol=-1):
-        IfgfOperator<std::complex<double>, dim, 1, HelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
+        IfgfOperator<std::complex<double>, dim, 1, ModifiedHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
         k(waveNumber)
     {
-
-    }
-
-    ~HelmholtzIfgfOperator()
-    {
-	std::cout<<"deleting helmholtz ifgf"<<std::endl;
     }
 
     typedef std::complex<double > T ;
@@ -46,7 +40,7 @@ public:
     inline T kernelFunction(const Eigen::Ref< const Point >&  x) const
     {
         double d = x.norm();
-        return (d == 0) ? 0 : (1 / (4 * M_PI)) * exp(T(0,k) * d) / d;
+        return (d == 0) ? 0 : (1 / (4 * M_PI)) * exp(-k * d) / d;
     }
 
     template<typename TX>
@@ -59,7 +53,7 @@ public:
 
 	    const auto d=d2.array()*invd.array();
 	    const double factor= (1.0/ (4.0 * M_PI));
-	    return (Eigen::cos(k*d)+T(0,1)*Eigen::cos(k*d)) * invd *factor;
+	    return Eigen::exp(-k * d) * invd *factor;
 	}else
 	{
 	    
@@ -69,7 +63,7 @@ public:
 	    const auto d=d2*id;
 
 
-	    return exp(T(0,k) * d)*id  * (1/(4.0 * M_PI));	
+	    return exp(-k * d)*id  * (1/(4.0 * M_PI));	
 	}
     }
 
@@ -94,62 +88,46 @@ public:
 	    const double d=(x.col(i).matrix()-xc).norm();
 	    const double dp=(x.col(i).matrix()-pxc).norm();
 	    
-	    result(i)*=std::exp(T(0,k)*(d-dp))*dp/d;
+	    result(i)*=std::exp(-k*(d-dp))*dp/d;
 	}
     }
 
     template<int TARGETS_AT_COMPILE_TIME>
     void evaluateKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y, const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &w,
-                        Eigen::Ref<Eigen::Vector<T, TARGETS_AT_COMPILE_TIME> >  result,IndexRange srcsIds) const
+                        Eigen::Ref<Eigen::Array<T, TARGETS_AT_COMPILE_TIME,1> >  result,IndexRange srcsIds) const
     {
         assert(result.size() == y.cols());
         assert(w.size() == x.cols());
 
-	
-	for (int j = 0; j < y.cols(); j++) {
-	    for (int i = 0; i < x.cols(); i++) {
-	    //result+= w[i]* kernelFunction((- y).colwise()+x.col(i)).matrix();        
+        for (int i = 0; i < x.cols(); i++) {
+	    //result+= w[i]* kernelFunction((- y).colwise()+x.col(i)).matrix();
+            for (int j = 0; j < y.cols(); j++) {
                 result[j] += w[i] * kernelFunction(x.col(i) - y.col(j));
 	    }
         }
     }
 
-
-
-    Eigen::Vector<T, Eigen::Dynamic>  evaluateFactoredKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y,
-            const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights,
-							     const Point& xc, double H, IndexRange srcsIds) const
+    Eigen::Array<T, Eigen::Dynamic,1>  evaluateFactoredKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y,
+							      const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights,
+							      const Point& xc, double H, IndexRange srcsIds) const
     {
 
-        Eigen::Vector<T, Eigen::Dynamic> result(y.cols());
+        Eigen::Array<T, Eigen::Dynamic,1> result(y.cols());
 
-	const int pkg_size=4;
-	Eigen::Array<T, pkg_size,1> tmp;
-	Eigen::Array<double, pkg_size,1> d;
         result.fill(0);        
 	for (int j = 0; j < y.cols(); j++) {
             const double dc = (y.matrix().col(j) - xc).norm();
 
-	    size_t i=0;
-	    for (i = 0; i < x.cols()/ pkg_size; i++) {
-		d=(x.middleCols( pkg_size*i, pkg_size).colwise()-y.col(j)).matrix().colwise().norm().array();
-		tmp.real()=(Eigen::cos(k*(d-dc))*dc/d);
-		tmp.imag()=Eigen::sin(k*(d-dc))*(dc/d);
+	    for (int i = 0; i < x.cols(); i++) {
+                double d = (x.col(i) - y.col(j)).matrix().norm();
 		
-                //const float d = (x.col(i) - y.col(j)).matrix().norm();
-                result[j] +=  (weights.segment( pkg_size*i, pkg_size).matrix().transpose() * tmp.matrix()).value(); // *  std::complex<double>(  exp(std::complex<float>(0,(float) k) * (d - dc)) * (dc) / d);
+                result[j] +=
+		    (d==0) ? 0 : weights[i] * 
+		    exp(-k * (d - dc)) * (dc) / d;
 	    }
-
-	    for(size_t l=i* pkg_size;l<x.cols();l++)
-	    {
-		const double d = (x.col(l) - y.col(j)).matrix().norm();
-                result[j] +=  weights[l] *  exp(T(0,k)* (d - dc)) * (dc) / d;
-		
-	    }
-	}
+        }
         return result;
     }
-
 
 
         
@@ -159,7 +137,7 @@ public:
 	Eigen::Vector<int,dim> order=baseOrder;
 
 	if(step==0) {
-	    order=(baseOrder.array()-3).cwiseMax(2);
+	    order=baseOrder.array()-3;//(baseOrder.array().template cast<double>()*Eigen::log(4./baseOrder.array().template cast<double>())).template cast<int>();
 	}
 	
         return order;
@@ -177,7 +155,7 @@ public:
 	    
 	for(int i=0;i<dim;i++) {
 	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
-	    double delta=std::max( k*H/4.,1.);
+	    double delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
 	    
 
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
@@ -189,7 +167,7 @@ public:
 
 
 private:
-    double k;
+    std::complex<double> k;
 
 };
 
