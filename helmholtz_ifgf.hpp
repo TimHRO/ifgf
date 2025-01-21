@@ -4,6 +4,51 @@
 #include "ifgfoperator.hpp"
 
 
+
+class HelmholtzKernelFunctions
+{
+    typedef std::complex<double> T;
+    const static  int dim=3;
+    typedef Eigen::Array<double, dim, Eigen::Dynamic> PointArray;
+    typedef Eigen::Vector<double,dim> Point;
+
+public:
+    HelmholtzKernelFunctions(double waveNr):
+	k(waveNr)
+    {
+    }
+
+
+    inline T kernelFunction(const sycl::marray<double,3>& x) const
+    {
+        double d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
+        return (d == 0) ? 0 : (1 / (4 * M_PI)) * exp(T(0,k) * d) / d;
+    }
+
+
+    
+    template <typename AT1,typename AT2,typename AT3>
+    T evaluateKernel(const AT1& xs, size_t x0, size_t xend, const AT2& ys, size_t y0,
+			     const AT3& ws)  const
+    {
+	T result=0;
+
+	sycl::marray<double,3> pnt;
+	for (int i = x0; i < xend; i++) {
+	    for(int l=0;l<dim;l++)  {
+		pnt[l]=xs[i+l]-ys[y0+l];
+	    }
+	    result += ws[i] * kernelFunction(pnt);	
+        }
+	return result;
+    }
+
+
+private:
+    double k;
+};
+
+
 template<size_t dim >
 class HelmholtzIfgfOperator : public IfgfOperator<std::complex<double>, dim,
                                                   1, HelmholtzIfgfOperator<dim> >
@@ -11,6 +56,10 @@ class HelmholtzIfgfOperator : public IfgfOperator<std::complex<double>, dim,
 public:
     typedef Eigen::Array<double, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<double,dim> Point;
+
+
+    
+    
     HelmholtzIfgfOperator(double waveNumber,
                           size_t leafSize,
                           size_t order,
@@ -27,6 +76,12 @@ public:
     }
 
     typedef std::complex<double > T ;
+
+
+    HelmholtzKernelFunctions kernelFunctions() const {
+	HelmholtzKernelFunctions f(k);
+	return f; 
+    }
     /*
     template<typename TX>
     inline Eigen::Vector<T, TX::ColsAtCompileTime>  kernelFunction(TX x) const
@@ -41,6 +96,8 @@ public:
         
         return (factor*Eigen::exp(-k * d) * invd) ;
 	}*/
+
+
 
 
     inline T kernelFunction(const Eigen::Ref< const Point >&  x) const
@@ -113,6 +170,7 @@ public:
 	    }
         }
     }
+
 
 
 

@@ -3,18 +3,24 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include "chebinterp.hpp"
+
+#include "sycl_ext_complex.hpp"
 #include <complex>
 
 #include <tbb/parallel_for.h>
 
+#include <sycl/sycl.hpp>
+
 int main()
 {
-    const int N = 100000;
+    const int N = 10000;
     const int dim = 3;
 
     typedef double TSCAL;
     typedef std::complex<TSCAL> T;
+    //typedef TSCAL T;
     Eigen::Array<TSCAL, dim, Eigen::Dynamic> points = Eigen::Array<TSCAL, dim, Eigen::Dynamic, Eigen::ColMajor>::Random(dim, N)+0.01;
+   
 
     const TSCAL H = 0.5;
     const TSCAL k = 1;

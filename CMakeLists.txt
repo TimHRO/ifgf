@@ -22,7 +22,7 @@ string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -Ofast  -flto=auto")
 string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O2  -flto=auto")
 add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE   )
 
-find_package(unordered_dense CONFIG )
+# find_package(unordered_dense CONFIG )
 
 
 
@@ -33,13 +33,14 @@ include_directories(${EIGEN3_INCLUDE_DIR} ${TBB_INCLUDE_DIR})
 # find_package(pybind11 REQUIRED)
 # pybind11_add_module(pyifgf SHARED py_ifgf.cpp )
 # target_link_libraries (pyifgf PRIVATE tbb)
-# set_property(TARGET pyifgf PROPERTY CXX_STANDARD 20)
+#set_property(TARGET pyifgf PROPERTY CXX_STANDARD 20)
 
 
 
 set(TARGET_NAME "test_ifgf")
 set(SOURCE_FILE test_ifgf.cpp)
-set(COMPILE_FLAGS "-fsycl -Wall ${WIN_FLAG} -O2")
+
+set(COMPILE_FLAGS "-fsycl -Wall ${WIN_FLAG} -O3 -g")
 set(LINK_FLAGS "-fsycl -ltbb")
 
 # To compile in a single command:
