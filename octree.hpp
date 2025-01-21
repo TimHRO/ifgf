@@ -5,6 +5,7 @@
 #include "config.hpp"
 
 #include <Eigen/Dense>
+#include <iterator>
 #include <memory>
 #include <map>
 #include <vector>
@@ -1079,6 +1080,11 @@ public:
         }
     }
 
+    const auto& points() const {
+	return m_pnts;
+    }
+
+
 private:
     std::shared_ptr<OctreeNode> buildOctreeNode(std::shared_ptr<OctreeNode > parent, const IndexRange &pnt_range, const BoundingBox<DIM> &bbox, unsigned int level = 0)
     {
@@ -1173,12 +1179,13 @@ private:
 
     }
 
-    const auto& points() const {
-	return m_pnts;
-    }
 
 
 private:
+
+    template<typename T2,int DIM2>
+    friend class OctreeLevelData;
+    
     std::shared_ptr<OctreeNode > m_root;
     std::vector<std::vector<std::shared_ptr<OctreeNode> > > m_nodes;
     std::vector<std::array<std::vector<ConeRef>,N_STEPS> > m_activeCones;
@@ -1195,7 +1202,140 @@ private:
     double m_diameter;
 
     std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
-
 };
+
+
+
+
+
+template<typename T,int DIM>
+class OctreeLevelData
+{
+
+public:
+    OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
+    points_start(octree.numBoxes(level)),
+    points_end(octree.numBoxes(level)),
+    ffB_indices(octree.m_farFieldBoxes[level].indices),	
+    ffB_starts(octree.m_farFieldBoxes[level].starts),
+    nfB_indices(octree.m_nearFieldBoxes[level].indices),
+    nfB_starts(octree.m_nearFieldBoxes[level].starts)
+    {
+	std::cout<<"creating ocdata"<<std::endl;
+	sycl::host_accessor starts(points_start,sycl::write_only);
+	sycl::host_accessor ends(points_end,sycl::write_only);
+	//serialize the points
+	for(size_t box=0;box<octree.numBoxes(level);box++)
+	{
+	    
+	    auto range =octree.points(level,box);
+	    starts[box]=range.first;	    
+	    ends[box]=range.second;	    
+	}
+
+	std::cout<<"done"<<std::endl;
+
+    }
+    
+
+
+    class Accessor
+    {
+    public:
+	Accessor(OctreeLevelData& data) :
+	    ffB_indices(data.ffB_indices),
+	    ffB_starts(data.ffB_starts),
+	    nfB_indices(data.ffB_indices),
+	    nfB_starts(data.ffB_starts),
+	    points_start(data.points_start),
+	    points_end(data.points_end)
+	{
+	
+	}
+
+    
+
+	IndexRange points(size_t boxId) const
+	{
+	    return IndexRange({points_start[boxId],points_end[boxId]});
+	}
+
+
+
+	const auto farfieldBoxes(size_t targetPoint) const
+	{
+	    const size_t start=ffB_starts[targetPoint];
+	    const size_t end=ffB_starts[targetPoint+1];
+
+
+	    
+	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(ffB_indices.cbegin()+start,ffB_indices.cbegin()+end);
+	    //ffB_indices.segment(start, end-start);
+	}
+
+	const auto nearFieldBoxes(size_t targetPoint) const
+	{
+	    const size_t start=nfB_starts[targetPoint];
+	    const size_t end=nfB_starts[targetPoint+1];
+
+	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
+ 	}
+    
+
+	
+
+    private:
+	//far field boxes
+	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_indices;
+	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_starts;
+
+	//near field boxes
+	sycl::accessor< size_t,1,sycl::access_mode::read> nfB_indices;
+	sycl::accessor< size_t,1,sycl::access_mode::read> nfB_starts;
+
+	//points
+	sycl::accessor< size_t,1,sycl::access_mode::read> points_start;
+	sycl::accessor< size_t,1,sycl::access_mode::read> points_end;
+
+
+    };
+
+
+    const Accessor& accessor()
+    {
+	return Accessor(*this);	
+    }
+        
+
+    
+private:
+    //far field boxes
+    sycl::buffer<size_t,1> ffB_indices;
+    sycl::buffer<size_t,1> ffB_starts;
+
+    //near field boxes
+    sycl::buffer<size_t,1> nfB_indices;
+    sycl::buffer<size_t,1> nfB_starts;
+
+
+    sycl::buffer<size_t,1> points_start;
+    sycl::buffer<size_t,1> points_end;
+    
+        
+};
+
+
+
+
+
+
+
+
+
+    
+
+    
+
+
 
 #endif

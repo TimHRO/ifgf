@@ -200,6 +200,7 @@ inline void  tp_evaluate_int(
 }
 
 
+
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 void ChebychevInterpolation::tp_evaluate(
 					 const std::array<Eigen::Array<double, Eigen::Dynamic,1> , DIM >
@@ -258,29 +259,60 @@ void ChebychevInterpolation::parallel_evaluate(
 
 	//for(int i=0;i<points.cols();)
 	//{
-	size_t n_points = points.cols();
-	if constexpr(DIM==3) {
 
-	    if(ns[0]==2 && ns[1]==4 && ns[2]==4)  {
-		__eval<T, DIM, 5, 4, 4, 2>(points0, interp_values, ns, dest, 0, n_points);
-	    }
-	    else if(ns[0]==4 && ns[1]==6 && ns[2]==6)  {
-		__eval<T, DIM, 5, 6, 6, 4>(points0, interp_values, ns, dest, 0, n_points);
-	    }else if(ns[0]==6 && ns[1]==8 && ns[2]==8)  {
-		__eval<T, DIM, 5, 8, 8, 6>(points0, interp_values, ns, dest, 0, n_points);
-		return;
-	    }else if(ns[0]==8 && ns[1]==10 && ns[2]==10)  {
-		__eval<T, DIM, 5, 10, 10, 8>(points0, interp_values, ns, dest, 0, n_points);
-		return;
-	    }else{		
-		__eval<T, DIM, 5,-1,-1,-1>(points0, interp_values, ns, dest, 0, n_points);
-	    }
-	}else{
-	    __eval<T, DIM, 5,-1,-1,-1>(points0, interp_values, ns, dest, 0, n_points);
+	std::cout<<"ize="<<interp_values.size()<<std::endl;
+	sycl::buffer<T,1>  b_interp_values(interp_values.data(),sycl::range{(size_t) interp_values.size()});
+	sycl::buffer<T,1>  b_dest(dest.data(),sycl::range{(size_t)  dest.size()});
+
+	sycl::buffer<double>  b_pnts(points0.data(),sycl::range{DIM*((size_t)  points0.cols())});
+
+	//sycl::marray<int,DIM> m_ns=SyclHelpers::EigenVectorToMArray(ns);
+
+	std::array<int, DIM> m_ns;
+	for(int i=0;i<DIM;i++)
+	    m_ns[i]=ns[i];
+
+	sycl::queue Q;
+	const auto &device = Q.get_device();
+
+	Q.submit([&] (sycl::handler& h) {
+	    sycl::accessor a_interp_values(b_interp_values,h,sycl::read_only);
+	    sycl::accessor a_dest(b_dest,h,sycl::write_only,sycl::no_init);
+	    sycl::accessor a_pnts(b_pnts,h,sycl::read_only);
 	    
+	    size_t n_points = points.cols();
+	    h.single_task( [a_pnts,a_interp_values,a_dest,n_points,m_ns]() {
+
+		if constexpr(DIM==3) {
+
+		    if(m_ns[0]==2 && m_ns[1]==4 && m_ns[2]==4)  {
+			__eval<T, DIM, 5, 4, 4, 2>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+		    }
+		    else if(m_ns[0]==4 && m_ns[1]==6 && m_ns[2]==6)  {
+			__eval<T, DIM, 5, 6, 6, 4>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+		    }else if(m_ns[0]==6 && m_ns[1]==8 && m_ns[2]==8)  {
+			__eval<T, DIM, 5, 8, 8, 6>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+			return;
+		    }else if(m_ns[0]==8 && m_ns[1]==10 && m_ns[2]==10)  {
+			__eval<T, DIM, 5, 10, 10, 8>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+			return;
+		    }else{		
+			__eval<T, DIM, 5,-1,-1,-1>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+		    }
+		}else{
+		    __eval<T, DIM, 5,-1,-1,-1>(a_pnts, a_interp_values, m_ns, a_dest, 0, n_points);
+	    
+		}
+		
+	    });
 	}
 
-	    
+
+      );
+	Q.wait();
+
+	//sycl::host_accessor result{b_dest, sycl::read_only};
+	
 
 	    //std::cout<<"i"<<i<<" vs "<<r.end()<<std::endl;
 	    //assert(i == r.end());

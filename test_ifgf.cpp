@@ -60,7 +60,7 @@ int main()
     
     typedef Eigen::Matrix<double, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 1000;
+    const int N = 1200;
 
 
     //Eigen::initParallel();
