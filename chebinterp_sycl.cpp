@@ -260,7 +260,7 @@ void ChebychevInterpolation::parallel_evaluate(
 	//for(int i=0;i<points.cols();)
 	//{
 
-	std::cout<<"ize="<<interp_values.size()<<std::endl;
+	//std::cout<<"ize="<<interp_values.size()<<std::endl;
 	sycl::buffer<T,1>  b_interp_values(interp_values.data(),sycl::range{(size_t) interp_values.size()});
 	sycl::buffer<T,1>  b_dest(dest.data(),sycl::range{(size_t)  dest.size()});
 

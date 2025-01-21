@@ -557,5 +557,5 @@ template <typename T,int DIM>
 
 };
 
-#include "chebinterp.cpp"
+#include "chebinterp_sycl.cpp"
 #endif

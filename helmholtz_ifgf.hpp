@@ -34,9 +34,9 @@ public:
 	T result=0;
 
 	sycl::marray<double,3> pnt;
-	for (int i = x0; i < xend; i++) {
+	for (size_t i = x0; i < xend; i++) {
 	    for(int l=0;l<dim;l++)  {
-		pnt[l]=xs[i+l]-ys[y0+l];
+		pnt[l]=xs[i*dim+l]-ys[y0*dim+l];
 	    }
 	    result += ws[i] * kernelFunction(pnt);	
         }

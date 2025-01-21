@@ -14,6 +14,7 @@
 #include <unordered_set>
 
 #include "util.hpp"
+
 #include "boundingbox.hpp"
 #include "zorder_less.hpp"
 #include "chebinterp.hpp"
@@ -32,6 +33,8 @@ const int N_STEPS=2;
 #endif
 
 
+#include <sycl/sycl.hpp>
+#include "sycl_helpers.hpp"
 
 template<typename T, size_t DIM>
 class Octree
@@ -1242,27 +1245,27 @@ public:
     class Accessor
     {
     public:
-	Accessor(OctreeLevelData& data) :
-	    ffB_indices(data.ffB_indices),
-	    ffB_starts(data.ffB_starts),
-	    nfB_indices(data.ffB_indices),
-	    nfB_starts(data.ffB_starts),
-	    points_start(data.points_start),
-	    points_end(data.points_end)
+	Accessor(OctreeLevelData& data,sycl::handler& h) :
+	    ffB_indices(data.ffB_indices,h),
+	    ffB_starts(data.ffB_starts,h),
+	    nfB_indices(data.nfB_indices,h),
+	    nfB_starts(data.nfB_starts,h),
+	    points_start(data.points_start,h),
+	    points_end(data.points_end,h)
 	{
-	
+	    
 	}
 
     
 
-	IndexRange points(size_t boxId) const
+	inline IndexRange  points(size_t boxId) const
 	{
 	    return IndexRange({points_start[boxId],points_end[boxId]});
 	}
 
 
 
-	const auto farfieldBoxes(size_t targetPoint) const
+	const inline  auto farfieldBoxes(size_t targetPoint) const
 	{
 	    const size_t start=ffB_starts[targetPoint];
 	    const size_t end=ffB_starts[targetPoint+1];
@@ -1270,16 +1273,17 @@ public:
 
 	    
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(ffB_indices.cbegin()+start,ffB_indices.cbegin()+end);
-	    //ffB_indices.segment(start, end-start);
 	}
 
-	const auto nearFieldBoxes(size_t targetPoint) const
-	{
+	const inline  auto nearFieldBoxes(size_t targetPoint) const
+	{	    
 	    const size_t start=nfB_starts[targetPoint];
 	    const size_t end=nfB_starts[targetPoint+1];
 
+
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
  	}
+
     
 
 	
@@ -1301,9 +1305,9 @@ public:
     };
 
 
-    const Accessor& accessor()
+    Accessor accessor(sycl::handler& h)
     {
-	return Accessor(*this);	
+	return Accessor(*this,h);	
     }
         
 

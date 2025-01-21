@@ -246,18 +246,17 @@ public:
 	const auto &device = Q.get_device();
 	std::cout << "Running on: "
 		  << Q.get_device().get_info<sycl::info::device::name>()
+		  <<device.get_info<sycl::info::device::max_compute_units>()
 		  << std::endl;
 
-
 	//push some global data to the GPU
-
 	Eigen::Vector<T, Eigen::Dynamic> new_weights(weights.size());
         Util::copy_with_permutation_rowwise<T,1> (weights.array(), m_src_octree->permutation(),new_weights.array());
-	/*sycl::buffer<const T, 1> b_weights(new_weights.data(),weights.size());
+	sycl::buffer<const T, 1> b_weights(new_weights.data(),weights.size());
 	sycl::buffer<const double, 1> b_srcs(m_src_octree->points().data(),m_src_octree->numPoints()*DIM);
 	sycl::buffer<const double, 1> b_targets(m_target_octree->points().data(),m_target_octree->numPoints()*DIM);
 
-	sycl::buffer<T, 1> b_result(result.data(),result.size());*/
+	sycl::buffer<T, 1> b_result(result.data(),result.size());
 
 
 	//TODO remove?
@@ -279,40 +278,43 @@ public:
             std::cout << "level=" << level << " "<< m_src_octree->numBoxes(level)<< std::endl;
 	    
 	    std::cout << "near field" <<std::endl;
-	    /*OctreeLevelData<T,DIM> srcData(*m_src_octree,level);
+	    OctreeLevelData<T,DIM> srcData(*m_src_octree,level);
 
             Q.submit([&](sycl::handler &h) {
               // start by pushing  some data to the GPU (octree stuff)
-              sycl::accessor a_srcs(b_srcs, sycl::read_only);
-              sycl::accessor a_targets(b_srcs, sycl::read_only);
-              sycl::accessor a_weights(b_weights, sycl::read_only);
+              sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
+              sycl::accessor a_targets(b_targets, h, sycl::read_only);
+              sycl::accessor a_weights(b_weights, h, sycl::read_only);
 
-              sycl::accessor a_result(b_result, sycl::read_write);
+              sycl::accessor a_result(b_result, h, sycl::read_write);
 
-              const auto &srcDataAcc = srcData.accessor();
+              const auto &srcDataAcc = srcData.accessor(h);
               const auto functions =
                   static_cast<Derived *>(this)->kernelFunctions();
 
               std::cout << "done preparing" << std::endl;
               auto out = sycl::stream(1024, 768, h);
+	      const size_t num_targets=m_target_octree->numPoints();
+	     
               h.parallel_for(
-                  sycl::range(m_target_octree->numPoints()),
+                  sycl::range(num_targets),
                   [=](sycl::id<1> i) {
-		    out<<"trying pnt"<<i<<"\n";
-		    // for( size_t boxId : srcDataAcc.nearFieldBoxes(i) ){
-                  //     out << "box=" << boxId << "\n";
-                  //     IndexRange srcs = srcDataAcc.points(boxId);
-                  //     const size_t nS = srcs.second - srcs.first;
-                  //     if (nS == 0) { // skip empty boxes
-                  //       continue;
-                  //     }
+		      //out<<"pnt"<<i<<"\n";
+		      for( size_t boxId : srcDataAcc.nearFieldBoxes(i)) {
+			  
+			  IndexRange srcs = srcDataAcc.points(boxId);	
+			  const size_t nS = srcs.second - srcs.first;
+			  if (nS == 0) { //skip empty boxes
+			      continue;
+			  }
 
-                  //     functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
-                  //                              a_targets, i, a_weights);
-                  //   }
-                   });
+			  
+			  a_result[i]+=functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
+								a_targets, i, a_weights);
+		      }
+		  });
             });
-	    */
+            Q.wait();
 
             //Get an exemplary bbox to determine the interpolation order
 	    BoundingBox bbox = m_src_octree->bbox(level, 0);
