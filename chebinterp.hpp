@@ -330,7 +330,7 @@ namespace ChebychevInterpolation
 		tmp= clenshaw(x,
 			      vals.middleRows(j * stride, stride),
 			      ns);
-		tmp+=(2.*(b1*x.template row(DIM-1).transpose())-b2);
+		tmp+=(2.*(b1*x.row(DIM-1).transpose())-b2);
 		b2=b1;
 		b1=tmp;
 		

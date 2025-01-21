@@ -37,10 +37,10 @@ include_directories(${EIGEN3_INCLUDE_DIR} ${TBB_INCLUDE_DIR})
 
 
 
-set(TARGET_NAME "test_cheb")
-set(SOURCE_FILE test_chebinterp.cpp)
+set(TARGET_NAME "test_ifgf")
+set(SOURCE_FILE test_ifgf.cpp)
 set(COMPILE_FLAGS "-fsycl -Wall ${WIN_FLAG} -O2")
-set(LINK_FLAGS "-fsycl")
+set(LINK_FLAGS "-fsycl -ltbb")
 
 # To compile in a single command:
 #    icpx -fsycl <file>.cpp -o <file>

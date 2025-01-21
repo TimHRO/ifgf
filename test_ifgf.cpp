@@ -14,7 +14,7 @@ const int dim=3;
 typedef std::complex<double> Complex;
 const Complex  kappa = Complex(0,-10);
 typedef Eigen::Vector<double,dim> Point;
-std::complex<double> kernel(const Point& x, const Point& y, const Point& normal)
+std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
 {    
     double norm = (x-y).norm();
     double nxy = -normal.dot(x-y);
@@ -111,7 +111,7 @@ int main()
         int index = rand() % targets.cols();
         //std::cout<<"idx"<<index<<std::endl;
         for (int i = 0; i < srcs.cols(); i++) {
-            val += weights[i] * kernel(srcs.col(i), targets.col(index),normals.col(i));
+            val += weights[i] * my_kernel(srcs.col(i), targets.col(index),normals.col(i));
         }
 
         double e = std::abs(val - result[index]);
