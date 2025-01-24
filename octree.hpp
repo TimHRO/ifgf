@@ -370,6 +370,8 @@ public:
 
 	m_farFieldBoxes.resize(levels());
 	m_nearFieldBoxes.resize(levels());
+
+	m_coneMaps.resize(levels());
 	
 	BoundingBox<DIM> global_box;
 	//global_box.min().fill(10);
@@ -712,28 +714,38 @@ public:
 		     //local_active_cones.reserve(domain.n_elements());
 		     for( size_t i : is_cone_active[step])
 		     {			 
-			 ConeRef cone(level, i, local_active_cones.size(), n);
 			 
+			 
+			 tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+			 
+			 ConeRef cone(level, i, local_active_cones.size(), n,activeCones[step].size());
+			 activeCones[step].push_back(cone);
+
+
+			 int leafStep=0;
+			 if(mode!=Regular) {
+			     leafStep=1;
+			 }
 			     
-			     if(level< min_recursive_level) { //We dont need the active cone map if we are in the recursive stage
-				 tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
-				 activeCones[step].push_back(cone);
+			 if(node->isLeaf() && step==leafStep) {
+			     leafCones.push_back(cone);
+			 }
 
-				 int leafStep=0;
-				 if(mode!=Regular) {
-				     leafStep=1;
-				 }
+		     
+
+			 local_active_cones.push_back(i);
+			 cone_map[i]=local_active_cones.size()-1;
 			     
-				 if(node->isLeaf() && step==leafStep) {
-				     leafCones.push_back(cone);
-				 }
 
-			     }
-
-			     local_active_cones.push_back(i);
-			     cone_map[i]=local_active_cones.size()-1;
+			 {
+			 
+			     m_coneMaps[level][step][ConeDomain<DIM>::keyForCone(step, cone.boxId(),i)]=cone.globalId();
+			     
+			 }
+			     
 			 
 		     }
+		     
 
 		     //local_active_cones.trim();
 		     ConeDomain d0=coarseDomain;
@@ -962,6 +974,7 @@ public:
         return m_nodes[level][i]->coneDomain();
     }
 
+    
     const ConeDomain<DIM> coneDomain(unsigned int level, size_t i,size_t substep) const
     {
         return m_nodes[level][i]->coneDomain(substep);
@@ -1020,6 +1033,12 @@ public:
     {
 	return m_leafCones[level][num];
     }
+
+    const ConeMap& globalConeMap(size_t level, int step) const 
+    {
+	return ( m_coneMaps[level][step]);	
+    }
+    
 
 
     const auto farfieldBoxes(size_t level, size_t targetPoint) const
@@ -1198,6 +1217,8 @@ private:
     std::vector<unsigned int> m_numBoxes;
     unsigned int m_levels;
 
+    std::vector<std::array<ConeMap,N_STEPS> > m_coneMaps;
+
     unsigned int m_depth;
     size_t m_maxLeafSize;
     PointArray m_pnts;
@@ -1222,23 +1243,75 @@ public:
     ffB_indices(octree.m_farFieldBoxes[level].indices),	
     ffB_starts(octree.m_farFieldBoxes[level].starts),
     nfB_indices(octree.m_nearFieldBoxes[level].indices),
-    nfB_starts(octree.m_nearFieldBoxes[level].starts)
+    nfB_starts(octree.m_nearFieldBoxes[level].starts),
+    leafCones(octree.m_leafCones[level]),
+    ftAFlags(octree.numBoxes(level)),
+    boxCenters(octree.numBoxes(level)*DIM),
+    boxSizes(octree.numBoxes(level)),
+    coneDomains0(octree.numBoxes(level)),
+    coneDomains1(octree.numBoxes(level))    
     {
 	std::cout<<"creating ocdata"<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
 	sycl::host_accessor ends(points_end,sycl::write_only);
+
+	sycl::host_accessor flags(ftAFlags,sycl::write_only);
+
+	sycl::host_accessor bs(boxSizes,sycl::write_only);
+	sycl::host_accessor bc(boxCenters,sycl::write_only);
+
+	sycl::host_accessor cds0(coneDomains0,sycl::write_only);
+	sycl::host_accessor cds1(coneDomains1,sycl::write_only);
+
+
+	std::cout<<"boxcenters"<<boxCenters.size()<<"\n";
+
+
+	
+	
+	
 	//serialize the points
 	for(size_t box=0;box<octree.numBoxes(level);box++)
 	{
 	    
 	    auto range =octree.points(level,box);
 	    starts[box]=range.first;	    
-	    ends[box]=range.second;	    
+	    ends[box]=range.second;
+
+	    flags[box]=octree.hasFarTargetsIncludingAncestors(level,box);
+
+	    auto bbox=octree.bbox(level,box);
+	    bs[box]=bbox.sideLength();
+	    for(int j=0;j<DIM;j++) {
+		bc[box*DIM+j]=bbox.center()[j];
+	    }
+
+	    cds0[box]=octree.coneDomain(level,box,0);
+	    cds1[box]=octree.coneDomain(level,box,1);
+	    
+	    
+	    
+
 	}
+
+	for(int step=0;step<N_STEPS;step++)
+	{
+	    coneMaps[step]=SyclHelpers::SyclIndexMap(octree.globalConeMap(level,step));	    
+	}
+
+
 
 	std::cout<<"done"<<std::endl;
 
     }
+
+
+    const SyclHelpers::SyclIndexMap<std::pair<size_t,size_t> >& coneMap(size_t step) const 
+    {
+	return coneMaps[step];
+	
+    }
+    
     
 
 
@@ -1251,8 +1324,15 @@ public:
 	    nfB_indices(data.nfB_indices,h),
 	    nfB_starts(data.nfB_starts,h),
 	    points_start(data.points_start,h),
-	    points_end(data.points_end,h)
+	    points_end(data.points_end,h),
+	    leafCones(data.leafCones,h),
+	    ftAFlags(data.ftAFlags,h),
+	    boxCenters(data.boxCenters,h),
+	    boxSizes(data.boxSizes,h)
 	{
+	    coneDomains[0]=sycl::accessor(data.coneDomains0,h);
+	    coneDomains[1]=sycl::accessor(data.coneDomains1,h);
+	    
 	    
 	}
 
@@ -1286,7 +1366,37 @@ public:
 
     
 
+	const ConeRef& leafCone(size_t id) const
+	{
+	    return leafCones[id];
+	}
+
+
+
+	bool hasFarTargetsIncludingAncestors(size_t boxId) const
+	{
+	    return ftAFlags[boxId];
+	}
+
+	double boxSize(size_t boxId) const
+	{
+	    return boxSizes[boxId];
+	}
+
+	sycl::marray<double,DIM> boxCenter(size_t boxId) const
+	{
+	    sycl::marray<double,DIM> c;
+	    for(int i=0;i<DIM;i++) {
+		c[i]=boxCenters[boxId*DIM+i];
+	    }
+
+	    return c;
+	}
 	
+	const SyclConeDomain<DIM>& coneDomain(size_t boxId, int step) const
+	{
+	    return coneDomains[step][boxId];
+	}
 
     private:
 	//far field boxes
@@ -1302,6 +1412,23 @@ public:
 	sycl::accessor< size_t,1,sycl::access_mode::read> points_end;
 
 
+
+	sycl::accessor< ConeRef,1,sycl::access_mode::read> leafCones;
+
+	sycl::accessor< bool,1,sycl::access_mode::read> ftAFlags;
+
+
+
+	sycl::accessor< double ,1,sycl::access_mode::read> boxSizes;
+	sycl::accessor< double ,1,sycl::access_mode::read> boxCenters;
+      
+
+	//interpolation data
+	sycl::accessor< T ,1,sycl::access_mode::read> interpolationData;
+	
+	std::array<sycl::accessor< SyclConeDomain<DIM> ,1,sycl::access_mode::read>, N_STEPS> coneDomains;
+	
+	
     };
 
 
@@ -1324,6 +1451,18 @@ private:
 
     sycl::buffer<size_t,1> points_start;
     sycl::buffer<size_t,1> points_end;
+
+    sycl::buffer<ConeRef,1> leafCones;
+    sycl::buffer<bool,1> ftAFlags;
+
+
+    sycl::buffer<double,1> boxSizes;
+    sycl::buffer<double,1> boxCenters;
+
+    sycl::buffer<SyclConeDomain<DIM>,1> coneDomains0;
+    sycl::buffer<SyclConeDomain<DIM>,1> coneDomains1;
+
+    std::array<SyclHelpers::SyclIndexMap<std::pair<size_t,size_t> >, N_STEPS> coneMaps;
     
         
 };

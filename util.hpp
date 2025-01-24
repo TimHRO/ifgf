@@ -103,6 +103,23 @@ namespace Util
 
 
     template<size_t DIM>
+    inline void interpToCart(const sycl::marray<double,DIM>& p, sycl::marray<double,DIM>& res, const sycl::marray<double,DIM>& xc, double H)
+    {
+        if constexpr(DIM==2) {
+	    res[0]= xc[0]+(H/p[0])*cos(p[1]);
+	    res[1]= xc[1]+(H/p[0])*sin(p[1]);
+        }else {
+            static_assert(DIM==3);
+	    res[0]=xc[0]+(H/p[0])*cos(p[2])*sin(p[1]);
+	    res[1]=xc[1]+(H/p[0])*sin(p[2])*sin(p[1]);
+	    res[2]=xc[2]+(H/p[0])*cos(p[1]);	    
+        }
+    }
+
+
+
+
+    template<size_t DIM>
     inline Eigen::Vector<double, DIM> cartToSpherical(const Eigen::Ref<const Eigen::Vector<double, DIM> >& p) 
     {
 	Eigen::Vector<double,DIM> xp = p ;

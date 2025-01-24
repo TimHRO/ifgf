@@ -30,6 +30,7 @@
 #define ANKERL_UNORDERED_DENSE_H
 
 // see https://semver.org/spec/v2.0.0.html
+
 #define ANKERL_UNORDERED_DENSE_VERSION_MAJOR 4 // NOLINT(cppcoreguidelines-macro-usage) incompatible API changes
 #define ANKERL_UNORDERED_DENSE_VERSION_MINOR 4 // NOLINT(cppcoreguidelines-macro-usage) backwards compatible functionality
 #define ANKERL_UNORDERED_DENSE_VERSION_PATCH 0 // NOLINT(cppcoreguidelines-macro-usage) backwards compatible bug fixes
@@ -787,6 +788,7 @@ public:
     }
 };
 
+
 namespace detail {
 
 // This is it, the table. Doubles as map and set, and uses `void` for T when its used as a set.
@@ -802,6 +804,9 @@ class table : public std::conditional_t<is_map_v<T>, base_table_type_map<T>, bas
     using underlying_container_type = std::conditional_t<IsSegmented,
                                                          segmented_vector<underlying_value_type, AllocatorOrContainer>,
                                                          std::vector<underlying_value_type, AllocatorOrContainer>>;
+
+
+
 
 public:
     using value_container_type = std::
@@ -830,6 +835,9 @@ public:
     using const_iterator = typename value_container_type::const_iterator;
     using iterator = std::conditional_t<is_map_v<T>, typename value_container_type::iterator, const_iterator>;
     using bucket_type = Bucket;
+
+
+
 
 private:
     using value_idx_type = decltype(Bucket::m_value_idx);
@@ -949,6 +957,9 @@ private:
             std::memcpy(m_buckets, other.m_buckets, sizeof(Bucket) * bucket_count());
         }
     }
+
+
+    
 
     /**
      * True when no element can be added any more without increasing the size
@@ -1886,6 +1897,21 @@ public:
     [[nodiscard]] auto values() const noexcept -> value_container_type const& {
         return m_values;
     }
+
+    
+    // nonstandard API: expose the underlying values container
+    [[nodiscard]] auto shifts() const noexcept -> uint8_t const& {
+        return m_shifts;
+    }
+
+
+    // nonstandard API: expose the underlying values container
+    [[nodiscard]] auto bucket(size_t idx) const noexcept -> bucket_type const& {
+        return m_buckets[idx];
+    }
+
+
+
 
     // non-member functions ///////////////////////////////////////////////////
 

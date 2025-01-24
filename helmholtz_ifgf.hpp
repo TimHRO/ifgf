@@ -22,7 +22,7 @@ public:
     inline T kernelFunction(const sycl::marray<double,3>& x) const
     {
         double d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-        return (d == 0) ? 0 : (1 / (4 * M_PI)) * exp(T(0,k) * d) / d;
+	return d==0 ? 0 : (1. / (4. * M_PI)) * exp(T(0,k) * d) / (d);
     }
 
 
@@ -42,6 +42,32 @@ public:
         }
 	return result;
     }
+
+
+
+    template <typename AT1,typename AT2>
+    T  evaluateFactoredKernel(
+			      const AT1& xs, size_t x0, size_t xend, const sycl::marray<double,dim>& y,
+			      const AT2& ws, const sycl::marray<double,dim>& xc, double H) const
+    {
+
+	T result=0;
+
+	sycl::marray<double,3> pnt{y[0]-xc[0],y[1]-xc[1],y[2]-xc[2]};
+	double dc = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+
+	for(size_t i=x0;i<xend;i++) {
+	    sycl::marray<double,3> pnt{xs[i*dim]-y[0],xs[i*dim+1]-y[1],xs[i*dim+2]-y[2]};
+	    double d = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+
+	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
+
+	    result +=  ws[i] *  exp(T(0,k)* (d - dc)) * (dc) / d;
+	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
+	}
+	return result;
+    }
+
 
 
 private:

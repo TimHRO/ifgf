@@ -269,9 +269,12 @@ public:
 
 
 	    
-
+	
 	std::vector<ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT> > interpolationData(m_src_octree->numBoxes(level));
         std::vector<ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT> > parentInterpolationData;
+
+	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
+	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
 		
         for (; level >= 0; --level) {
 	    	    
@@ -279,7 +282,8 @@ public:
 	    
 	    std::cout << "near field" <<std::endl;
 	    OctreeLevelData<T,DIM> srcData(*m_src_octree,level);
-
+#define SYCL_NF	    
+#ifdef SYCL_NF
             Q.submit([&](sycl::handler &h) {
               // start by pushing  some data to the GPU (octree stuff)
               sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
@@ -292,7 +296,7 @@ public:
               const auto functions =
                   static_cast<Derived *>(this)->kernelFunctions();
 
-              std::cout << "done preparing" << std::endl;
+
               auto out = sycl::stream(1024, 768, h);
 	      const size_t num_targets=m_target_octree->numPoints();
 	     
@@ -307,13 +311,33 @@ public:
 			  if (nS == 0) { //skip empty boxes
 			      continue;
 			  }
-
 			  
 			  a_result[i]+=functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
 								a_targets, i, a_weights);
 		      }
 		  });
             });
+#else
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_target_octree->numPoints()),
+	      [&](tbb::blocked_range<size_t> r) {
+              for (size_t i = r.begin(); i < r.end(); i++) {
+		  for( size_t boxId : m_src_octree->nearFieldBoxes(level,i) ){			  
+		      IndexRange srcs = m_src_octree->points(level, boxId);
+		      const size_t nS = srcs.second - srcs.first;
+		      if(nS==0) { //skip empty boxes
+			  continue;
+		      }
+
+
+		      static_cast<Derived *>(this)->template evaluateKernel<1>(
+								   m_src_octree->points(srcs),
+								   m_target_octree->point(i),
+								   new_weights.segment(srcs.first, nS),
+								   result.row(i),
+								   srcs);
+		  }
+	      }});
+#endif
             Q.wait();
 
             //Get an exemplary bbox to determine the interpolation order
@@ -323,6 +347,12 @@ public:
 	    const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(order);
 	    const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
 	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(high_order);
+
+	    //Cache chebychev nodes on the GPU
+
+	    sycl::buffer<const double,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
+	    sycl::buffer<const double,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
+	    
 
 
 
@@ -344,18 +374,89 @@ public:
 
 	    //prepare the interpolation data for all leaves
 	    if(level==m_src_octree->levels()-1) {
-		initInterpolationData(level,1, interpolationData);
+		std::cout<<"init"<<std::endl;
+		initInterpolationData(level,1, interpolationData, interpolationDataBuffer);
 	    }
 
 	    std::cout<<"interpolate leaves"<<m_src_octree->numLeafCones(level)<<std::endl;
 
-	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numLeafCones(level)),
-		[&](tbb::blocked_range<size_t> r) {
-#ifdef USE_NGSOLVE
-		    static ngcore::Timer t("ngbem interpolate leaves");
-		    ngcore::RegionTimer reg(t);
-#endif
+	    if(m_src_octree->numLeafCones(level) > 0)
+	    {
 
+#define SYCL_INTERP_LEAVES
+#ifdef SYCL_INTERP_LEAVES
+		Q.submit([&](sycl::handler &h) {
+		    // start by pushing  some data to the GPU (octree stuff)
+		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
+		    sycl::accessor a_targets(b_targets, h, sycl::read_only);
+		    sycl::accessor a_weights(b_weights, h, sycl::read_only);
+
+		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
+
+		    sycl::accessor a_hoChebNodes(b_hoChebNodes, h, sycl::read_only);
+
+		    const auto &srcDataAcc = srcData.accessor(h);
+		    const auto functions =
+			static_cast<Derived *>(this)->kernelFunctions();
+
+
+		    const auto& coneMap=srcData.coneMap(0);
+		    const size_t stride=ho_chebNodes.cols();
+
+
+		    const size_t sizeB=interpolationDataBuffer->size();
+
+		    const size_t  numLeafCones=m_src_octree->numLeafCones(level);
+		    std::cout<<"numm="<<numLeafCones<<std::endl;
+		    auto out = sycl::stream(1024, 1024, h);
+		    h.parallel_for(sycl::range<1>( numLeafCones),
+				   [=](sycl::id<1> i)
+				   {
+
+				       const ConeRef ref=srcDataAcc.leafCone(i);
+				       const size_t boxId=ref.boxId();				       
+				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
+					   sycl::marray<double, DIM>  center=srcDataAcc.boxCenter(boxId);
+					   double H=srcDataAcc.boxSize(boxId);
+
+					   auto grid=srcDataAcc.coneDomain(boxId,1);
+					   IndexRange srcs=srcDataAcc.points(boxId);
+					   const size_t nS=srcs.second-srcs.first;
+
+					   const size_t offset=ref.globalId()*stride;
+
+
+					   sycl::marray<double,DIM> transformed;
+					   sycl::marray<double,DIM> transformed2;
+					   for(size_t j=0;j<stride;j++) {
+					       grid.transform(ref.id(),a_hoChebNodes,transformed,j);
+
+
+
+					       
+					       Util::interpToCart(transformed,transformed2,center,H);
+
+
+					       //out<<"t"<<i<<" in "<<j<<" at "<<transformed2[0]<<"/"<<transformed2[1]<<"/"<<transformed2[2]<<"\n";
+					       a_intData[j+offset]=functions.evaluateFactoredKernel(a_srcs, srcs.first, srcs.second,
+					       							    transformed2, a_weights,center, H);
+
+					   }
+					     
+					     // interpolationData[boxId].values.middleRows(ref.memId()*stride,stride) =
+					     // static_cast<const Derived *>(this)
+					     // ->evaluateFactoredKernel(m_src_octree->points(srcs),
+					     // transformedNodes.local(),
+					     // new_weights.segment(srcs.first, nS), center, H,srcs);
+				       }
+
+				   });
+		 });
+#endif
+#if 1
+		//#else
+                tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numLeafCones(level)),
+		[&](tbb::blocked_range<size_t> r) {
 		for (size_t i = r.begin(); i < r.end(); i++) {
 		    const ConeRef ref=m_src_octree->leafCone(level,i);
 		    const size_t boxId=ref.boxId();
@@ -370,6 +471,11 @@ public:
 		    auto center = bbox.center();
 		    double H = bbox.sideLength();
 
+
+		    
+
+		    //std::cout<<"H2="<<H<<std::endl;
+
 		    auto grid=m_src_octree->coneDomain(level,boxId, 1);
 
 		    IndexRange srcs=m_src_octree->points(level,boxId);
@@ -379,6 +485,8 @@ public:
 
 		    const size_t stride=ho_chebNodes.cols();			
 		    transformInterpToCart(grid.transform(ref.id(),ho_chebNodes), transformedNodes.local(), center, H);
+
+
 		    interpolationData[boxId].values.middleRows(ref.memId()*stride,stride) =
 			static_cast<const Derived *>(this)
 			->evaluateFactoredKernel(m_src_octree->points(srcs),
@@ -388,13 +496,38 @@ public:
 		}});
 	
 
+#endif	    
+	    }
+
 	    //chebtrafo everything
 	    std::cout<<"chebtrafo"<<std::endl;
+
+	    //TODO: TEMP
+	    sycl::host_accessor a_intData(*interpolationDataBuffer,  sycl::read_only);
+	    std::cout<<"done"<<std::endl;
+
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
             [&](tbb::blocked_range<size_t> r) {
             for (size_t i = r.begin(); i < r.end(); i++) {
 		ConeRef cone=m_src_octree->activeCone(level,i,1);
 		size_t boxId=cone.boxId();
+		const size_t stride=ho_chebNodes.cols();			
+
+
+#ifdef SYCL_INTERP_LEAVES
+		///TODO temporary copy back the interpolation data from the GPU to the old style CPU array. That way we can
+		//rely on the old codepath for the rest of the steps 
+	       
+		if(m_src_octree->isLeaf(level,boxId)) {
+		    for(size_t l=0;l<stride;l++) {	       
+			interpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    
+		    }
+		}
+		//END TODO
+#endif
+
+
+		
 		if(!m_src_octree->hasPoints(level,boxId))
 		    continue;
 
@@ -407,7 +540,7 @@ public:
 		auto center = bbox.center();
 		double H = bbox.sideLength();
 
-		const size_t stride=ho_chebNodes.cols();			
+
 		//before we can use the interpolation data, we habe to run a chebychev transform on it
 
 		tmp_chebt.local().resize(stride);
@@ -421,7 +554,7 @@ public:
 	    
 	    //interpolation Data contains the values using the coarse- high-order interpolation scheme. Project to the low-order fine grid
 	    //which is faster for point-evaluations. We use parentInteprolationData as a termpoary buffer.
-	    initInterpolationData(level,0, parentInterpolationData);
+	    initInterpolationData(level,0, parentInterpolationData,parentInterpolationDataBuffer);
 	    std::cout<<"reinterpolating"<<std::endl;
 	    
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)), //iterative over the few-high order cones to take full advantage of the TP structure
@@ -513,7 +646,7 @@ public:
 	    
             //Now transform the interpolation data to the parents
 	    std::cout<<"propagating upward"<<std::endl;
-	    initInterpolationData(level-1,1, parentInterpolationData);
+	    initInterpolationData(level-1,1, parentInterpolationData,parentInterpolationDataBuffer);
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level-1,1)),
 		[&](tbb::blocked_range<size_t> r) {
 		    tmp_result.local().resize(ho_chebNodes.cols(),DIMOUT);
@@ -561,6 +694,10 @@ public:
 		    }
 	    }});
             std::swap(interpolationData, parentInterpolationData);
+
+	    interpolationDataBuffer.reset();
+	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);	    
+	    parentInterpolationDataBuffer.reset();
             parentInterpolationData.resize(0);
 
         }
@@ -573,25 +710,37 @@ public:
     }
 
 
-    void initInterpolationData(size_t level, size_t step, std::vector<ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT> >& i_data)
+    void initInterpolationData(size_t level, size_t step, std::vector<ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT> >& i_data,std::unique_ptr<sycl::buffer<T,1>> & buf )
     {
 	assert(level<m_src_octree->levels());
 	i_data.resize(m_src_octree->numBoxes(level));
-	tbb::parallel_for(
+
+
+	//get an exemplary box to query the polynomial order
+	BoundingBox bbox = m_src_octree->bbox(level , 0);
+	//std::cout<<"bbox="<<bbox.min().transpose()<<" "<<bbox.max().transpose()<<std::endl;
+	auto center = bbox.center();
+	double H = bbox.sideLength();
+	auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
+
+	//make sure no old buffer is around	
+	buf=std::make_unique<sycl::buffer<T,1> > (m_src_octree->numActiveCones(level,step)*order.prod());
+	// {
+	//     auto bufA=buf->get_host_access();
+	//     std::fill(bufA.begin(),bufA.end(),0);
+	// }
+
+        tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, i_data.size()),
                 [&](tbb::blocked_range<size_t> r) {
                 for (int id = r.begin(); id < r.end(); id++) {
-		    BoundingBox bbox = m_src_octree->bbox(level , id);
-		    //std::cout<<"bbox="<<bbox.min().transpose()<<" "<<bbox.max().transpose()<<std::endl;
-		    auto center = bbox.center();
-		    double H = bbox.sideLength();
 
-		    auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
 		    
 		    auto grid= m_src_octree->coneDomain(level,id,step);		
 
-		    //std::cout<<step<<" actite="<<grid.activeCones().size()<<std::endl;
-		    i_data[id].values.resize(grid.activeCones().size()*order.prod(),DIMOUT);
+
+		    i_data[id].values.resize(grid.activeCones().size()*order.prod());
+		    i_data[id].s_values=std::make_unique<sycl::buffer<T,DIMOUT> >(grid.activeCones().size()*order.prod());
 		    //i_data[id].values.fill(0);
 		    i_data[id].order=order;
 		    i_data[id].grid=grid;

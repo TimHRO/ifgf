@@ -77,10 +77,10 @@ int main()
     //std::cout<<"s"<<srcs<<std::endl;
     //size_t  N=srcs.cols();
     //(dim,N);
-    //srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
-    for(int i=0;i<srcs.cols();i++){
-	srcs.col(i)=randomPointOnSphere();
-    }
+    srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
+    //for(int i=0;i<srcs.cols();i++){
+    //	srcs.col(i)=randomPointOnSphere();
+    //}
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = srcs;//(PointArray::Random(dim, N).array());
     /*for(int i=0;i<targets.cols();i++){

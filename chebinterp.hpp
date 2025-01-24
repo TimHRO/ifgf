@@ -20,6 +20,8 @@
     #include </home/arieder/devel/install/include/core/ngcore.hpp>
 #endif
 
+#include <sycl/sycl.hpp>
+
 namespace ChebychevInterpolation
 {
 
@@ -610,14 +612,19 @@ namespace ChebychevInterpolation
     struct InterpolationData {
 	Eigen::Vector<int, DIM> order;
 	ConeDomain<DIM> grid;
+	
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> values;
+	std::unique_ptr<sycl::buffer<T, DIMOUT> > s_values;
 
+	
 	size_t computeStride () const
 	{
 	    return order.prod();
 	}
     };
 
+
+    
 
 };
 
