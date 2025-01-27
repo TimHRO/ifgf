@@ -19,6 +19,7 @@
 #include "helmholtz_ifgf.hpp"
 #include "octree.hpp"
 #include "chebinterp.hpp"
+#include "chebinterp_sycl.hpp"
 
 //#include <fstream>
 #include <iostream>
@@ -282,6 +283,10 @@ public:
 	    
 	    std::cout << "near field" <<std::endl;
 	    OctreeLevelData<T,DIM> srcData(*m_src_octree,level);
+
+	    
+
+	    
 #define SYCL_NF	    
 #ifdef SYCL_NF
             Q.submit([&](sycl::handler &h) {
@@ -358,10 +363,6 @@ public:
 
             const size_t stride=chebNodes.cols();
 
-	    //make sure the factors for the chebtrafo are precomputed...
-	    for(int d=0;d<DIM;d++) {
-		ChebychevInterpolation::chebvals<double>(order[d]);
-	    }
 
 
 	    //there is no more far field or interpolation happening
@@ -377,6 +378,37 @@ public:
 		std::cout<<"init"<<std::endl;
 		initInterpolationData(level,1, interpolationData, interpolationDataBuffer);
 	    }
+
+
+	    //TODO TEMPORARY!!!
+	    {
+		std::cout<<"making sure intData and intDataBuffer are in sync"<<std::endl;
+
+		sycl::host_accessor a_intData(*interpolationDataBuffer,  sycl::read_write);
+		
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
+				  [&](tbb::blocked_range<size_t> r) {
+				      for (size_t i = r.begin(); i < r.end(); i++) {
+					  ConeRef cone=m_src_octree->activeCone(level,i,1);
+					  size_t boxId=cone.boxId();
+					  const size_t stride=ho_chebNodes.cols();
+
+					  
+					  
+					  for(size_t l=0;l<stride;l++) {			    
+						  a_intData[cone.globalId()*stride+l]=interpolationData[boxId].values[cone.memId()*stride+l];
+					      }
+					  
+
+
+				      }
+				  });
+	    }
+
+	    //END TODO
+
+
+	    
 
 	    std::cout<<"interpolate leaves"<<m_src_octree->numLeafCones(level)<<std::endl;
 
@@ -452,9 +484,7 @@ public:
 
 				   });
 		 });
-#endif
-#if 1
-		//#else
+#else
                 tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numLeafCones(level)),
 		[&](tbb::blocked_range<size_t> r) {
 		for (size_t i = r.begin(); i < r.end(); i++) {
@@ -501,10 +531,87 @@ public:
 
 	    //chebtrafo everything
 	    std::cout<<"chebtrafo"<<std::endl;
+	    const size_t cv_size=high_order.unaryExpr([&](int v){ return v*v; }).sum();
 
-	    //TODO: TEMP
+
+
+	    
+
+#define SYCL_CHEBTRAFO
+#ifdef SYCL_CHEBTRAFO
+	    sycl::buffer<double> b_chebvals(cv_size);
+	    {
+		sycl::host_accessor a_cv(b_chebvals);
+		size_t idx=0;
+		//make sure the factors for the chebtrafo are precomputed...
+		for(int d=DIM-1;d>=0;d--) {
+		    std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
+		    const auto& cv=ChebychevInterpolation::chebvals<double>(high_order[d]);
+		    std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
+		    idx+=high_order[d]*high_order[d];
+
+		}
+
+		assert(idx==cv_size); //check that we initialized correctly (TODO remove)
+	    }
+
+
+
+	    
+	    Q.submit([&](sycl::handler &h) {
+		// start by pushing  some data to the GPU (octree stuff)
+
+		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
+				
+
+
+		//TODO unify order type
+		std::array<int,DIM> ns_ho;
+		std::copy(high_order.begin(),high_order.end(),ns_ho.begin());
+		
+		
+		const sycl::accessor a_chebvals(b_chebvals,h,sycl::read_only);
+
+
+		const size_t sizeB=interpolationDataBuffer->size();
+		const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
+
+		const size_t stride=ho_chebNodes.cols();
+		std::cout<<"survived setup"<<std::endl;
+
+		h.parallel_for(sycl::range<1>( numActiveCones),
+			       [=](sycl::id<1> i)
+		{
+		    //before we can use the interpolation data, we habe to run a chebychev transform on it
+		    SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_intData,  ns_ho, a_chebvals,i*stride);
+
+		});
+	    });
+#else
+
+	    {
 	    sycl::host_accessor a_intData(*interpolationDataBuffer,  sycl::read_only);
-	    std::cout<<"done"<<std::endl;
+	    std::cout<<"copying back to cpu 1"<<std::endl;
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
+            [&](tbb::blocked_range<size_t> r) {
+            for (size_t i = r.begin(); i < r.end(); i++) {
+		ConeRef cone=m_src_octree->activeCone(level,i,1);
+		size_t boxId=cone.boxId();
+		const size_t stride=ho_chebNodes.cols();
+
+		
+		if(m_src_octree->isLeaf(level,boxId)) {
+		    for(size_t l=0;l<stride;l++) {	       
+			interpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    
+		    }
+		}
+
+
+	    }
+	    });
+	    }
+
+
 
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
             [&](tbb::blocked_range<size_t> r) {
@@ -514,17 +621,6 @@ public:
 		const size_t stride=ho_chebNodes.cols();			
 
 
-#ifdef SYCL_INTERP_LEAVES
-		///TODO temporary copy back the interpolation data from the GPU to the old style CPU array. That way we can
-		//rely on the old codepath for the rest of the steps 
-	       
-		if(m_src_octree->isLeaf(level,boxId)) {
-		    for(size_t l=0;l<stride;l++) {	       
-			interpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    
-		    }
-		}
-		//END TODO
-#endif
 
 
 		
@@ -536,10 +632,6 @@ public:
 		    continue;
 		}
 
-		BoundingBox bbox = m_src_octree->bbox(level, boxId);
-		auto center = bbox.center();
-		double H = bbox.sideLength();
-
 
 		//before we can use the interpolation data, we habe to run a chebychev transform on it
 
@@ -549,6 +641,34 @@ public:
 		interpolationData[boxId].values.middleRows(cone.memId()*stride,stride)=tmp_chebt.local();
 
 	    }});
+	    
+#endif	    
+#ifdef SYCL_CHEBTRAFO
+	    ///TODO temporary copy back the interpolation data from the GPU to the old style CPU array. That way we can
+	    //rely on the old codepath for the rest of the steps 
+	    //TODO: TEMP
+	    
+	    sycl::host_accessor a_intData(*interpolationDataBuffer,  sycl::read_only);
+	    std::cout<<"copying back to cpu"<<std::endl;
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
+            [&](tbb::blocked_range<size_t> r) {
+            for (size_t i = r.begin(); i < r.end(); i++) {
+		ConeRef cone=m_src_octree->activeCone(level,i,1);
+		size_t boxId=cone.boxId();
+		const size_t stride=ho_chebNodes.cols();
+
+		
+		for(size_t l=0;l<stride;l++) {			
+		    interpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    
+		    
+		}
+
+
+	    }
+	    });
+
+	    //END TODO
+#endif//SYCL_CHEBTRAFO
 
 
 	    
@@ -603,7 +723,8 @@ public:
 		//const size_t stride=chebNodes.cols();			
 		//before we can use the interpolation data, we habe to run a chebychev transform on it
 
-		tmp_chebt.local().resize(stride);		
+		tmp_chebt.local().resize(stride);
+
 		ChebychevInterpolation::chebtransform<T,DIM>(parentInterpolationData[boxId].values.middleRows(cone.memId()*stride,stride),tmp_chebt.local(),order);
 		parentInterpolationData[boxId].values.middleRows(cone.memId()*stride,stride)=tmp_chebt.local();
 	    }});
@@ -693,6 +814,11 @@ public:
 			parentInterpolationData[parentId].values.middleRows(parentCone.memId()*stride,stride)+=tmp_result.local();
 		    }
 	    }});
+
+
+
+
+	    
             std::swap(interpolationData, parentInterpolationData);
 
 	    interpolationDataBuffer.reset();

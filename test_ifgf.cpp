@@ -3,6 +3,13 @@
 
 #include <cmath>
 
+#include <random>
+#include <cstdlib>
+#include <tbb/task_arena.h>
+#include <tbb/global_control.h>
+#include <fenv.h>
+
+
 #include "helmholtz_ifgf.hpp"
 #include "ifgfoperator.hpp"
 #include "octree.hpp"
@@ -31,11 +38,6 @@ std::complex<double> my_kernel(const Point& x, const Point& y, const Point& norm
     return kern;
 }
 
-#include <random>
-#include <cstdlib>
-#include <tbb/task_arena.h>
-#include <tbb/global_control.h>
-#include <fenv.h>
 
 
 Eigen::Vector3d randomPointOnSphere() {
@@ -57,7 +59,7 @@ Eigen::Vector3d randomPointOnSphere() {
 
 int main()
 {
-    
+    srand((unsigned int) 1);    
     typedef Eigen::Matrix<double, dim, Eigen::Dynamic> PointArray ;
 
     const int N = 1200;
@@ -77,6 +79,7 @@ int main()
     //std::cout<<"s"<<srcs<<std::endl;
     //size_t  N=srcs.cols();
     //(dim,N);
+
     srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
     //for(int i=0;i<srcs.cols();i++){
     //	srcs.col(i)=randomPointOnSphere();
@@ -98,7 +101,7 @@ int main()
     weights = Eigen::VectorXd::Random(srcs.cols());
 
     Eigen::Vector<std::complex<double>, Eigen::Dynamic> result;
-    for(int i=0;i<10;i++) {
+    for(int i=0;i<2;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
 	std::cout << "done multiplying" << std::endl;
@@ -108,7 +111,7 @@ int main()
     double maxE = 0;
     for (int j = 0; j < 100; j++) {
         std::complex<double> val = 0;
-        int index = rand() % targets.cols();
+        int index = j ;//rand() % targets.cols();
         //std::cout<<"idx"<<index<<std::endl;
         for (int i = 0; i < srcs.cols(); i++) {
             val += weights[i] * my_kernel(srcs.col(i), targets.col(index),normals.col(i));
