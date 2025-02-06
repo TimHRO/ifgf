@@ -94,12 +94,6 @@ public:
 	//std::cout<<"CD dying"<<std::endl;
     }
 
-    static inline std::pair<size_t,size_t> keyForCone(int step,size_t box,size_t cone)
-    {
-	assert(step<=1);
-	size_t key1=(box<<1)+step; //store the step in the lowest bit. there should be plenty of space in a size_t
-	return std::make_pair(key1,cone);
-    }
 
     inline void setNElements(Eigen::Vector<size_t, DIM> numEls) {
 	m_numEls=numEls;	
@@ -423,7 +417,20 @@ public:
 
     }
 
-    
+
+
+    template <typename S>
+    static inline std::array<S,DIM> indicesFromId(size_t j, std::array<S,DIM> n_el)  {
+	std::array<S,DIM> indices;	
+	for(int i=0;i<DIM;i++) {
+	    const size_t idx=j % n_el[i];
+	    j=j / n_el[i];
+	    
+	    indices[i]=idx;
+	}
+
+	return indices;
+    }
 
     
     inline sycl::marray<size_t, DIM> indicesFromId(size_t j) const {
@@ -577,6 +584,7 @@ private:
     //SyclHelpers::SyclIndexMap m_coneMap;
 };
 
-
+template <size_t DIM>
+struct sycl::is_device_copyable<SyclConeDomain<DIM> > : std::true_type {};
 
 #endif

@@ -406,6 +406,7 @@ public:
 
 	std::vector<tbb::spin_mutex> target_mutexes(target.numPoints());
 	Eigen::Vector<size_t,DIM> oldN;
+	oldN.fill(0);
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
 	    std::cout<<"l= "<<level<<std::endl;
@@ -413,6 +414,7 @@ public:
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
 	    std::vector<ConeRef> leafCones;
+	    m_coneMaps[level].resize(numBoxes(level));
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0,numBoxes(level)), [&](tbb::blocked_range<size_t> r) {
             for(size_t n=r.begin();n<r.end();++n) {
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
@@ -707,7 +709,7 @@ public:
 			}
 			}
 			}*/
-		
+
 		for (int step=0;step<N_STEPS;step++ ) {
 		     std::vector<size_t> local_active_cones;
 		     IndexMap cone_map;
@@ -738,9 +740,9 @@ public:
 			     
 
 			 {
-			 
-			     m_coneMaps[level][step][ConeDomain<DIM>::keyForCone(step, cone.boxId(),i)]=cone.globalId();
-			     
+			     if(step==0) {
+				 m_coneMaps[level][cone.boxId()][i]=cone.globalId();
+			     }
 			 }
 			     
 			 
@@ -934,7 +936,7 @@ public:
     {
 	const std::shared_ptr<const OctreeNode>& node = m_nodes[level][i];
 	if(node) {
-	    return node->farTargets().size()>0 ||parentHasFarTargets(node);
+	    return node->farTargets().size()>0 || parentHasFarTargets(node);
 	}
 	return false;
     }
@@ -1033,12 +1035,7 @@ public:
     {
 	return m_leafCones[level][num];
     }
-
-    const ConeMap& globalConeMap(size_t level, int step) const 
-    {
-	return ( m_coneMaps[level][step]);	
-    }
-    
+   
 
 
     const auto farfieldBoxes(size_t level, size_t targetPoint) const
@@ -1104,6 +1101,12 @@ public:
 
     const auto& points() const {
 	return m_pnts;
+    }
+
+
+    const std::vector<IndexMap>& coneMaps(size_t level) const
+    {
+	return m_coneMaps[level];
     }
 
 
@@ -1217,7 +1220,7 @@ private:
     std::vector<unsigned int> m_numBoxes;
     unsigned int m_levels;
 
-    std::vector<std::array<ConeMap,N_STEPS> > m_coneMaps;
+    std::vector<std::vector<ConeMap> > m_coneMaps;
 
     unsigned int m_depth;
     size_t m_maxLeafSize;
@@ -1249,7 +1252,9 @@ public:
     boxCenters(octree.numBoxes(level)*DIM),
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
-    coneDomains1(octree.numBoxes(level))    
+    coneDomains1(octree.numBoxes(level)),
+    activeCones(octree.m_activeCones[level][1]),   
+    coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level)))
     {
 	std::cout<<"creating ocdata"<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
@@ -1262,6 +1267,8 @@ public:
 
 	sycl::host_accessor cds0(coneDomains0,sycl::write_only);
 	sycl::host_accessor cds1(coneDomains1,sycl::write_only);
+
+
 
 
 	std::cout<<"boxcenters"<<boxCenters.size()<<"\n";
@@ -1294,24 +1301,10 @@ public:
 
 	}
 
-	for(int step=0;step<N_STEPS;step++)
-	{
-	    coneMaps[step]=SyclHelpers::SyclIndexMap(octree.globalConeMap(level,step));	    
-	}
-
-
-
 	std::cout<<"done"<<std::endl;
 
     }
-
-
-    const SyclHelpers::SyclIndexMap<std::pair<size_t,size_t> >& coneMap(size_t step) const 
-    {
-	return coneMaps[step];
-	
-    }
-    
+  
     
 
 
@@ -1328,12 +1321,13 @@ public:
 	    leafCones(data.leafCones,h),
 	    ftAFlags(data.ftAFlags,h),
 	    boxCenters(data.boxCenters,h),
-	    boxSizes(data.boxSizes,h)
+	    boxSizes(data.boxSizes,h),
+	    activeCones(data.activeCones,h),
+	    coneMap(data.coneMap.accessor(h))
 	{
-	    coneDomains[0]=sycl::accessor(data.coneDomains0,h);
-	    coneDomains[1]=sycl::accessor(data.coneDomains1,h);
-	    
-	    
+	    coneDomains0=sycl::accessor(data.coneDomains0,h);
+	    coneDomains1=sycl::accessor(data.coneDomains1,h);  	    
+
 	}
 
     
@@ -1395,7 +1389,21 @@ public:
 	
 	const SyclConeDomain<DIM>& coneDomain(size_t boxId, int step) const
 	{
-	    return coneDomains[step][boxId];
+	    if(step==0)
+		return coneDomains0[boxId];
+	    else
+		return coneDomains1[boxId];
+	}
+
+	ConeRef activeCone(size_t index) const
+	{
+	    return activeCones[index];
+	}
+
+	
+
+	size_t memId(size_t box, size_t el) const {
+	    return coneMap.find(box,el);
 	}
 
     private:
@@ -1415,7 +1423,9 @@ public:
 
 	sycl::accessor< ConeRef,1,sycl::access_mode::read> leafCones;
 
-	sycl::accessor< bool,1,sycl::access_mode::read> ftAFlags;
+	sycl::accessor< ConeRef,1,sycl::access_mode::read> activeCones;
+
+	sycl::accessor< char,1,sycl::access_mode::read> ftAFlags;
 
 
 
@@ -1426,8 +1436,11 @@ public:
 	//interpolation data
 	sycl::accessor< T ,1,sycl::access_mode::read> interpolationData;
 	
-	std::array<sycl::accessor< SyclConeDomain<DIM> ,1,sycl::access_mode::read>, N_STEPS> coneDomains;
+	sycl::accessor< SyclConeDomain<DIM> ,1,sycl::access_mode::read> coneDomains0;
+	sycl::accessor< SyclConeDomain<DIM> ,1,sycl::access_mode::read> coneDomains1;
+
 	
+	SyclHelpers::SyclIndexMap<size_t >::Accessor  coneMap;
 	
     };
 
@@ -1453,16 +1466,19 @@ private:
     sycl::buffer<size_t,1> points_end;
 
     sycl::buffer<ConeRef,1> leafCones;
-    sycl::buffer<bool,1> ftAFlags;
+    sycl::buffer<char,1> ftAFlags;
 
 
     sycl::buffer<double,1> boxSizes;
     sycl::buffer<double,1> boxCenters;
 
+    sycl::buffer<ConeRef> activeCones;
+
     sycl::buffer<SyclConeDomain<DIM>,1> coneDomains0;
     sycl::buffer<SyclConeDomain<DIM>,1> coneDomains1;
+    
 
-    std::array<SyclHelpers::SyclIndexMap<std::pair<size_t,size_t> >, N_STEPS> coneMaps;
+    SyclHelpers::SyclIndexMap<size_t> coneMap;
     
         
 };

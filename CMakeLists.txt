@@ -17,9 +17,9 @@ project(ifgf CXX)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -funroll-loops  -UUSE_NGSOLVE -flto=auto")
-string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O3  -flto=auto")
-string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O2  -flto=auto")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -funroll-loops  -UUSE_NGSOLVE -flto=auto  -fsanitize=undefined -Wall")
+string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O1  -flto=auto  -fsanitize=undefined -Wall -fstack-protector-all")
+string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0  -flto=auto -fstack-protector-all  -fsanitize=undefined -Wall")
 #add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE   )
 
 # find_package(unordered_dense CONFIG )

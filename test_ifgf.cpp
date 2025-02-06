@@ -62,7 +62,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<double, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 1200;
+    const int N = 1000;
 
 
     //Eigen::initParallel();

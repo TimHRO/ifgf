@@ -9,12 +9,14 @@
 
 #define USE_FAST_HASH
 
+#define INITIALIZE_BY_ZERO
+
 #ifdef USE_FAST_HASH
 #include "unordered_dense.h"
 typedef ankerl::unordered_dense::map<size_t, size_t> IndexMap;
 typedef ankerl::unordered_dense::set<size_t> IndexSet;
 
-typedef ankerl::unordered_dense::map<std::pair<size_t,size_t>, size_t> ConeMap;
+typedef ankerl::unordered_dense::map<size_t, size_t> ConeMap;
 
 #else
 #include <map>

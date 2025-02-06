@@ -231,7 +231,18 @@ namespace Util
 
 
 
+
+    }; // namespace Util
+
+
+template<typename T, size_t DIM>
+std::ostream & operator<<(std::ostream &os, const std::array<T,DIM>& p)
+{
+    for(size_t i=0;i<DIM;i++) {
+	os << p[i]<<" ";
+    }
+    return os;
+}
     
-};
 
 #endif

@@ -106,7 +106,7 @@ void ChebychevInterpolation::fast_evaluate_tp(
 
 		//tmp.fill(0);
 		__eval<T, DIM-1, 3,-1,-1,-1>(points_t,M.segment(l*n_values,n_values),
-				    ns.template tail(DIM-1), tmp, 0, n_points);
+					     ns.template tail<DIM-1>(), tmp, 0, n_points);
 
 		for(size_t idx=0;idx<n_points;idx++) {		   
 		    dest.row(idx*n_y+l)=tmp[idx];		    

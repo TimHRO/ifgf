@@ -165,14 +165,14 @@ namespace detail {
 namespace detail::wyhash {
 
 inline void mum(uint64_t* a, uint64_t* b) {
-#    if defined(__SIZEOF_INT128__)
+    /*#    if defined(__SIZEOF_INT128__)
     __uint128_t r = *a;
     r *= *b;
     *a = static_cast<uint64_t>(r);
     *b = static_cast<uint64_t>(r >> 64U);
 #    elif defined(_MSC_VER) && defined(_M_X64)
     *a = _umul128(*a, *b, b);
-#    else
+    #    else*/
     uint64_t ha = *a >> 32U;
     uint64_t hb = *b >> 32U;
     uint64_t la = static_cast<uint32_t>(*a);
@@ -190,7 +190,7 @@ inline void mum(uint64_t* a, uint64_t* b) {
     hi = rh + (rm0 >> 32U) + (rm1 >> 32U) + c;
     *a = lo;
     *b = hi;
-#    endif
+    //#    endif
 }
 
 // multiply and xor mix function, aka MUM
@@ -1909,6 +1909,7 @@ public:
     [[nodiscard]] auto bucket(size_t idx) const noexcept -> bucket_type const& {
         return m_buckets[idx];
     }
+
 
 
 
