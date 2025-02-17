@@ -696,7 +696,8 @@ public:
 		    auto has_local_mem = (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
 		    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
 
-		    size_t cv_size=order.prod();
+		    
+		    const size_t cv_size=order.unaryExpr([&](int v){ return v*v; }).sum();
                     sycl::buffer<double> b_chebvals(cv_size);
 		    {
 			sycl::host_accessor a_cv(b_chebvals);
@@ -864,29 +865,28 @@ public:
 	    }
 
 
-	    
 
-	    {
-		Q.wait();
-		sycl::host_accessor a_intData(*parentInterpolationDataBuffer,  sycl::read_only);
-		std::cout<<"copying back to cpu"<<std::endl;
-		tbb::parallel_for
-		    (tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,0)),
-		     [&](tbb::blocked_range<size_t> r) {
-			 for (size_t i = r.begin(); i < r.end(); i++) {
-			     ConeRef cone=m_src_octree->activeCone(level,i,0);
-			     size_t boxId=cone.boxId();
-			     const size_t stride=chebNodes.cols();
-			 
-			 
-			     for(size_t l=0;l<stride;l++) {			
-				 parentInterpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    		    
-			     }
-			 			 
-			 }
-		     });
+	    //TODO TEMP
+	    sycl::host_accessor a_intData(*parentInterpolationDataBuffer,  sycl::read_only);
+	    std::cout<<"copying back to cpu"<<std::endl;
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,0)),
+            [&](tbb::blocked_range<size_t> r) {
+            for (size_t i = r.begin(); i < r.end(); i++) {
+		ConeRef cone=m_src_octree->activeCone(level,i,0);
+		size_t boxId=cone.boxId();
+		const size_t stride=chebNodes.cols();
+
+		
+		for(size_t l=0;l<stride;l++) {			
+		    parentInterpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    		    
+		}
+
+
 	    }
+	    });
 
+
+	    
 
 #else
 
@@ -966,8 +966,82 @@ public:
 
 	    std::cout<<"swapping"<<std::endl;
 	    std::swap(interpolationData,parentInterpolationData);
+	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
+	    parentInterpolationDataBuffer.reset();
 	    parentInterpolationData.resize(0);
 
+#define SYCL_FF
+#ifdef SYCL_FF
+	    std::cout<<"evaluate far field"<<std::endl;
+	    Q.wait();
+	    Q.submit([&](sycl::handler &h) {
+		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
+		sycl::accessor a_targets(b_targets,h, sycl::read_only);
+
+		sycl::accessor a_result(b_result, h, sycl::read_write);
+
+		std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
+
+
+		const auto &srcDataAcc = srcData.accessor(h);
+		const auto functions =
+		    static_cast<Derived *>(this)->kernelFunctions();
+		
+		const size_t stride=order.prod();
+		auto out = sycl::stream(100, 100, h);
+
+		h.parallel_for(sycl::range{m_target_octree->numPoints()}, [=](auto it)
+		{
+		    for( size_t boxId : srcDataAcc.farfieldBoxes(it) ){
+			auto grid=srcDataAcc.coneDomain(boxId,0);
+			auto center = srcDataAcc.boxCenter(boxId);
+
+			double H = srcDataAcc.boxSize(boxId);
+
+			//evaluate for the cousin targets using the interpolated data
+
+			sycl::marray<double,DIM> target_pnt;
+			for(int j=0;j<DIM;j++)
+			    target_pnt[j]=a_targets[it*DIM+j];
+			sycl::marray<double,DIM> transformed;
+
+			const auto cf = functions.CF(target_pnt - center);
+						
+
+			transformed=0;
+
+			Util::cartToInterp(target_pnt,transformed,center,H);
+			
+			//out<<transformed[0]<<" "<<transformed[1]<<" "<<transformed[2]<<"\n";
+                        const size_t el=grid.elementForPoint(transformed);
+			
+			assert(el<SIZE_MAX); //we used to cutoff targets like that
+
+			
+			const size_t memId=srcDataAcc.memId(boxId,el);
+			assert(memId<SIZE_MAX); //the requested element should always be active since it contains a target point
+
+			target_pnt=0;
+
+			grid.transformBackwards(el,transformed,target_pnt);
+						
+			
+			SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
+			const size_t offset=stride*memId;
+			T res=clenshaw(SyclRowMatrix<double, DIM,1>(target_pnt), a_intData, ns, offset);
+			
+			
+			
+			res*= cf;
+
+			
+			a_result[it]+=res;
+		    }
+
+		});
+	    });
+
+#else
 	    std::cout<<"evaluate far field"<<std::endl;
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_target_octree->numPoints()),
 	        [&](tbb::blocked_range<size_t> r) {
@@ -991,7 +1065,7 @@ public:
             std::cout<<"connectivity"<<std::endl<<m_connectivity<<std::endl;
 	    #endif*/
 
-
+#endif
 	    std::cout<<"propagating"<<std::endl;
 
 	    if(level<1) //there is no parent

@@ -418,6 +418,26 @@ public:
     }
 
 
+    //transforms from K_el to (-1,1)
+    void transformBackwards(size_t el,const sycl::marray<double,DIM>& pnt,sycl::marray<double,DIM>& dest) const 
+    {	
+
+	for(int j=0;j<DIM;j++) {
+	    const size_t idx=el % m_numEls[j];
+	    el=el / m_numEls[j];
+
+
+	    
+	    double b=m_min[j]+(idx+0.5)*m_h[j];	
+	    double a=0.5*m_h[j];
+	    
+	    dest[j]=(pnt[j]-b)/a;	    
+	}
+
+    }
+
+
+
 
     template <typename S>
     static inline std::array<S,DIM> indicesFromId(size_t j, std::array<S,DIM> n_el)  {
@@ -444,6 +464,27 @@ public:
 
 	return indices;
     }
+
+
+    size_t elementForPoint(const sycl::marray<double,DIM> & pnt) const
+    {
+	size_t idx=0;
+	int stride=1;
+   
+	for(int j=0;j<DIM;j++) {	    
+	    const int q=std::floor( (pnt[j]-m_min[j])/m_h[j]);
+	    
+
+	    const size_t ij=( std::clamp(q,0, (int) ( m_numEls[j]-1)));
+
+	    idx+=ij*stride;
+	    stride*=m_numEls[j];
+	}
+
+	return idx;
+
+    }
+
 
 
     

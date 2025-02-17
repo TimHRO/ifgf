@@ -182,6 +182,36 @@ namespace Util
 	return ps;
     }
 
+
+
+    template<size_t DIM>
+    inline void cartToInterp(const sycl::marray<double,DIM>& p, sycl::marray<double,DIM>& res, const sycl::marray<double,DIM>& xc, double H)
+    {
+	auto xp=p-xc;
+        if constexpr (DIM==2) {
+	    const double r = sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
+
+	    const long double theta = atan2( (long double) xp[1], (long double) xp[0]);
+            
+            res[0] = H/r;
+            res[1] = theta ;
+
+        }else{
+            static_assert(DIM==3);
+            const double phi = atan2(xp[1], xp[0]);
+            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const double theta= atan2(sqrt(a),xp[2]);
+            const double r= sqrt(a+xp[2]*xp[2]);
+
+
+            res[0] = H/r;
+            res[1] = theta;
+            res[2] = phi;
+        }
+
+    }
+
+
     template<int DIM>
     inline Eigen::Vector<size_t,DIM> indicesFromId(size_t j, const Eigen::Ref<const Eigen::Vector<size_t,DIM> > &ns)  {
 	Eigen::Vector<size_t,DIM> indices;	

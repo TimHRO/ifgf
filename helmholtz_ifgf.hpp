@@ -69,6 +69,21 @@ public:
     }
 
 
+    template<typename TX>
+    inline T CF(TX x) const
+    {
+	const auto d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
+
+	const auto id=1.0/(sqrt(d2));
+	const auto d=d2*id;
+
+	
+	return T(cos(k*d),sin(k*d))*id  * (1/(4.0 * M_PI));	    
+
+    }
+
+
+
 
 private:
     double k;
