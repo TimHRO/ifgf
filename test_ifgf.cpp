@@ -8,7 +8,7 @@
 #include <tbb/task_arena.h>
 #include <tbb/global_control.h>
 #include <fenv.h>
-
+#include <chrono>
 
 #include "helmholtz_ifgf.hpp"
 #include "ifgfoperator.hpp"
@@ -62,7 +62,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<double, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 1000;
+    const int N = 100000;
 
 
     //Eigen::initParallel();
@@ -80,15 +80,15 @@ int main()
     //size_t  N=srcs.cols();
     //(dim,N);
 
-    srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
-    //for(int i=0;i<srcs.cols();i++){
-    //	srcs.col(i)=randomPointOnSphere();
-    //}
+    //srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
+    for(int i=0;i<srcs.cols();i++){
+    	srcs.col(i)=randomPointOnSphere();
+    }
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = srcs;//(PointArray::Random(dim, N).array());
-    /*for(int i=0;i<targets.cols();i++){
+    for(int i=0;i<targets.cols();i++){
 	targets.col(i)=randomPointOnSphere();
-	}*/
+    }
 
 
     normals.colwise().normalize();
@@ -101,11 +101,21 @@ int main()
     weights = Eigen::VectorXd::Random(srcs.cols());
 
     Eigen::Vector<std::complex<double>, Eigen::Dynamic> result;
-    for(int i=0;i<2;i++) {
+
+
+    //first one is not timed!
+    result = op.mult(weights);
+    using namespace std::chrono;
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    for(int i=0;i<10;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
 	std::cout << "done multiplying" << std::endl;
     }
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
+
+    duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+    std::cout << time_span.count() << " seconds" << std::endl;
 
     srand((unsigned) time(NULL));
     double maxE = 0;

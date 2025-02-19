@@ -1066,7 +1066,7 @@ public:
 
 
     size_t numPoints() const {
-	return m_pnts.size();
+	return m_pnts.cols();
     }
 
     void sanitize()

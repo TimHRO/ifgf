@@ -293,11 +293,13 @@ public:
 		std::swap(parentData,srcData);
 		parentData.reset();
 	    }
-		    
+
+	    std::cout<<"created ocdata"<<std::endl;
 	    
 #define SYCL_NF	    
 #ifdef SYCL_NF
 	    {
+		std::cout<<"nearfield"<<std::endl;
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
 		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
@@ -313,6 +315,8 @@ public:
 
 		    auto out = sycl::stream(1024, 768, h);
 		    const size_t num_targets=m_target_octree->numPoints();
+
+		    std::cout<<"setup complete"<<num_targets<<std::endl;
 
 		    h.parallel_for(
 				   sycl::range(num_targets),
@@ -876,33 +880,12 @@ public:
 	    }
 
 
-
-	    //TODO TEMP
-	    sycl::host_accessor a_intData(*parentInterpolationDataBuffer,  sycl::read_only);
-	    std::cout<<"copying back to cpu"<<std::endl;
-	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,0)),
-            [&](tbb::blocked_range<size_t> r) {
-            for (size_t i = r.begin(); i < r.end(); i++) {
-		ConeRef cone=m_src_octree->activeCone(level,i,0);
-		size_t boxId=cone.boxId();
-		const size_t stride=chebNodes.cols();
-
-		
-		for(size_t l=0;l<stride;l++) {			
-		    parentInterpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    		    
-		}
-
-
-	    }
-	    });
-
-
 	    
 
 #else
 
 	    sycl::host_accessor a_intData(*interpolationDataBuffer,  sycl::read_only);
-	    std::cout<<"copying back to cpu"<<std::endl;
+	    std::cout<<"copying back to cpu 2"<<std::endl;
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,1)),
             [&](tbb::blocked_range<size_t> r) {
             for (size_t i = r.begin(); i < r.end(); i++) {
@@ -1186,6 +1169,28 @@ public:
 
 #else
 
+		    
+	    //TODO TEMP
+	    sycl::host_accessor a_intData(*parentInterpolationDataBuffer,  sycl::read_only);
+	    std::cout<<"copying back to cpu 3"<<std::endl;
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level,0)),
+            [&](tbb::blocked_range<size_t> r) {
+            for (size_t i = r.begin(); i < r.end(); i++) {
+		ConeRef cone=m_src_octree->activeCone(level,i,0);
+		size_t boxId=cone.boxId();
+		const size_t stride=chebNodes.cols();
+
+		
+		for(size_t l=0;l<stride;l++) {			
+		    parentInterpolationData[boxId].values[cone.memId()*stride+l]=a_intData[cone.globalId()*stride+l];		    		    
+		}
+
+
+	    }
+	    });
+
+
+
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level-1,1)),
 		[&](tbb::blocked_range<size_t> r) {
 		    tmp_result.local().resize(ho_chebNodes.cols(),DIMOUT);
@@ -1234,7 +1239,7 @@ public:
 	    }});
 	    
 #endif
-
+	    Q.wait();
 
 	    
             std::swap(interpolationData, parentInterpolationData);
@@ -1244,8 +1249,10 @@ public:
 	    parentInterpolationDataBuffer.reset();
             parentInterpolationData.resize(0);
 
+	    std::cout<<"done with this level"<<std::endl;
         }
 
+	std::cout<<"mult over\n";
 
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
         Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_target_octree->permutation(),true_result);
@@ -1257,7 +1264,6 @@ public:
     void initInterpolationData(size_t level, size_t step, std::vector<ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT> >& i_data,std::unique_ptr<sycl::buffer<T,1>> & buf )
     {
 	assert(level<m_src_octree->levels());
-	i_data.resize(m_src_octree->numBoxes(level));
 
 
 	//get an exemplary box to query the polynomial order
@@ -1269,11 +1275,13 @@ public:
 
 	//make sure no old buffer is around	
 	buf=std::make_unique<sycl::buffer<T,1> > (m_src_octree->numActiveCones(level,step)*order.prod());
-	{
-	    //TMP: zero it out
-	     auto bufA=buf->get_host_access();
-	     std::fill(bufA.begin(),bufA.end(),0);
-	 }
+	// {
+	//     //TMP: zero it out
+	//      auto bufA=buf->get_host_access();
+	//      std::fill(bufA.begin(),bufA.end(),0);
+	//  }
+#if 0
+	i_data.resize(m_src_octree->numBoxes(level));
 
         tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, i_data.size()),
@@ -1291,6 +1299,7 @@ public:
 		    i_data[id].grid=grid;
 	       }
 	    });
+#endif
 
     }
 
