@@ -82,6 +82,20 @@ public:
 
     }
 
+    
+    template<typename TX , typename TY>
+    inline T transfer_factor(TX x, TY xc, double H, TY pxc, double pH) const
+    {
+	auto z=x-xc;
+	auto zp=x-pxc;
+	const auto d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
+	const auto dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
+
+	return exp(T(0,k)*(d-dp))*dp/d;
+	
+    }
+
+
 
 
 

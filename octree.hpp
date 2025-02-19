@@ -1204,6 +1204,11 @@ private:
 
     }
 
+    inline size_t numChildBoxes(size_t level) const
+    {
+	return level+1 < m_levels ? numBoxes(level)*pow(2,DIM) : 0 ; //The finest level does not have children
+    }
+
 
 
 private:
@@ -1253,8 +1258,10 @@ public:
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
     coneDomains1(octree.numBoxes(level)),
-    activeCones(octree.m_activeCones[level][1]),   
-    coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level)))
+    activeCones(octree.m_activeCones[level][1]),
+    coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
+    childBoxes(octree.numChildBoxes(level)),
+    childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
     {
 	std::cout<<"creating ocdata"<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
@@ -1275,7 +1282,8 @@ public:
 
 
 	
-	
+
+	sycl::host_accessor cB(childBoxes,sycl::write_only);
 	
 	//serialize the points
 	for(size_t box=0;box<octree.numBoxes(level);box++)
@@ -1297,6 +1305,18 @@ public:
 	    cds1[box]=octree.coneDomain(level,box,1);
 	    
 	    
+	    
+	    if(octree.numChildBoxes(level)>0) {
+		size_t id=0;
+
+		for( const auto & cb : octree.childBoxes(level,box)) {
+		    cB[box*childrenPerBox+id]=cb;
+		    id++;
+		}
+		for(;id<childrenPerBox;id++) {
+		    cB[box*childrenPerBox+id]=SIZE_MAX;
+		}
+	    }
 	    
 
 	}
@@ -1323,7 +1343,9 @@ public:
 	    boxCenters(data.boxCenters,h),
 	    boxSizes(data.boxSizes,h),
 	    activeCones(data.activeCones,h),
-	    coneMap(data.coneMap.accessor(h))
+	    coneMap(data.coneMap.accessor(h)),
+	    childBoxes(data.childBoxes,h),
+	    childrenPerBox(data.childrenPerBox)
 	{
 	    coneDomains0=sycl::accessor(data.coneDomains0,h);
 	    coneDomains1=sycl::accessor(data.coneDomains1,h);  	    
@@ -1406,6 +1428,16 @@ public:
 	    return coneMap.find(box,el);
 	}
 
+	
+	const inline  auto children(size_t boxId) const
+	{
+	    const size_t start=boxId*childrenPerBox;
+	    const size_t end=(boxId+1)*childrenPerBox;
+	    
+	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(childBoxes.cbegin()+start,childBoxes.cbegin()+end);
+	}
+
+
     private:
 	//far field boxes
 	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_indices;
@@ -1441,6 +1473,9 @@ public:
 
 	
 	SyclHelpers::SyclIndexMap<size_t >::Accessor  coneMap;
+
+	sycl::accessor< size_t ,1,sycl::access_mode::read> childBoxes;
+	size_t childrenPerBox;
 	
     };
 
@@ -1479,8 +1514,10 @@ private:
     
 
     SyclHelpers::SyclIndexMap<size_t> coneMap;
-    
-        
+
+
+    sycl::buffer<size_t,1> childBoxes;
+    size_t childrenPerBox;
 };
 
 

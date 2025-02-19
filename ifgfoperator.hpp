@@ -275,16 +275,25 @@ public:
 
 	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
 	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
-		
+
+	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
+	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
         for (; level >= 0; --level) {
 	    	    
             std::cout << "level=" << level << " "<< m_src_octree->numBoxes(level)<< std::endl;
 	    
 	    std::cout << "near field" <<std::endl;
-	    OctreeLevelData<T,DIM> srcData(*m_src_octree,level);
+	    
 
 	    std::cout<<"lets go"<<std::endl;
 
+	    if(parentData==0) {
+		srcData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
+	    }else {
+		std::swap(parentData,srcData);
+		parentData.reset();
+	    }
+		    
 	    
 #define SYCL_NF	    
 #ifdef SYCL_NF
@@ -297,7 +306,7 @@ public:
 
 		    sycl::accessor a_result(b_result, h, sycl::read_write);
 
-		    const auto &srcDataAcc = srcData.accessor(h);
+		    const auto &srcDataAcc = srcData->accessor(h);
 		    const auto functions =
 			static_cast<Derived *>(this)->kernelFunctions();
 
@@ -376,7 +385,8 @@ public:
 		initInterpolationData(level,1, interpolationData, interpolationDataBuffer);
 	    }
 
-
+#define SYCL_PROP
+#ifndef SYCL_PROP
 	    //TODO TEMPORARY!!!
 	    {
 		std::cout<<"making sure intData and intDataBuffer are in sync"<<std::endl;
@@ -401,8 +411,9 @@ public:
 				      }
 				  });
 	    }
-
 	    //END TODO
+#endif
+
 
 
 	    
@@ -425,7 +436,7 @@ public:
 
 		    sycl::accessor a_hoChebNodes(b_hoChebNodes, h, sycl::read_only);
 
-		    const auto &srcDataAcc = srcData.accessor(h);
+		    const auto &srcDataAcc = srcData->accessor(h);
 		    const auto functions =
 			static_cast<Derived *>(this)->kernelFunctions();
 
@@ -744,7 +755,7 @@ public:
 
 			size_t fine_stride=order.prod();
 
-			const auto &srcDataAcc = srcData.accessor(h);
+			const auto &srcDataAcc = srcData->accessor(h);
 
 			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(hoGrid.num_elements());
 			auto out = sycl::stream(100, 100, h);
@@ -983,7 +994,7 @@ public:
 		std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
 
 
-		const auto &srcDataAcc = srcData.accessor(h);
+		const auto &srcDataAcc = srcData->accessor(h);
 		const auto functions =
 		    static_cast<Derived *>(this)->kernelFunctions();
 		
@@ -1075,7 +1086,106 @@ public:
 	    
             //Now transform the interpolation data to the parents
 	    std::cout<<"propagating upward"<<std::endl;
+
 	    initInterpolationData(level-1,1, parentInterpolationData,parentInterpolationDataBuffer);
+
+#ifdef SYCL_PROP
+	    const size_t numActiveParentCones= m_src_octree->numActiveCones(level-1,1);
+	    if(numActiveParentCones==0) {
+		continue;
+	    }
+
+	    parentData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
+	    Q.submit([&](sycl::handler &h) {
+		// start by pushing  some data to the GPU (octree stuff)
+
+		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
+		sycl::accessor a_parentIntData(*parentInterpolationDataBuffer, h, sycl::read_write);
+		
+
+		std::array<int,DIM> ns=SyclHelpers::EigenVectorToCPPArray<int,DIM>(order);
+		std::array<int,DIM> ns_ho=SyclHelpers::EigenVectorToCPPArray<int,DIM>(high_order);
+
+		
+
+		sycl::accessor a_hoChebNodes(b_hoChebNodes,h,sycl::read_only);
+		
+		const auto &srcDataAcc = srcData->accessor(h);
+		const auto &parentDataAcc = parentData->accessor(h);
+	
+		
+		const size_t stride=ho_chebNodes.cols();
+		const size_t lo_stride=chebNodes.cols();
+		auto out = sycl::stream(100, 100, h);
+		std::cout<<"survived setup1234"<<std::endl;
+
+		const auto functions =
+		    static_cast<Derived *>(this)->kernelFunctions();
+
+
+		    
+		h.parallel_for(sycl::range<1>( numActiveParentCones), [=](sycl::id<1> i)
+		{
+		    ConeRef parentCone=parentDataAcc.activeCone(i); //parent!!
+		    size_t parentBoxId = parentCone.boxId();
+		    auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);//m_src_octree->coneDomain(level-1,parentId,1);				    
+                    auto parent_center = parentDataAcc.boxCenter(parentBoxId);
+                    double pH = parentDataAcc.boxSize(parentBoxId);
+
+
+		    if( ! parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)){ //we dont need the interpolation info for those levels.
+			return;
+		    }
+
+		    for(size_t j=0;j<stride;j++) {
+			sycl::marray<double,DIM> pnt;
+			sycl::marray<double,DIM> cart_pnt;
+			sycl::marray<double,DIM> pnt2;
+			
+			//std::copy(a_hoChebNodes.begin()+j*DIM,a_hoChebNodes.begin()+(j+1)*DIM,pnt.begin());
+			pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,j);
+			Util::interpToCart(pnt,cart_pnt,parent_center,pH);
+
+
+			a_parentIntData[i*stride+j]=0;
+			for(size_t childBox : parentDataAcc.children(parentBoxId)) {
+			    if(childBox==SIZE_MAX) {
+				continue;
+			    }
+
+			    auto center = srcDataAcc.boxCenter(childBox);
+			    double H = srcDataAcc.boxSize(childBox);
+			    const auto grid=srcDataAcc.coneDomain(childBox,0);
+			    
+			    //Transfer to the interpolation domain relative to the child box
+			    Util::cartToInterp(cart_pnt,pnt2,center,H);
+			
+			    const size_t el=grid.elementForPoint(pnt2);
+			
+			    assert(el<SIZE_MAX); //we used to cutoff targets like that
+
+			    const size_t memId=srcDataAcc.memId(childBox,el);
+			    if(memId < SIZE_MAX) {				
+				grid.transformBackwards(el,pnt2,pnt);						
+			
+				SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
+				const size_t offset=lo_stride*memId;
+				T res=clenshaw(SyclRowMatrix<double, DIM,1>(pnt), a_intData, ns, offset);
+
+				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
+			    
+				a_parentIntData[i*stride+j]+=res*TF;
+			    }
+			}
+		    }
+
+
+		});});
+
+	std::cout<<"done"<<std::endl;
+
+#else
+
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_src_octree->numActiveCones(level-1,1)),
 		[&](tbb::blocked_range<size_t> r) {
 		    tmp_result.local().resize(ho_chebNodes.cols(),DIMOUT);
@@ -1103,7 +1213,7 @@ public:
 		    if( ! m_src_octree->hasFarTargetsIncludingAncestors(level-1, parentId)){ //we dont need the interpolation info for those levels.
 			continue;
 		    } 
-
+		    
 		    transformInterpToCart(pGrid.transform(parentCone.id(),ho_chebNodes), transformedNodes.local(), parent_center, pH);
 		    const size_t stride=ho_chebNodes.cols();
 
@@ -1122,8 +1232,8 @@ public:
 			parentInterpolationData[parentId].values.middleRows(parentCone.memId()*stride,stride)+=tmp_result.local();
 		    }
 	    }});
-
-
+	    
+#endif
 
 
 	    
