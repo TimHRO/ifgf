@@ -6,18 +6,18 @@
 
 
 template<size_t dim >
-class GradHelmholtzIfgfOperator : public IfgfOperator<std::complex<double>, dim,
+class GradHelmholtzIfgfOperator : public IfgfOperator<std::complex<PointScalar>, dim,
 						      1, GradHelmholtzIfgfOperator<dim> >
 {
 public:
-    typedef Eigen::Array<double, dim, Eigen::Dynamic> PointArray;
-    typedef Eigen::Vector<double,dim> Point;
+    typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
+    typedef Eigen::Vector<PointScalar,dim> Point;
 
-    GradHelmholtzIfgfOperator(std::complex<double> waveNumber,
+    GradHelmholtzIfgfOperator(std::complex<PointScalar> waveNumber,
                           size_t leafSize,
                           size_t order,
-			      size_t n_elem=1,double tolerance=-1):
-        IfgfOperator<std::complex<double>, dim, 1, GradHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tolerance),
+			      size_t n_elem=1,PointScalar tolerance=-1):
+        IfgfOperator<std::complex<PointScalar>, dim, 1, GradHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tolerance),
         k(waveNumber),
 	m_dx(-1)
     {
@@ -30,7 +30,7 @@ public:
     }
 
 
-    typedef std::complex<double > T ;
+    typedef std::complex<PointScalar > T ;
 
     /*template<typename TX>
     inline Eigen::Array<T, dim, TX::ColsAtCompileTime>  kernelFunction(TX x) const
@@ -48,17 +48,17 @@ public:
 	//(d2 > 1e-12).select( ((-1.0 / d2) * Eigen::exp(- k * d).colwise() * (k + invd).colwise() * x) ,
         //                         Eigen::Array<T, TX::ColsAtCompileTime,dim>::Zero(x.cols(),dim)).transpose();
 	}*/
-
+    
     template <int dx>
     inline T  kernelFunction(const Eigen::Ref< const Point >&  x) const
     {
-	double d = x.norm();
+	PointScalar d = x.norm();
 
 	if constexpr(dx==-1) {
-	    double d = x.norm();
-	    return (d < 1e-12) ? 0 : (1 / (4 * M_PI)) * exp(-k * d) / d;
+	    PointScalar d = x.norm();
+	    return (d < 1e-12) ? 0 : PointScalar((1. / (4 * M_PI))) * exp(-k * d) / d;
   	}else{
-	    return d<1e-12 ? 0.0:   -(1.0 / (4.0 * M_PI)) * (1.0/(d*d)) * exp(-k * d) *(-k-1.0/d)*x[m_dx];
+	    return d<1e-12 ? 0:   PointScalar( -(1.0 / (4 * M_PI))) * (1/(d*d)) * exp(-k * d) *(-k-1/d)*x[m_dx];
 	}
     }
 
@@ -76,7 +76,7 @@ public:
 	    const auto invd=Eigen::rsqrt(d2.array());
 
 	    const auto d=d2.array()*invd.array();
-	    const double factor= (1.0/ (4.0 * M_PI));
+	    const PointScalar factor= (1.0/ (4.0 * M_PI));
 	    if(m_dx==-1) {
 		return Eigen::exp(-k * d) * invd *factor;
 	    }else{
@@ -102,7 +102,7 @@ public:
     
 
     template<typename TX, typename TY, typename TZ>
-    inline void transfer_factor(TX x, TY xc, double H, TY pxc, double pH, TZ& result) const
+    inline void transfer_factor(TX x, TY xc, PointScalar H, TY pxc, PointScalar pH, TZ& result) const
     {
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> d2=(x.matrix().colwise()-xc).colwise().squaredNorm().array();
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> dp2=(x.matrix().colwise()-pxc).colwise().squaredNorm().array();
@@ -112,7 +112,7 @@ public:
 	const auto dp=Eigen::sqrt(dp2);
 	const auto d=d2*invd;
 	
-	//double d = (x - xc).norm();
+	//PointScalar d = (x - xc).norm();
         ///Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> dp = (x.colwise() - pxc).norm();
 
 
@@ -123,8 +123,8 @@ public:
 	    result*=(Eigen::exp( -k*(d-dp) )*(dp*invd));
 	}
 	/*for (size_t i=0;i<x.cols();i++) {
-	    const double d=(x-xc).norm();
-	    const double dp=(x-pxc).norm();
+	    const PointScalar d=(x-xc).norm();
+	    const PointScalar dp=(x-pxc).norm();
 	    
 	    result(i)*=std::exp(-k*(d-dp))*dp/d;
 	    }*/
@@ -175,7 +175,7 @@ public:
 
     Eigen::Array<T, Eigen::Dynamic,1>  evaluateFactoredKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y,
 							      const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights,
-							      const Point& xc, double H,IndexRange srcIds) const
+							      const Point& xc, PointScalar H,IndexRange srcIds) const
     {
 
         Eigen::Array<T, Eigen::Dynamic,1> result(y.cols());
@@ -184,29 +184,29 @@ public:
         result.fill(0);
 	if(m_dx==-1) {
 	    for (int j = 0; j < y.cols(); j++) {
-		const double dc = (y.matrix().col(j) - xc).norm();
+		const PointScalar dc = (y.matrix().col(j) - xc).norm();
 
 		for (int i = 0; i < x.cols(); i++) {
-		    const double d2 = (x.col(i) - y.col(j)).matrix().squaredNorm();
-		    const double id=d2>1e-12 ? 1.0/sqrt(d2) : 0.0;
-		    const double d=d2*id;
+		    const PointScalar d2 = (x.col(i) - y.col(j)).matrix().squaredNorm();
+		    const PointScalar id=d2>1e-12 ? 1.0/sqrt(d2) : 0.0;
+		    const PointScalar d=d2*id;
 
-		    const double w=  (dc) *id;
+		    const PointScalar w=  (dc) *id;
 		    result[j] += w*weights[i]*exp(-k * (d - dc));
 		}
 				       
 	    }
 	}else{
 	    for (int j = 0; j < y.cols(); j++) {
-		const double dc = (y.matrix().col(j) - xc).norm();
+		const PointScalar dc = (y.matrix().col(j) - xc).norm();
                 for (int i = 0; i < x.cols(); i++) {
-		    const double d2 = (x.matrix().col(i) - y.matrix().col(j)).squaredNorm();
+		    const PointScalar d2 = (x.matrix().col(i) - y.matrix().col(j)).squaredNorm();
 
-		    const double id= (d2>1e-12) ? 1.0/sqrt(d2) : 0;
-		    const double d=d2*id;
+		    const PointScalar id= (d2>1e-12) ? 1.0/sqrt(d2) : 0;
+		    const PointScalar d=d2*id;
 
 		    //if(d>1e-12) {
-		    const double w= (-(1.0/(d2)) *dc*  (x(m_dx,i)-y(m_dx,j)));
+		    const PointScalar w= (-(1.0/(d2)) *dc*  (x(m_dx,i)-y(m_dx,j)));
 		    result.row(j) +=  weights[i] * exp(-k * (  d-dc)) *(-k-id) * w;
 			//exp(-k * (d - dc))*dc * (-1.0 /(d*d))*(k+1.0/d)*(x(dx,i)-y(dx,j));
 		    //}
@@ -223,7 +223,7 @@ public:
 
     
     
-    inline Eigen::Vector<int,dim> orderForBox(double H, Eigen::Vector<int,dim> baseOrder,int step=0) const
+    inline Eigen::Vector<int,dim> orderForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,int step=0) const
     {
 	
 	Eigen::Vector<int,dim> order=baseOrder;
@@ -235,7 +235,7 @@ public:
 	// order[2]=std::round(baseOrder*1.5);
 
 	if(step==0) {
-	    order=(baseOrder.array()-3).cwiseMax(2);//(baseOrder.array().template cast<double>()*Eigen::log(4./baseOrder.array().template cast<double>())).template cast<int>();
+	    order=(baseOrder.array()-3).cwiseMax(2);//(baseOrder.array().template cast<PointScalar>()*Eigen::log(4./baseOrder.array().template cast<PointScalar>())).template cast<int>();
 		//std::cout<<"order="<<order.transpose()<<std::endl;
 	    //order[0]-=2;
 	    //order[2]=std::round(baseOrder[2]/1.3);
@@ -248,7 +248,7 @@ public:
         return order;
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
     {
 	const auto orders=orderForBox(H,baseOrder,step);
 	Eigen::Vector<size_t,dim> els;
@@ -260,7 +260,7 @@ public:
 	    
 	for(int i=0;i<dim;i++) {
 	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
-	    double delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
+	    PointScalar delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
 	    
 
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
@@ -270,7 +270,7 @@ public:
     }
 
 
-    inline  double  cutoff_limit(double H) const
+    inline  PointScalar  cutoff_limit(PointScalar H) const
     {
 	if(this->tolerance()>0) {
 	    return  std::max(1e-4,std::abs(k.real())*H/abs(log(this->tolerance())));
@@ -284,7 +284,7 @@ public:
 
 
 private:
-    std::complex<double> k;
+    std::complex<PointScalar> k;
     int m_dx;
 };
 

@@ -3,6 +3,9 @@
 
 #define MIN_RECURSIVE_BOXES 32
 
+
+#define PointScalar double 
+
 //#define  RECURSIVE_MULT
 //#define CHECK_CONNECTIVITY
 //#define BE_FAST

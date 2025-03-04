@@ -70,7 +70,7 @@ private:
 template<size_t DIM>
 class ConeDomain
 {
-    typedef Eigen::Matrix<double, DIM, Eigen::Dynamic> PointArray;
+    typedef Eigen::Matrix<PointScalar, DIM, Eigen::Dynamic> PointArray;
     
 public:
     ConeDomain()
@@ -83,7 +83,7 @@ public:
 	m_domain(domain)
     {
 	if(!domain.isNull()) {
-	    m_h=m_domain.diagonal().array()/numEls.template cast<double>().array();
+	    m_h=m_domain.diagonal().array()/numEls.template cast<PointScalar>().array();
 	}else{
 	    m_h.fill(1);
 	}
@@ -128,7 +128,7 @@ public:
 
     }
 
-    double h() const
+    PointScalar h() const
     {
 	return m_h[2];
     }
@@ -167,12 +167,12 @@ public:
     }
 
     //transforms from (-1,1) to K_el
-    Eigen::Matrix<double,DIM,Eigen::Dynamic> transform(size_t el,const Eigen::Ref<const PointArray >& pnts) const 
+    Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> transform(size_t el,const Eigen::Ref<const PointArray >& pnts) const 
     {
 	const BoundingBox bbox=region(el);
-	Eigen::Matrix<double,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
+	Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
 	const auto a=0.5*m_h.array();
-	const Eigen::Array<double, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<double>().array()+0.5)*m_h.array();	
+	const Eigen::Array<PointScalar, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<PointScalar>().array()+0.5)*m_h.array();	
 
 	for(int i=0;i<pnts.cols();i++) {
 	    tmp.col(i)=(pnts.array().col(i)*a)+b;
@@ -189,7 +189,7 @@ public:
     void transformBackwardsInplace(size_t el,Eigen::Ref<const  PointArray > pnts) const 
     {
 	const BoundingBox bbox=region(el);
-	Eigen::Matrix<double,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
+	Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
 
 	const auto a=0.5*(bbox.max()-bbox.min()).array();
 	const auto b=0.5*(bbox.max()+bbox.min()).array();
@@ -199,13 +199,13 @@ public:
 
 
     //transforms from K_el to (-1,1)
-    Eigen::Matrix<double,DIM,Eigen::Dynamic> transformBackwards(size_t el,const Eigen::Ref<const  PointArray >& pnts) const 
+    Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> transformBackwards(size_t el,const Eigen::Ref<const  PointArray >& pnts) const 
     {
 	const BoundingBox bbox=region(el);
-	Eigen::Matrix<double,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
+	Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
 
 	const auto a=0.5*(m_h).array();
-	const Eigen::Array<double, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<double>().array()+0.5)*m_h.array();
+	const Eigen::Array<PointScalar, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<PointScalar>().array()+0.5)*m_h.array();
 
 	tmp.array()=(pnts.array().colwise()-b).colwise()/a;
 	
@@ -244,21 +244,21 @@ public:
 	auto j0=j;
 
 	assert(j<n_elements());
-	Eigen::Vector<double, DIM> min,max;
-	Eigen::Vector<double, DIM> h=m_domain.diagonal();
+	Eigen::Vector<PointScalar, DIM> min,max;
+	Eigen::Vector<PointScalar, DIM> h=m_domain.diagonal();
 	for(int i=0;i<DIM;i++) {
 	    const size_t idx=j % m_numEls[i];
 	    j=j / m_numEls[i];
 	    
 	    
 	    
-	    min[i]=m_domain.min()[i]+(idx*(h[i]/((double) m_numEls[i])));
-	    max[i]=(min[i]+(h[i]/((double) m_numEls[i])));
+	    min[i]=m_domain.min()[i]+(idx*(h[i]/((PointScalar) m_numEls[i])));
+	    max[i]=(min[i]+(h[i]/((PointScalar) m_numEls[i])));
 	}
 	return  BoundingBox<DIM>(min,max);
     }
 
-    size_t elementForPoint(const Eigen::Ref<const Eigen::Vector<double,DIM> > & pnt) const
+    size_t elementForPoint(const Eigen::Ref<const Eigen::Vector<PointScalar,DIM> > & pnt) const
     {
 	size_t idx=0;
 	int stride=1;
@@ -290,47 +290,11 @@ public:
     }
 
 
-    inline Eigen::Matrix<double,DIM,Eigen::Dynamic> rotated_points(size_t el,const Eigen::Ref<const  PointArray >& pnts, Eigen::Vector3d direction,bool backward) const
-    {
-	Eigen::Vector3d xc=Eigen::Vector3d::Zero();
-	const double H=1;
-       
-	auto targets=Util::interpToCart<DIM>(transform(el,pnts).array(), xc, H);
-
-	auto rotation=Eigen::Quaternion<double>::FromTwoVectors(direction,Eigen::Vector3d({0,0,1}));
-	Eigen::Array<double, DIM,1> pnt;
-	if(backward) {
-	    rotation=rotation.inverse();
-	}
-	
-	for(int j=0;j<targets.cols();j++) {
-	    pnt=rotation*(targets.col(j));
-	    targets.col(j)=pnt;
-	}	       
-
-	//transform to the un-rotated interpolation domain
-	PointArray transformed(3,targets.cols());
-	Util::cartToInterp2<DIM>(targets.array(),  xc, H,transformed);
-
-	return transformed;
-    }
-
-
-    inline Eigen::Matrix<double,DIM,Eigen::Dynamic> translated_points(size_t el,const Eigen::Ref<const  PointArray >& pnts, Eigen::Vector3d xc, double H, Eigen::Vector3d pxc, double pH) const
-    {	
-	auto targets=Util::interpToCart<DIM>(transform(el,pnts).array(), xc-Eigen::Vector3d(0,0,(pxc-xc).norm()), pH);
-	    
-	//transform to the child interpolation domain
-	PointArray transformed(3,targets.cols());
-	Util::cartToInterp2<DIM>(targets.array(), xc, H,transformed);
-	return transformed;
-
-    }
 
 private:
     BoundingBox<DIM> m_domain;
     Eigen::Vector<size_t, DIM> m_numEls;
-    Eigen::Vector<double, DIM> m_h;
+    Eigen::Vector<PointScalar, DIM> m_h;
     std::vector<size_t> m_activeCones;
     IndexMap m_coneMap;
 };
@@ -350,8 +314,8 @@ public:
     SyclConeDomain(const ConeDomain<DIM>& cd)
     {
 	//std::cout<<"cloning cone domain to sycl"<<cd.domain()<<std::endl;
-	const Eigen::Vector<double,DIM> h=cd.domain().diagonal();
-	const Eigen::Vector<double,DIM> min=(cd.domain().min());
+	const Eigen::Vector<PointScalar,DIM> h=cd.domain().diagonal();
+	const Eigen::Vector<PointScalar,DIM> min=(cd.domain().min());
 
 	for(int i=0;i<DIM;i++) {
 	    m_min[i]=min[i];
@@ -361,7 +325,7 @@ public:
     }
 
 
-    /*    SyclConeDomain(sycl::marray<size_t,DIM> numEls, sycl::marray<double,DIM> h,sycl::marray<double,DIM> center) :
+    /*    SyclConeDomain(sycl::marray<size_t,DIM> numEls, sycl::marray<PointScalar,DIM> h,sycl::marray<PointScalar,DIM> center) :
 	m_numEls(numEls),
 	m_h(h),
 	m_min(mi)
@@ -396,13 +360,13 @@ public:
 	return m_numEls;
     }
 
-    double h() const
+    PointScalar h() const
     {
 	return m_h[2];
     }
     
     //transforms from (-1,1) to K_el
-    void transform(size_t el,const sycl::accessor<const double,1,sycl::access_mode::read>& pnts, sycl::marray<double,DIM>& dest, size_t i) const 
+    void transform(size_t el,const sycl::accessor<const PointScalar,1,sycl::access_mode::read>& pnts, sycl::marray<PointScalar,DIM>& dest, size_t i) const 
     {	
 	for(int j=0;j<DIM;j++) {
 	    const size_t idx=el % m_numEls[j];
@@ -410,7 +374,7 @@ public:
 
 
 	    
-	    double b=m_min[j]+(idx+0.5)*m_h[j];	
+	    PointScalar b=m_min[j]+(idx+0.5)*m_h[j];	
 	    
 	    dest[j]=(0.5*pnts[i*DIM+j]*m_h[j])+b;	    
 	}
@@ -420,7 +384,7 @@ public:
 
 
     //transforms from K_el to (-1,1)
-    void transformBackwards(size_t el,const sycl::marray<double,DIM>& pnt,sycl::marray<double,DIM>& dest) const 
+    void transformBackwards(size_t el,const sycl::marray<PointScalar,DIM>& pnt,sycl::marray<PointScalar,DIM>& dest) const 
     {	
 
 	for(int j=0;j<DIM;j++) {
@@ -429,8 +393,8 @@ public:
 
 
 	    
-	    double b=m_min[j]+(idx+0.5)*m_h[j];	
-	    double a=0.5*m_h[j];
+	    PointScalar b=m_min[j]+(idx+0.5)*m_h[j];	
+	    PointScalar a=0.5*m_h[j];
 	    
 	    dest[j]=(pnt[j]-b)/a;	    
 	}
@@ -467,7 +431,7 @@ public:
     }
 
 
-    size_t elementForPoint(const sycl::marray<double,DIM> & pnt) const
+    size_t elementForPoint(const sycl::marray<PointScalar,DIM> & pnt) const
     {
 	size_t idx=0;
 	int stride=1;
@@ -515,10 +479,10 @@ public:
 
 
     // //transforms from (-1,1) to K_el
-    // void transform(size_t el,const sycl::accessor<const double>& pnts, sycl::accessor<double>& dest, size_t n) const 
+    // void transform(size_t el,const sycl::accessor<const PointScalar>& pnts, sycl::accessor<PointScalar>& dest, size_t n) const 
     // {
     // 	const auto a=0.5*m_h;
-    // 	const Eigen::Array<double, DIM,1> b=m_center+(indicesFromId(el))*m_h;	
+    // 	const Eigen::Array<PointScalar, DIM,1> b=m_center+(indicesFromId(el))*m_h;	
 
     // 	for(int i=0;i<n;i++) {
     // 	    for(int j=0;j<DIM;j++) {
@@ -535,7 +499,7 @@ public:
     void transformBackwardsInplace(size_t el,Eigen::Ref<const  PointArray > pnts) const 
     {
 	const BoundingBox bbox=region(el);
-	Eigen::Matrix<double,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
+	Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
 
 	const auto a=0.5*(bbox.max()-bbox.min()).array();
 	const auto b=0.5*(bbox.max()+bbox.min()).array();
@@ -545,13 +509,13 @@ public:
 
 
     //transforms from K_el to (-1,1)
-    Eigen::Matrix<double,DIM,Eigen::Dynamic> transformBackwards(size_t el,const Eigen::Ref<const  PointArray >& pnts) const 
+    Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> transformBackwards(size_t el,const Eigen::Ref<const  PointArray >& pnts) const 
     {
 	const BoundingBox bbox=region(el);
-	Eigen::Matrix<double,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
+	Eigen::Matrix<PointScalar,DIM,Eigen::Dynamic> tmp(DIM,pnts.cols());
 
 	const auto a=0.5*(m_h).array();
-	const Eigen::Array<double, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<double>().array()+0.5)*m_h.array();
+	const Eigen::Array<PointScalar, DIM,1> b=m_domain.min().array()+(indicesFromId(el).template cast<PointScalar>().array()+0.5)*m_h.array();
 
 	tmp.array()=(pnts.array().colwise()-b).colwise()/a;
 	
@@ -578,21 +542,21 @@ public:
 	auto j0=j;
 
 	assert(j<n_elements());
-	Eigen::Vector<double, DIM> min,max;
-	Eigen::Vector<double, DIM> h=m_domain.diagonal();
+	Eigen::Vector<PointScalar, DIM> min,max;
+	Eigen::Vector<PointScalar, DIM> h=m_domain.diagonal();
 	for(int i=0;i<DIM;i++) {
 	    const size_t idx=j % m_numEls[i];
 	    j=j / m_numEls[i];
 	    
 	    
 	    
-	    min[i]=m_domain.min()[i]+(idx*(h[i]/((double) m_numEls[i])));
-	    max[i]=(min[i]+(h[i]/((double) m_numEls[i])));
+	    min[i]=m_domain.min()[i]+(idx*(h[i]/((PointScalar) m_numEls[i])));
+	    max[i]=(min[i]+(h[i]/((PointScalar) m_numEls[i])));
 	}
 	return  BoundingBox<DIM>(min,max);
     }
 
-    size_t elementForPoint(const Eigen::Ref<const Eigen::Vector<double,DIM> > & pnt) const
+    size_t elementForPoint(const Eigen::Ref<const Eigen::Vector<PointScalar,DIM> > & pnt) const
     {
 	size_t idx=0;
 	int stride=1;
@@ -620,9 +584,9 @@ public:
 
 private:
     sycl::marray<size_t,DIM>  m_numEls;
-    sycl::marray<double,DIM> m_h;
-    //sycl::marray<double,DIM> m_center;
-    sycl::marray<double,DIM> m_min;  
+    sycl::marray<PointScalar,DIM> m_h;
+    //sycl::marray<PointScalar,DIM> m_center;
+    sycl::marray<PointScalar,DIM> m_min;  
     //SyclHelpers::SyclIndexMap m_coneMap;
 };
 

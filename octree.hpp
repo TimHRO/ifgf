@@ -43,8 +43,8 @@ class Octree
 public:
     enum {N_Children = 1 << DIM };
     enum TransformationMode { Decomposition, TwoGrid , Regular};
-    typedef Eigen::Array<double, DIM, Eigen::Dynamic> PointArray;
-    typedef Eigen::Vector<double, DIM> Point;
+    typedef Eigen::Array<PointScalar, DIM, Eigen::Dynamic> PointArray;
+    typedef Eigen::Vector<PointScalar, DIM> Point;
 
     struct FieldInfo {
 	Eigen::Vector<size_t, Eigen::Dynamic> indices;
@@ -233,7 +233,7 @@ public:
         m_maxLeafSize(maxLeafSize)
     {
 
-	double eta=(double) sqrt((double) DIM);
+	PointScalar eta=(PointScalar) sqrt((PointScalar) DIM);
 	m_isAdmissible= [eta] (const BoundingBox<DIM>& src,const BoundingBox<DIM>& target) { return target.exteriorDistance(src.center()) >= eta* src.sideLength();};
 
     }
@@ -268,7 +268,7 @@ public:
         std::cout << "sorting..." << std::endl;
         m_permutation = Util::sort_with_permutation( pnts.colwise().begin(), pnts.colwise().end(), zorder_knn::Less<Point, DIM>(bbox));
 	m_pnts.resize(DIM, pnts.cols());
-        Util::copy_with_permutation_colwise<double,DIM>(pnts, m_permutation,m_pnts);
+        Util::copy_with_permutation_colwise<PointScalar,DIM>(pnts, m_permutation,m_pnts);
 
 	m_diameter=bbox.diagonal().norm();
 
@@ -362,9 +362,9 @@ public:
 	target->print();
     }
 
-    void calculateInterpolationRange(  std::function<Eigen::Vector<int,DIM>(double,int)> order_for_H,
-				       std::function<Eigen::Vector<size_t,DIM>(double,int )> N_for_H,
-				       std::function<double(double)> smin_for_H,
+    void calculateInterpolationRange(  std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+				       std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				       std::function<PointScalar(PointScalar)> smin_for_H,
 				       const Octree& target)
     {
 
@@ -430,7 +430,7 @@ public:
 
 		const Point xc=node->boundingBox().center();
 		
-		const double H=node->boundingBox().sideLength();		
+		const PointScalar H=node->boundingBox().sideLength();		
 		const std::vector<IndexRange> farTargets=node->farTargets();
 #ifdef EXACT_INTERP_RANGE
 
@@ -454,7 +454,7 @@ public:
 		{	    
 		    pBox=parent->interpolationRange();
 		    const Point pxc=parent->boundingBox().center();
-		    const double pH=parent->boundingBox().sideLength();
+		    const PointScalar pH=parent->boundingBox().sideLength();
 
 
 		    if(!pBox.isNull())
@@ -470,7 +470,7 @@ public:
 
 			//TODO check if this is necessary
 			const ConeDomain<DIM>& p_grid=parent->coneDomain();
-			auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,0));
+			auto chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,0));
 			for(size_t el : p_grid.activeCones() ) {
 			    for (size_t i = 0; i < chebNodes.cols(); i++) {
 				auto pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
@@ -489,9 +489,9 @@ public:
 
 		//just use a default value for the boxes
 
-		double smax=sqrt(DIM)/DIM;
+		PointScalar smax=sqrt(DIM)/DIM;
 		//if the sources and targets are well-separated we don't have to cover the near field 
-		const double dist=0;//bbox(0,0).exteriorDistance(target.bbox(0,0));
+		const PointScalar dist=0;//bbox(0,0).exteriorDistance(target.bbox(0,0));
 		if(dist >0) {
 		    smax=std::min(smax, H/dist);
 		}
@@ -506,8 +506,8 @@ public:
 		}
 
 		
-                const double dist_t=0;//target.bbox(0,0).exteriorDistance(xc);
-		double smin= smin_for_H(H);
+                const PointScalar dist_t=0;//target.bbox(0,0).exteriorDistance(xc);
+		PointScalar smin= smin_for_H(H);
 
 		/*
                 if(!pBox.isNull()) {
@@ -594,59 +594,15 @@ public:
 		if(!pBox.isNull())
 		{
 		    const Point pxc=parent->boundingBox().center();
-		    const double pH=parent->boundingBox().sideLength();
+		    const PointScalar pH=parent->boundingBox().sideLength();
 
 		    const ConeDomain<DIM>& p_grid=parent->coneDomain(1);
 
 		    if(parentHasFarTargets(level,n))
 		    {		    
-			if(mode==Decomposition){			
-			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(H,1));
-
-			    //now we add all the points used in the point-and-shoot method. Second rotation:
-			    for(size_t el : p_grid.activeCones() ) {
-				const auto direction=xc-pxc;
-
-				auto points=p_grid.rotated_points(el,chebNodes,direction, false);
-
-				for (size_t i=0;i<points.cols();i++) {
-				    auto coneId=trans_domain.elementForPoint(points.col(i));
-				    if(coneId<SIZE_MAX)
-					is_cone_active[3].insert(coneId);
-				}
-			    }
-
-
-			    //translation
-			    for(size_t el : is_cone_active[3] ) {	    	    
-				auto points=trans_domain.translated_points(el,chebNodes,xc,H,pxc,pH);
-
-				for (size_t i=0;i<points.cols();i++) {
-				    auto coneId=coarseDomain.elementForPoint(points.col(i));
-				    if(coneId<SIZE_MAX)
-					is_cone_active[2].insert(coneId);
-				}			
-			    }
-
-
-			    //first rotation
-			    for(size_t el : is_cone_active[2] ) {	    	    
-				const auto direction=xc-pxc;
-				PointArray points=coarseDomain.rotated_points(el,chebNodes,direction, true);
-
-				for (size_t i=0;i<points.cols();i++) {
-				    auto coneId=domain.elementForPoint(points.col(i));
-				    auto coneId2=coarseDomain.elementForPoint(points.col(i));
-				    if(coneId2<SIZE_MAX)
-					is_cone_active[1].insert(coneId2);
-				    if(coneId<SIZE_MAX)
-					is_cone_active[0].insert(coneId);
-				}			    
-			    }
-			}
-			else if(mode==TwoGrid) {
+			if(mode==TwoGrid) {
 			    //We use a coarse grid with high order and a fine grid of lower order
-			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,1));			
+			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));			
 			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
 			    //
 
@@ -668,7 +624,7 @@ public:
 			}
 			else   {
 			    //now we add all the points used in the regular method
-			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order_for_H(pH,0));
+			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,0));
 			    for(size_t el : p_grid.activeCones() ) {	    
 				for (size_t i=0;i<chebNodes.cols();i++) {
 				    Point cart_pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
@@ -852,7 +808,7 @@ public:
 
 	
     
-    inline double diameter () const
+    inline PointScalar diameter () const
     {
 	return m_diameter;
     }
@@ -1157,7 +1113,7 @@ private:
             min = bbox.min();
             max = bbox.max();
 
-            Eigen::Vector<double, DIM> size = 0.5 * bbox.diagonal();
+            Eigen::Vector<PointScalar, DIM> size = 0.5 * bbox.diagonal();
 
             //find the quadrant that the next src idx belongs to
 
@@ -1188,9 +1144,9 @@ private:
 
     }
 
-    inline Eigen::Vector<double, DIM> compute_tuple_idx(size_t idx) const
+    inline Eigen::Vector<PointScalar, DIM> compute_tuple_idx(size_t idx) const
     {
-        Eigen::Vector<double, DIM> tuple;
+        Eigen::Vector<PointScalar, DIM> tuple;
         tuple.fill(0);
 
         for (size_t j = 0; j < DIM; j++) {
@@ -1231,7 +1187,7 @@ private:
     size_t m_maxLeafSize;
     PointArray m_pnts;
     std::vector<size_t> m_permutation;
-    double m_diameter;
+    PointScalar m_diameter;
 
     std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
 };
@@ -1394,14 +1350,14 @@ public:
 	    return ftAFlags[boxId];
 	}
 
-	double boxSize(size_t boxId) const
+	PointScalar boxSize(size_t boxId) const
 	{
 	    return boxSizes[boxId];
 	}
 
-	sycl::marray<double,DIM> boxCenter(size_t boxId) const
+	sycl::marray<PointScalar,DIM> boxCenter(size_t boxId) const
 	{
-	    sycl::marray<double,DIM> c;
+	    sycl::marray<PointScalar,DIM> c;
 	    for(int i=0;i<DIM;i++) {
 		c[i]=boxCenters[boxId*DIM+i];
 	    }
@@ -1461,8 +1417,8 @@ public:
 
 
 
-	sycl::accessor< double ,1,sycl::access_mode::read> boxSizes;
-	sycl::accessor< double ,1,sycl::access_mode::read> boxCenters;
+	sycl::accessor< PointScalar ,1,sycl::access_mode::read> boxSizes;
+	sycl::accessor< PointScalar ,1,sycl::access_mode::read> boxCenters;
       
 
 	//interpolation data
@@ -1504,8 +1460,8 @@ private:
     sycl::buffer<char,1> ftAFlags;
 
 
-    sycl::buffer<double,1> boxSizes;
-    sycl::buffer<double,1> boxCenters;
+    sycl::buffer<PointScalar,1> boxSizes;
+    sycl::buffer<PointScalar,1> boxCenters;
 
     sycl::buffer<ConeRef> activeCones;
 

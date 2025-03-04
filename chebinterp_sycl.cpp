@@ -8,7 +8,7 @@
 
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 void SyclChebychevInterpolation::parallel_evaluate(
-					       const Eigen::Ref<const Eigen::Array<double, DIM, Eigen::Dynamic> >
+					       const Eigen::Ref<const Eigen::Array<PointScalar, DIM, Eigen::Dynamic> >
 					       &points,
 					       const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 					       &interp_values,
@@ -17,7 +17,7 @@ void SyclChebychevInterpolation::parallel_evaluate(
 					       BoundingBox<DIM> box)
     {
 	
-	Eigen::Array<double,DIM,Eigen::Dynamic> points0(DIM,points.cols());
+	Eigen::Array<PointScalar,DIM,Eigen::Dynamic> points0(DIM,points.cols());
 
 	const auto a=0.5*(box.max()-box.min()).array();
 	const auto b=0.5*(box.max()+box.min()).array();
@@ -43,7 +43,7 @@ void SyclChebychevInterpolation::parallel_evaluate(
 	sycl::buffer<T,1>  b_interp_values(interp_values.data(),sycl::range{(size_t) interp_values.size()});
 	sycl::buffer<T,1>  b_dest(dest.data(),sycl::range{(size_t)  dest.size()});
 
-	sycl::buffer<double>  b_pnts(points0.data(),sycl::range{DIM*((size_t)  points0.cols())});
+	sycl::buffer<PointScalar>  b_pnts(points0.data(),sycl::range{DIM*((size_t)  points0.cols())});
 
 	//sycl::marray<int,DIM> m_ns=SyclHelpers::EigenVectorToMArray(ns);
 

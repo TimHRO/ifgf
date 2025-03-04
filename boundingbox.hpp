@@ -6,7 +6,7 @@
 #include <Eigen/Geometry>
 
 template <size_t DIM>
-class BoundingBox : public Eigen::AlignedBox<double, DIM>
+class BoundingBox : public Eigen::AlignedBox<PointScalar, DIM>
 {
 public:
     BoundingBox()
@@ -14,14 +14,14 @@ public:
 
     }
 
-    BoundingBox(Eigen::Vector<double, DIM> min, Eigen::Vector<double, DIM> max):
-        Eigen::AlignedBox<double, DIM>(min, max)
+    BoundingBox(Eigen::Vector<PointScalar, DIM> min, Eigen::Vector<PointScalar, DIM> max):
+        Eigen::AlignedBox<PointScalar, DIM>(min, max)
     {
 
 	m_center=(max + min)/2.0;
 
 	auto diag = this->diagonal();
-        double m = 0;
+        PointScalar m = 0;
         for (unsigned int i = 0; i < DIM; i++) {
             m = std::max(m, std::abs(diag[i]));
         }
@@ -34,27 +34,27 @@ public:
 
     }
 
-    inline const Eigen::Vector<double, DIM>& center() const
+    inline const Eigen::Vector<PointScalar, DIM>& center() const
     {
         return  m_center;
     }
 
-    inline double sideLength() const
+    inline PointScalar sideLength() const
     {
 	return m_sideLength;
     }
 
-    inline double distanceToBoundary( Eigen::Vector<double,DIM> p) const
+    inline PointScalar distanceToBoundary( Eigen::Vector<PointScalar,DIM> p) const
     {
-	double mD=0;
+	PointScalar mD=0;
 	unsigned int n_corners=1 << DIM;
 	for (int j=0;j<n_corners;j++)
 	{
-	    Eigen::Vector<double,DIM> vertex;
+	    Eigen::Vector<PointScalar,DIM> vertex;
 	    for(int l=0;l<DIM;l++){
 		vertex[l]= (j & 1 << l) == 0 ?  this->min()[l] : this->max()[l];
 	    }
-	    double d=(p-vertex).norm();
+	    PointScalar d=(p-vertex).norm();
 	    mD=std::max(mD,d);
 	}
 	return mD;
@@ -62,8 +62,8 @@ public:
 
 
 private:
-    Eigen::Vector<double,DIM> m_center;
-    double m_sideLength;
+    Eigen::Vector<PointScalar,DIM> m_center;
+    PointScalar m_sideLength;
     
     /*
 
@@ -73,32 +73,32 @@ private:
     m_max=m_max.max(other.max());
     }
 
-    Eigen::Vector<double,DIM> min() const
+    Eigen::Vector<PointScalar,DIM> min() const
     {
     return m_min;
     }
 
-    Eigen::Vector<double,DIM> max() const
+    Eigen::Vector<PointScalar,DIM> max() const
     {
     return m_max;
     }
 
 
-    inline double dist(const BoundingBox& other) const
+    inline PointScalar dist(const BoundingBox& other) const
     {
     //TODO
 
     return 0;
     }
 
-    inline double dist(const Eigen::Vector<double,DIM>& x) const
+    inline PointScalar dist(const Eigen::Vector<PointScalar,DIM>& x) const
     {
     //TODO
     return 0;
     }
 
 
-    bool contains(const Eigen::Vector<double,DIM>& x)  const
+    bool contains(const Eigen::Vector<PointScalar,DIM>& x)  const
     {
     return x>=m_min && x<=m_max;
     }
@@ -107,8 +107,8 @@ private:
 
 
     private:
-    Eigen::Vector<double,DIM> m_min;
-    Eigen::Vector<double,DIM> m_max;
+    Eigen::Vector<PointScalar,DIM> m_min;
+    Eigen::Vector<PointScalar,DIM> m_max;
     */
 };
 

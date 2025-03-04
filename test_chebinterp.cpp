@@ -16,7 +16,7 @@ int main()
     const int N = 10000;
     const int dim = 3;
 
-    typedef double TSCAL;
+    typedef PointScalar TSCAL;
     typedef std::complex<TSCAL> T;
     //typedef TSCAL T;
     Eigen::Array<TSCAL, dim, Eigen::Dynamic> points = Eigen::Array<TSCAL, dim, Eigen::Dynamic, Eigen::ColMajor>::Random(dim, N)+0.01;

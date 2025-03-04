@@ -31,11 +31,11 @@ template<typename T, unsigned int DIM, unsigned int DIMOUT, typename Derived>
 class IfgfOperator
 {
 public:
-    typedef Eigen::Array<double, DIM, Eigen::Dynamic> PointArray;     //, Eigen::RowMajor?
+    typedef Eigen::Array<PointScalar, DIM, Eigen::Dynamic> PointArray;     //, Eigen::RowMajor?
 
     enum RefinementType { RefineH, RefineP};
 
-    IfgfOperator(long int maxLeafSize = -1, size_t order=5, size_t n_elements=1, double tolerance = -1)
+    IfgfOperator(long int maxLeafSize = -1, size_t order=5, size_t n_elements=1, PointScalar tolerance = -1)
     {
 	assert(n_elements>0);
 	if constexpr (DIM==3) {
@@ -89,14 +89,14 @@ public:
 
 	    std::cout<<"settled on order="<<m_baseOrder.transpose()<<std::endl;
 	}else {
-	    m_baseOrder[0]=std::max(m_baseOrder[0]-1,2); 
+	    m_baseOrder[0]=std::max(m_baseOrder[0]-2,2); 
 	}
 
 
 	std::cout<<"calculating interp range"<<std::endl;
-	m_src_octree->calculateInterpolationRange([this](double H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
-						  [this](double H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
-						  [this](double H){return static_cast<Derived *>(this)->cutoff_limit(H);},
+	m_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
+						  [this](PointScalar H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
+						  [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
 						  *m_target_octree);
 
 	std::cout<<"done initializing"<<std::endl;
@@ -104,7 +104,7 @@ public:
 
 
     
-    Eigen::Vector<size_t, DIM>  estimateRefinement(double tol,RefinementType refine)
+    Eigen::Vector<size_t, DIM>  estimateRefinement(PointScalar tol,RefinementType refine)
     { 
 	std::cout<<"estimating the order needed to achieve "<<tol<< "using "<< (refine==RefineH ? "h":"p")<<"-refinement"<<m_baseOrder<<" "<<m_base_n_elements.transpose()<<std::endl;
 	//use n boxes randomly to estimate the interpolation error
@@ -132,19 +132,19 @@ public:
 	return ref;
     }
 
-    Eigen::Vector<size_t,DIM> estimateRefinementOnBox(double tol,size_t level,size_t id, RefinementType refine)
+    Eigen::Vector<size_t,DIM> estimateRefinementOnBox(PointScalar tol,size_t level,size_t id, RefinementType refine)
     {
 	const int maxR=refine== RefineH ? 4 : 10;
 	
 	BoundingBox bbox = m_src_octree->bbox(level, id);
         auto center = bbox.center();
-        double H = bbox.sideLength();
+        PointScalar H = bbox.sideLength();
         IndexRange srcs = m_src_octree->points(level, id);
         const size_t nS = srcs.second - srcs.first;
 	
-	double smax=sqrt(DIM)/DIM;
+	PointScalar smax=sqrt(DIM)/DIM;
 	//if the sources and targets are well-separated we don't have to cover the near field 
-	const double smin=static_cast<Derived *>(this)->cutoff_limit(H);
+	const PointScalar smin=static_cast<Derived *>(this)->cutoff_limit(H);
 	std::cout<<"working on smin="<<smin<<" H="<<H<<std::endl;
 	
 	BoundingBox<DIM> int_box;
@@ -165,8 +165,8 @@ public:
 
 	Eigen::Vector<size_t,DIM> base;
 	base.fill(0);;
-	Eigen::Vector<double, DIM> error;
-	error.fill(std::numeric_limits<double>::max());
+	Eigen::Vector<PointScalar, DIM> error;
+	error.fill(std::numeric_limits<PointScalar>::max());
 
 
         Eigen::Vector<T,Eigen::Dynamic> weights=Eigen::Vector<T,Eigen::Dynamic>::Ones(nS);
@@ -193,7 +193,7 @@ public:
 	    //std::cout<<"trying orer"<<order.transpose()<<" and "<<n_els.transpose()<<"  elements"<<std::endl;
 
 	    ConeDomain<DIM> grid(n_els,int_box);
-	    PointArray chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(order);
+	    PointArray chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
 	    PointArray transformedNodes(DIM,chebNodes.cols());
 	    Eigen::Array<T, Eigen::Dynamic, DIMOUT> data(chebNodes.cols(),DIMOUT);
 	    Eigen::Array<T, Eigen::Dynamic, DIMOUT> trafo_data(chebNodes.cols(),DIMOUT);
@@ -207,11 +207,11 @@ public:
 
 	    ChebychevInterpolation::chebtransform<T,DIM>(data,trafo_data,order);
 	    for(int d=0;d<DIM;d++) {
-		const double e=Util::compute_slice_norm<T,DIM,DIMOUT>(trafo_data,order.template cast<size_t>(), d,layers);
+		const PointScalar e=Util::compute_slice_norm<T,DIM,DIMOUT>(trafo_data,order.template cast<size_t>(), d,layers);
 		error[d]=e;
 	    }
 		
-	    double maxe=error.maxCoeff();
+	    PointScalar maxe=error.maxCoeff();
 	    for(int d=0;d<DIM;d++){
 		if(error[d] > m_tolerance ) {
 		    base[d]+=1;
@@ -237,14 +237,14 @@ public:
         int level = m_src_octree->levels() - 1;
 
 	std::cout<<"boxes="<<m_src_octree->numBoxes(level)<<std::endl;
-	const double hmin=m_src_octree->diameter()*std::pow(0.5,m_src_octree->levels());
+	const PointScalar hmin=m_src_octree->diameter()*std::pow(0.5,m_src_octree->levels());
 	std::cout<<"base size"<<static_cast<Derived *>(this)->elementsForBox(hmin, m_baseOrder,this->m_base_n_elements).transpose()<<std::endl;
 	std::cout<<"now go"<<std::endl;
 
 	//std::vector<tbb::queuing_mutex> resultMutex(m_numTargets);
 
 
-	sycl::queue Q;
+	sycl::queue Q(sycl::default_selector_v);
 	const auto &device = Q.get_device();
 	std::cout << "Running on: "
 		  << Q.get_device().get_info<sycl::info::device::name>()
@@ -255,8 +255,8 @@ public:
 	Eigen::Vector<T, Eigen::Dynamic> new_weights(weights.size());
         Util::copy_with_permutation_rowwise<T,1> (weights.array(), m_src_octree->permutation(),new_weights.array());
 	sycl::buffer<const T, 1> b_weights(new_weights.data(),weights.size());
-	sycl::buffer<const double, 1> b_srcs(m_src_octree->points().data(),m_src_octree->numPoints()*DIM);
-	sycl::buffer<const double, 1> b_targets(m_target_octree->points().data(),m_target_octree->numPoints()*DIM);
+	sycl::buffer<const PointScalar, 1> b_srcs(m_src_octree->points().data(),m_src_octree->numPoints()*DIM);
+	sycl::buffer<const PointScalar, 1> b_targets(m_target_octree->points().data(),m_target_octree->numPoints()*DIM);
 
 	sycl::buffer<T, 1> b_result(result.data(),result.size());
 
@@ -361,16 +361,16 @@ public:
 
             //Get an exemplary bbox to determine the interpolation order
 	    BoundingBox bbox = m_src_octree->bbox(level, 0);
-	    double H0 = bbox.sideLength();
+	    PointScalar H0 = bbox.sideLength();
 	    const auto order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,0);
-	    const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(order);
+	    const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
 	    const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
-	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(high_order);
+	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
 
 	    //Cache chebychev nodes on the GPU
 
-	    sycl::buffer<const double,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
-	    sycl::buffer<const double,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
+	    sycl::buffer<const PointScalar,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
+	    sycl::buffer<const PointScalar,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
 
 
             const size_t stride=chebNodes.cols();
@@ -461,8 +461,8 @@ public:
 				       const ConeRef ref=srcDataAcc.leafCone(i);
 				       const size_t boxId=ref.boxId();				       
 				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
-					   sycl::marray<double, DIM>  center=srcDataAcc.boxCenter(boxId);
-					   double H=srcDataAcc.boxSize(boxId);
+					   sycl::marray<PointScalar, DIM>  center=srcDataAcc.boxCenter(boxId);
+					   PointScalar H=srcDataAcc.boxSize(boxId);
 
 					   auto grid=srcDataAcc.coneDomain(boxId,1);
 					   IndexRange srcs=srcDataAcc.points(boxId);
@@ -471,8 +471,8 @@ public:
 					   const size_t offset=ref.globalId()*stride;
 					   
 
-					   sycl::marray<double,DIM> transformed;
-					   sycl::marray<double,DIM> transformed2;
+					   sycl::marray<PointScalar,DIM> transformed;
+					   sycl::marray<PointScalar,DIM> transformed2;
 					   for(size_t j=0;j<stride;j++) {
 					       grid.transform(ref.id(),a_hoChebNodes,transformed,j);
 
@@ -511,7 +511,7 @@ public:
 		    assert(m_src_octree->isLeaf(level,boxId)==true);
 		    BoundingBox bbox = m_src_octree->bbox(level, boxId);
 		    auto center = bbox.center();
-		    double H = bbox.sideLength();
+		    PointScalar H = bbox.sideLength();
 
 
 		    
@@ -553,14 +553,14 @@ public:
 #ifdef SYCL_CHEBTRAFO
 	    {
 		const size_t cv_size=high_order.unaryExpr([&](int v){ return v*v; }).sum();
-		sycl::buffer<double> b_chebvals(cv_size);
+		sycl::buffer<PointScalar> b_chebvals(cv_size);
 		{
 		    sycl::host_accessor a_cv(b_chebvals);
 		    size_t idx=0;
 		    //make sure the factors for the chebtrafo are precomputed...
 		    for(int d=DIM-1;d>=0;d--) {
 			std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
-			const auto& cv=ChebychevInterpolation::chebvals<double>(high_order[d]);
+			const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(high_order[d]);
 			std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
 			idx+=high_order[d]*high_order[d];
 
@@ -679,7 +679,7 @@ public:
 
 		    size_t Ntp=order.sum();
 
-		    Eigen::Array<double,Eigen::Dynamic,1>  points(Ntp);
+		    Eigen::Array<PointScalar,Eigen::Dynamic,1>  points(Ntp);
 
 		    std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(high_order);
 		    std::array<int, DIM> lo_ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
@@ -693,7 +693,7 @@ public:
 		    size_t buffer_size=1;
 		    //store the points for the inner most dimension separately from the others
 		    for(int d=0;d<DIM;d++) {
-			const auto& chebNodes1d=ChebychevInterpolation::chebnodesNdd<double,1>(Eigen::Vector<int,1>(order[d]));
+			const auto& chebNodes1d=ChebychevInterpolation::chebnodesNdd<PointScalar,1>(Eigen::Vector<int,1>(order[d]));
 
 			points.segment(offset,chebNodes1d.size())=chebNodes1d.array();
 			offset+=chebNodes1d.size();		    
@@ -705,7 +705,7 @@ public:
 		    }		    		
 		
 		    const size_t ho_stride=high_order.prod();
-		    sycl::buffer<double> b_points(points.data(),points.size());
+		    sycl::buffer<PointScalar> b_points(points.data(),points.size());
 
 		    // Make sure the size is not too large
 		    auto has_local_mem = (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
@@ -713,14 +713,14 @@ public:
 
 		    
 		    const size_t cv_size=order.unaryExpr([&](int v){ return v*v; }).sum();
-                    sycl::buffer<double> b_chebvals(cv_size);
+                    sycl::buffer<PointScalar> b_chebvals(cv_size);
 		    {
 			sycl::host_accessor a_cv(b_chebvals);
 			size_t idx=0;
 			//make sure the factors for the chebtrafo are precomputed...
 			for(int d=DIM-1;d>=0;d--) {
 			    std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
-			    const auto& cv=ChebychevInterpolation::chebvals<double>(order[d]);
+			    const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(order[d]);
 			    std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
 			    idx+=order[d]*order[d];
 
@@ -768,7 +768,7 @@ public:
 			sycl::local_accessor<T> tmp(group_size*buffer_size,h);
 
 			sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
-			sycl::local_accessor<double> local_pnts(fine_stride*group_size,h);
+			sycl::local_accessor<PointScalar> local_pnts(fine_stride*group_size,h);
 
 
 			std::cout<<"group="<<group_size<<" "<<buffer_size<<" "<<group_size*buffer_size<<" Np="<<Np<<" "<<Np*group_size<<std::endl;
@@ -821,10 +821,10 @@ public:
 				    for(size_t pnt=0; pnt<fine_stride;pnt++) {
 					for(int d=0;d<DIM;d++) {
 					    const auto h=2;
-					    auto min=-1+(lid[d]*(h/((double) factors[d])));
-					    auto max=(min+(h/((double) factors[d])));
-					    const double a=0.5*(max-min);
-					    const double b=0.5*(max+min);
+					    auto min=-1+(lid[d]*(h/((PointScalar) factors[d])));
+					    auto max=(min+(h/((PointScalar) factors[d])));
+					    const PointScalar a=0.5*(max-min);
+					    const PointScalar b=0.5*(max+min);
 
 					    local_pnts[fine_stride*local+pnt*DIM+d]=a_chebNodes[pnt*DIM+d]*a+b;
 
@@ -836,16 +836,16 @@ public:
 #else
 				    size_t offset=0;
 				    const int MAX_LOW_ORDER=8;
-				    sycl::marray<double,MAX_LOW_ORDER*DIM> t_pnts;
+				    sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
 				    t_pnts=0;		//Fill up the remaining points. otherwise the compiler optimization breaks the code
 				    for(int d=0;d<DIM;d++) {
-					const double h=2;
+					const PointScalar h=2;
 					assert(lo_ns[d]<=MAX_LOW_ORDER);
 				    
-					auto mmin=-1+(lid[d]*(h/((double) factors[d])));
-					auto mmax=(mmin+(h/((double) factors[d])));
-					const double a=0.5*(mmax-mmin);
-					const double b=0.5*(mmax+mmin);
+					auto mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
+					auto mmax=(mmin+(h/((PointScalar) factors[d])));
+					const PointScalar a=0.5*(mmax-mmin);
+					const PointScalar b=0.5*(mmax+mmin);
 
 					
 					for(size_t l=0;l<lo_ns[d];l++) {
@@ -930,7 +930,7 @@ public:
 
 		    BoundingBox bbox = m_src_octree->bbox(level, boxId);
 		    auto center = bbox.center();
-		    double H = bbox.sideLength();
+		    PointScalar H = bbox.sideLength();
 
 
 		    coarseToFine(interpolationData[boxId], level, hoCone, tmp_result.local(), order, high_order,H,parentInterpolationData[boxId]);
@@ -990,14 +990,14 @@ public:
 			auto grid=srcDataAcc.coneDomain(boxId,0);
 			auto center = srcDataAcc.boxCenter(boxId);
 
-			double H = srcDataAcc.boxSize(boxId);
+			PointScalar H = srcDataAcc.boxSize(boxId);
 
 			//evaluate for the cousin targets using the interpolated data
 
-			sycl::marray<double,DIM> target_pnt;
+			sycl::marray<PointScalar,DIM> target_pnt;
 			for(int j=0;j<DIM;j++)
 			    target_pnt[j]=a_targets[it*DIM+j];
-			sycl::marray<double,DIM> transformed;
+			sycl::marray<PointScalar,DIM> transformed;
 
 			const auto cf = functions.CF(target_pnt - center);
 						
@@ -1022,7 +1022,7 @@ public:
 			
 			SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
 			const size_t offset=stride*memId;
-			T res=clenshaw(SyclRowMatrix<double, DIM,1>(target_pnt), a_intData, ns, offset);
+			T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(target_pnt), a_intData, ns, offset);
 			
 			
 			
@@ -1044,7 +1044,7 @@ public:
 		    for( size_t boxId : m_src_octree->farfieldBoxes(level,i) ){
 			BoundingBox bbox = m_src_octree->bbox(level, boxId);
 			auto center = bbox.center();
-			double H = bbox.sideLength();
+			PointScalar H = bbox.sideLength();
 
 			//evaluate for the cousin targets using the interpolated data
 
@@ -1113,7 +1113,7 @@ public:
 		    size_t parentBoxId = parentCone.boxId();
 		    auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);//m_src_octree->coneDomain(level-1,parentId,1);				    
                     auto parent_center = parentDataAcc.boxCenter(parentBoxId);
-                    double pH = parentDataAcc.boxSize(parentBoxId);
+                    PointScalar pH = parentDataAcc.boxSize(parentBoxId);
 
 
 		    if( ! parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)){ //we dont need the interpolation info for those levels.
@@ -1121,9 +1121,9 @@ public:
 		    }
 
 		    for(size_t j=0;j<stride;j++) {
-			sycl::marray<double,DIM> pnt;
-			sycl::marray<double,DIM> cart_pnt;
-			sycl::marray<double,DIM> pnt2;
+			sycl::marray<PointScalar,DIM> pnt;
+			sycl::marray<PointScalar,DIM> cart_pnt;
+			sycl::marray<PointScalar,DIM> pnt2;
 			
 			//std::copy(a_hoChebNodes.begin()+j*DIM,a_hoChebNodes.begin()+(j+1)*DIM,pnt.begin());
 			pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,j);
@@ -1137,7 +1137,7 @@ public:
 			    }
 
 			    auto center = srcDataAcc.boxCenter(childBox);
-			    double H = srcDataAcc.boxSize(childBox);
+			    PointScalar H = srcDataAcc.boxSize(childBox);
 			    const auto grid=srcDataAcc.coneDomain(childBox,0);
 			    
 			    //Transfer to the interpolation domain relative to the child box
@@ -1153,7 +1153,7 @@ public:
 			
 				SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
 				const size_t offset=lo_stride*memId;
-				T res=clenshaw(SyclRowMatrix<double, DIM,1>(pnt), a_intData, ns, offset);
+				T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
 
 				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
 			    
@@ -1208,7 +1208,7 @@ public:
 		    auto pGrid= m_src_octree->coneDomain(level-1,parentId,1);				    
                     BoundingBox parent_bbox = m_src_octree->bbox(level - 1, parentId);
                     auto parent_center = parent_bbox.center();
-                    double pH = parent_bbox.sideLength();
+                    PointScalar pH = parent_bbox.sideLength();
 
 		    if (!m_src_octree->hasPoints(level-1, parentId)) {
 			   continue;
@@ -1228,7 +1228,7 @@ public:
 			//current node
 			BoundingBox bbox = m_src_octree->bbox(level, childBox);
 			auto center = bbox.center();
-			double H = bbox.sideLength();
+			PointScalar H = bbox.sideLength();
 			
 			
 
@@ -1270,7 +1270,7 @@ public:
 	BoundingBox bbox = m_src_octree->bbox(level , 0);
 	//std::cout<<"bbox="<<bbox.min().transpose()<<" "<<bbox.max().transpose()<<std::endl;
 	auto center = bbox.center();
-	double H = bbox.sideLength();
+	PointScalar H = bbox.sideLength();
 	auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
 
 	//make sure no old buffer is around	
@@ -1367,7 +1367,7 @@ public:
       
 	BoundingBox bbox = m_src_octree->bbox(level, id);
         auto center = bbox.center();
-        double H = bbox.sideLength();
+        PointScalar H = bbox.sideLength();
         
 	//evaluate for the cousin targets using the interpolated data
 	const std::vector<IndexRange> cousinTargets = m_src_octree->farTargets(level, id);
@@ -1391,7 +1391,7 @@ public:
     
     
     void coarseToFine(const ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT>& interpolationData, size_t level, const ConeRef& hoCone, 
-		      Eigen::Array<T, Eigen::Dynamic,1>& tmp_result, const Eigen::Vector<int, DIM>& order, const Eigen::Vector<int, DIM>& high_order,double H0,
+		      Eigen::Array<T, Eigen::Dynamic,1>& tmp_result, const Eigen::Vector<int, DIM>& order, const Eigen::Vector<int, DIM>& high_order,PointScalar H0,
 		      ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT>& result)
     {
 #ifdef USE_NGSOLVE
@@ -1416,20 +1416,20 @@ public:
 	Eigen::Vector<size_t,DIM> factor=fine_N.array()/hoGrid.num_elements().array();
 
 	
-	std::array<Eigen::Array<double,Eigen::Dynamic,1>, DIM > points;
+	std::array<Eigen::Array<PointScalar,Eigen::Dynamic,1>, DIM > points;
 	size_t Np=1;
 	for(int d=0;d<DIM;d++) {
-	    auto chebNodes1d=ChebychevInterpolation::chebnodesNdd<double,1>(Eigen::Vector<int,1>(order[d]));
+	    auto chebNodes1d=ChebychevInterpolation::chebnodesNdd<PointScalar,1>(Eigen::Vector<int,1>(order[d]));
 	    points[d].resize(chebNodes1d.size()*factor[d]);
 
 	    Np*=points[d].size();
 
 	    for(int j=0;j<factor[d];j++){
 		const auto h=2;
-		auto min=-1+(j*(h/((double) factor[d])));
-		auto max=(min+(h/((double) factor[d])));
-		const double a=0.5*(max-min);
-		const double b=0.5*(max+min);
+		auto min=-1+(j*(h/((PointScalar) factor[d])));
+		auto max=(min+(h/((PointScalar) factor[d])));
+		const PointScalar a=0.5*(max-min);
+		const PointScalar b=0.5*(max+min);
 
 
 		points[d].segment(j*chebNodes1d.size(),chebNodes1d.size())=(chebNodes1d.array()*a)+b;
@@ -1442,7 +1442,7 @@ public:
 		    
 	
 	
-	Eigen::Vector<double,DIM> pnt;
+	Eigen::Vector<PointScalar,DIM> pnt;
 	size_t fine_stride=order.prod();
 	size_t idx_coarse=0;
 	//now distribute the results to the right places. Do it in a slow but safe way		    
@@ -1481,8 +1481,8 @@ public:
 
   
     void transferInterp(const ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT>& data, const Eigen::Ref<const PointArray> &targets,
-                        const Eigen::Ref<const Eigen::Vector<double, DIM> > &xc, double H,
-                        const Eigen::Ref<const Eigen::Vector<double, DIM> > &p_xc, double pH,
+                        const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> > &xc, PointScalar H,
+                        const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> > &p_xc, PointScalar pH,
                         Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > result) const
     {
 #ifdef USE_NGSOLVE
@@ -1510,7 +1510,7 @@ public:
 	}
 	std::vector<size_t> perm=Util::sort_with_permutation(elIds.begin(),elIds.end(), [](auto x, auto y){ return x<y;});
 	PointArray tmp(DIM,transformed.cols());
-	Util::copy_with_permutation_colwise<double,DIM>(transformed,perm,tmp);
+	Util::copy_with_permutation_colwise<PointScalar,DIM>(transformed,perm,tmp);
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> tmp_result(transformed.cols(),DIMOUT);
 	size_t idx=0;
 	while (idx<N)
@@ -1541,12 +1541,12 @@ public:
 
     //evaluateFromIntepr simplified codepath if we now we are dealing with a single target
     void inline evaluateSingleFromInterp(const ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT>& data,
-				  const Eigen::Ref<const Eigen::Array<double,DIM,1> > &target,
-				  const Eigen::Ref<const Eigen::Vector<double, DIM> > &xc, double H,
+				  const Eigen::Ref<const Eigen::Array<PointScalar,DIM,1> > &target,
+				  const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> > &xc, PointScalar H,
 				  Eigen::Ref<Eigen::Array<T, 1, DIMOUT> > result) const
     {
 
-	Eigen::Array<double,DIM, 1> transformed(DIM);
+	Eigen::Array<PointScalar,DIM, 1> transformed(DIM);
 	transformCartToInterp(target, transformed, xc, H);
 	const size_t stride=data.computeStride();
 	const size_t el=data.grid.elementForPoint(transformed);
@@ -1574,7 +1574,7 @@ public:
     
     void evaluateFromInterp(const ChebychevInterpolation::InterpolationData<T,DIM,DIMOUT>& data,
                             const Eigen::Ref<const PointArray> &targets,
-                            const Eigen::Ref<const Eigen::Vector<double, DIM> > &xc, double H,
+                            const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> > &xc, PointScalar H,
                             Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > result) const
     {
 	if(targets.cols()==0) {
@@ -1589,7 +1589,7 @@ public:
 	const size_t stride=data.computeStride();
 	//std::cout<<"stride"<<stride<<std::endl;
 	/*	assert(data.order==7);
-		const static Eigen::Vector<double,7> nodes = ChebychevInterpolation::chebnodes1d<double, 7>();
+		const static Eigen::Vector<PointScalar,7> nodes = ChebychevInterpolation::chebnodes1d<PointScalar, 7>();
 	
 	for(size_t idx=0;idx<transformed.cols();idx++) {
 	    const size_t el=data.grid.elementForPoint(transformed.col(idx));	    
@@ -1646,7 +1646,7 @@ public:
 	    }
 	    std::vector<size_t> perm=Util::sort_with_permutation(elIds.begin(),elIds.end(), [](auto x, auto y){ return x<y;});
 	    PointArray tmp(DIM,transformed.cols());
-	    Util::copy_with_permutation_colwise<double,DIM>(transformed,perm,tmp);
+	    Util::copy_with_permutation_colwise<PointScalar,DIM>(transformed,perm,tmp);
 	    Eigen::Array<T, Eigen::Dynamic, DIMOUT> tmp_result(transformed.cols(),DIMOUT);
 	    size_t idx=0;
 	    while (idx<N)
@@ -1705,7 +1705,7 @@ public:
 
 
     inline void transformCartToInterp(const Eigen::Ref<const PointArray > &nodes,
-				      Eigen::Ref<PointArray > transformed, const Eigen::Vector<double, DIM> &xc, double H) const
+				      Eigen::Ref<PointArray > transformed, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H) const
     {
 	Util::cartToInterp2<DIM>(nodes.array(), xc, H,transformed);
         /*for (int i = 0; i < nodes.cols(); i++) {
@@ -1714,7 +1714,7 @@ public:
     }
 
     inline void transformInterpToCart(const Eigen::Ref<const PointArray > &nodes,
-                               Eigen::Ref<PointArray > transformed, const Eigen::Vector<double, DIM> &xc, double H) const
+                               Eigen::Ref<PointArray > transformed, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H) const
     { 
 
 	transformed = Util::interpToCart<DIM>(nodes.array(), xc, H);
@@ -1724,13 +1724,13 @@ public:
     }
 
 
-    inline  double  cutoff_limit(double H) const
+    inline  PointScalar  cutoff_limit(PointScalar H) const
     {
 	return 1e-4;
     }
 
 
-    inline double tolerance() const {
+    inline PointScalar tolerance() const {
 	return m_tolerance;
     }
 
@@ -1747,7 +1747,7 @@ private:
     unsigned int m_numSrcs;
     Eigen::Vector<size_t, DIM> m_base_n_elements;
     Eigen::Vector<int, DIM> m_baseOrder;
-    double m_tolerance;
+    PointScalar m_tolerance;
 };
 
 #endif

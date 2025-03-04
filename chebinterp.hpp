@@ -134,7 +134,7 @@ namespace ChebychevInterpolation
 	    Eigen::Array<T, Eigen::Dynamic,Eigen::Dynamic> arr(n,n);
 	    for(size_t idx=0;idx<n;idx++) {
 		for(size_t sigma=0;sigma<n;sigma++) {
-		    const double Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*n));
+		    const PointScalar Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*n));
 		    arr(sigma,idx)=Td;
 		}
 	    }
@@ -150,7 +150,7 @@ namespace ChebychevInterpolation
     template<typename TV,typename TV2>
     auto   computeDiffVector(int n, const TV& x,const TV2& nodes)
     {	
-	Eigen::Array<double, -1, 1 > c(n,1);
+	Eigen::Array<PointScalar, -1, 1 > c(n,1);
 	for(size_t i=0;i<n;i++){
 	    c[i]=(i % 2 == 0) ? 1.0:-1.0;
 	}
@@ -188,7 +188,7 @@ namespace ChebychevInterpolation
 	const int stride=nsigma;
 	dest.fill(0);
 
-	const auto& cv=chebvals<double>( ns[DIM-1]);
+	const auto& cv=chebvals<PointScalar>( ns[DIM-1]);
 
 	//std::cout<<"ns="<<ns<<std::endl;
 	//std::cout<<"nsigma="<<nsigma<<std::endl;
@@ -197,7 +197,7 @@ namespace ChebychevInterpolation
 	    
 	    for(size_t idx=0;idx<ns[0];idx++) {
 		for(size_t sigma=0;sigma<ns[0];sigma++)  {
-		    const double Td=cv(sigma,idx);//cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
+		    const PointScalar Td=cv(sigma,idx);//cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
 		    dest.segment(idx*stride,nsigma)+=src.segment(sigma*stride,nsigma)*Td;
 		}
 		dest.segment(idx*stride,nsigma)*=(idx ==0 ? 1.:2. )*1./ns[0];
@@ -212,8 +212,8 @@ namespace ChebychevInterpolation
 		for(size_t idx2=0;idx2<ns[1];idx2++) {		
 		    for(size_t sigma=0;sigma<ns[0];sigma++)  {
 			for(size_t sigma2=0;sigma2<ns[1];sigma2++)  {
-			    const double Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
-			    const double Td2=cos(idx2*M_PI*(2.*sigma2+1.)/(2.*ns[0]));
+			    const PointScalar Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
+			    const PointScalar Td2=cos(idx2*M_PI*(2.*sigma2+1.)/(2.*ns[0]));
 			    D(idx*ns[1]+ idx2)+=src(sigma*ns[1]+sigma2)*Td*Td2 * ((idx ==0 ? 1.:2. )*1./ns[0])*((idx2 ==0 ? 1.:2. )*1./ns[1]);
 			}
 		    }		    
@@ -229,8 +229,8 @@ namespace ChebychevInterpolation
 
 	    for(size_t idx=0;idx<ns[DIM-1];idx++) {
 		for(size_t sigma=0;sigma<ns[DIM-1];sigma++)  {
-		    const double Td=cv(sigma,idx);//cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
-		    //const double Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
+		    const PointScalar Td=cv(sigma,idx);//cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[0]));
+		    //const PointScalar Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
 		    dest.segment(idx*stride,nsigma)+=M.segment(sigma*stride,nsigma)*Td;
 		}	    
 		dest.segment(idx*stride,nsigma)*=(idx ==0 ? 1:2 )*1./ns[DIM-1];
@@ -245,7 +245,7 @@ namespace ChebychevInterpolation
     {
     public:
 	inline  Eigen::Array<T,POINTS_AT_COMPILE_TIME,DIMOUT>
-	operator()(const Eigen::Ref<const Eigen::Array<double,DIM_X, POINTS_AT_COMPILE_TIME> > &x,
+	operator()(const Eigen::Ref<const Eigen::Array<PointScalar,DIM_X, POINTS_AT_COMPILE_TIME> > &x,
 		   const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> > &vals,
 		   const Eigen::Ref<const Eigen::Vector<int,DIM_X> >& ns )
     {
@@ -497,7 +497,7 @@ namespace ChebychevInterpolation
     }
 
     template <typename T, unsigned int DIM,  char package,int... Ns>
-    inline int __eval(const Eigen::Ref<const Eigen::Array<double, DIM,Eigen::Dynamic> >  &points,
+    inline int __eval(const Eigen::Ref<const Eigen::Array<PointScalar, DIM,Eigen::Dynamic> >  &points,
 		      const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic,1> > &interp_values,
 		      const Eigen::Vector<int,DIM>& ns,
 		      Eigen::Ref<Eigen::Array<T, Eigen::Dynamic,1> > dest, size_t i, size_t n_points)
@@ -508,7 +508,7 @@ namespace ChebychevInterpolation
 	n_points = n_points % packageSize;
 			 
 		      
-	Eigen::Array<double,DIM,packageSize> tmp;
+	Eigen::Array<PointScalar,DIM,packageSize> tmp;
 	
 	ChebychevInterpolation::ClenshawEvaluator<T, packageSize,  DIM,DIM, DIMOUT,Ns...> clenshaw;
 	for (int j = 0; j < np; j++) {
@@ -528,9 +528,9 @@ namespace ChebychevInterpolation
 
     template <typename T, unsigned int DIM, unsigned int DIMOUT>
     void fast_evaluate_tp(
-				 const Eigen::Ref<const Eigen::Array<double, DIM-1, Eigen::Dynamic> >
+				 const Eigen::Ref<const Eigen::Array<PointScalar, DIM-1, Eigen::Dynamic> >
 				  &points,
-                                  const Eigen::Ref<const Eigen::Array<double, 1, Eigen::Dynamic> >
+                                  const Eigen::Ref<const Eigen::Array<PointScalar, 1, Eigen::Dynamic> >
 				  &points2,
                                   int axis,
 				  const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
@@ -542,7 +542,7 @@ namespace ChebychevInterpolation
 
     template <typename T, unsigned int DIM, unsigned int DIMOUT>
     void tp_evaluate(
-		     const std::array< Eigen::Array<double, Eigen::Dynamic,1> , DIM >
+		     const std::array< Eigen::Array<PointScalar, Eigen::Dynamic,1> , DIM >
 		     &points,					 
 		     const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 		     &interp_values,
@@ -554,7 +554,7 @@ namespace ChebychevInterpolation
 
     template <typename T, unsigned int DIM, unsigned int DIMOUT>
     void parallel_evaluate(
-				  const Eigen::Ref<const Eigen::Array<double, DIM, Eigen::Dynamic> >
+				  const Eigen::Ref<const Eigen::Array<PointScalar, DIM, Eigen::Dynamic> >
 				  &points,
 				  const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 				  &interp_values,

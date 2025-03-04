@@ -58,7 +58,7 @@ namespace SyclChebychevInterpolation
     void chebtransform_impl(const sycl::accessor<T> &src,
                        sycl::marray<T, max_buffer_size<DIM>() > & dest,
                        const std::array<int,DIMX>& ns,
-		       const sycl::accessor< double,1, sycl::access_mode::read>& cv,
+		       const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
 		       size_t offset,
 		       size_t dest_offset,
 		       size_t cv_offset
@@ -83,8 +83,8 @@ namespace SyclChebychevInterpolation
 	    //do a straight forwad summation of the innermost dimension	    
 	    for(size_t idx=0;idx<ns[0];idx++) {
 		for(size_t sigma=0;sigma<ns[0];sigma++)  {
-		    const double Td=cv[cv_offset+idx*Nd+sigma];
-		    //const double Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
+		    const PointScalar Td=cv[cv_offset+idx*Nd+sigma];
+		    //const PointScalar Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
 		    assert(nsigma==1);
 		    dest[dest_offset+idx]+=src[offset+sigma]*Td;
 		    //dest.segment(idx*stride,nsigma)+=src.segment(sigma*stride,nsigma)*Td;
@@ -96,7 +96,7 @@ namespace SyclChebychevInterpolation
 	    std::array<sycl::marray<T, max_buffer_size<DIM-1>() >, MAX_ORDER > M;	    
 	    size_t idx=0;
 	    for(idx=0;idx<ns[DIM-1];idx++) {
-		M[idx]=0; //just to be safe
+		//M[idx]=0; //just to be safe
 
 		//std::cout<<"idx"<<idx<<" "<<idx*stride<<" "<<M.size()<<" "<<src.size()<<" "<<nsigma<<std::endl;
 		//chebtransform<T,DIM-1>(src.segment(idx*stride,nsigma),M.segment(idx*stride,nsigma),ns.template head<DIM-1>());
@@ -109,16 +109,16 @@ namespace SyclChebychevInterpolation
 				       cv_offset+Nd*Nd
 				       );
 	    }
-	    for(;idx<MAX_ORDER;idx++) {
+	    /*for(;idx<MAX_ORDER;idx++) {
 		M[idx]=0; //make sure we are not using uninitialized memory
-	    }
+		}*/
 
 	    for(size_t idx=0;idx<ns[DIM-1];idx++) {
 		for(size_t sigma=0;sigma<ns[DIM-1];sigma++)  {
-		    const double Td=cv[cv_offset+idx*Nd+sigma];
-		    const double Td2=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
+		    const PointScalar Td=cv[cv_offset+idx*Nd+sigma];
+		    //const PointScalar Td2=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
 
-		    assert(abs(Td-Td2)<1e-12);
+		    //assert(abs(Td-Td2)<1e-12);
 		    /*const auto M_it=M[sigma].begin();
 		    const auto dest_it=dest.begin()+dest_offset+idx*stride;
 		    //std::copy(M_it,M_it+nsigma, dest_it);
@@ -146,7 +146,7 @@ namespace SyclChebychevInterpolation
     template <typename T, int DIM, typename BufType>
     void chebtransform_inplace(BufType &buf,
 			       const std::array<int,DIM>& ns,
-			       const sycl::accessor<double,1, sycl::access_mode::read>& cv,
+			       const sycl::accessor<PointScalar,1, sycl::access_mode::read>& cv,
 			       size_t offset
 			       )
     {
@@ -168,7 +168,7 @@ namespace SyclChebychevInterpolation
     public:
 	template <typename AccessorType>
 	inline  sycl::marray<T, POINTS_AT_COMPILE_TIME>
-	operator()(const SyclRowMatrix<double,DIM_X, POINTS_AT_COMPILE_TIME>  &x,
+	operator()(const SyclRowMatrix<PointScalar,DIM_X, POINTS_AT_COMPILE_TIME>  &x,
 		   const AccessorType &vals,
 		   const std::array<int,DIM_X>& ns, size_t offset=0)
     {
@@ -273,7 +273,7 @@ namespace SyclChebychevInterpolation
 
 
     template <typename T, unsigned int DIM,  char package,int... Ns>
-    inline int __eval(const sycl::accessor<const double,1,sycl::access_mode::read>& points,
+    inline int __eval(const sycl::accessor<const PointScalar,1,sycl::access_mode::read>& points,
 		      const sycl::accessor<const T,1,sycl::access_mode::read> &interp_values,
 		      const std::array<int,DIM>& ns,
 		      sycl::accessor<T,1,sycl::access_mode::write> dest,
@@ -285,7 +285,7 @@ namespace SyclChebychevInterpolation
 	const size_t np = n_points / packageSize;
 	n_points = n_points % packageSize;
 	
-	SyclRowMatrix<double,DIM,packageSize> tmp;
+	SyclRowMatrix<PointScalar,DIM,packageSize> tmp;
 
 	
 	SyclChebychevInterpolation::ClenshawEvaluator<T, packageSize,  DIM,DIM, DIMOUT,Ns...> clenshaw;
@@ -338,7 +338,7 @@ namespace SyclChebychevInterpolation
 	const size_t np = n_points / packageSize;
 	n_points = n_points % packageSize;
 	
-	SyclRowMatrix<double,DIM,packageSize> tmp;
+	SyclRowMatrix<PointScalar,DIM,packageSize> tmp;
 
 	
 	SyclChebychevInterpolation::ClenshawEvaluator<T, packageSize,  DIM,DIM, DIMOUT> clenshaw;
@@ -378,7 +378,7 @@ namespace SyclChebychevInterpolation
 
     template <typename T, unsigned int DIM, unsigned int DIMOUT>
     void parallel_evaluate(
-			   const Eigen::Ref<const Eigen::Array<double, DIM, Eigen::Dynamic> >
+			   const Eigen::Ref<const Eigen::Array<PointScalar, DIM, Eigen::Dynamic> >
 			   &points,
 			   const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 			   &interp_values,
@@ -388,7 +388,7 @@ namespace SyclChebychevInterpolation
 
     template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType>
     void tp_evaluate_int(
-			 const sycl::marray<double, POINTS_AT_CTIME> &points,
+			 const sycl::marray<PointScalar, POINTS_AT_CTIME> &points,
 			 int pnt_offset,
 			 const sycl::local_accessor<const T> &interp_values,
 			 size_t offset,
@@ -410,7 +410,7 @@ namespace SyclChebychevInterpolation
 
 	    assert(pnt_offset==0);
             ClenshawEvaluator<T, 1, 1, 1, 1> eval;
-	    SyclRowMatrix<double, 1, 1>  mp;
+	    SyclRowMatrix<PointScalar, 1, 1>  mp;
 	    std::array<int,1> mn;
 	    mn[0]=ns[0];
 	    for(int i=0;i<nps[0];i++) {
@@ -418,14 +418,14 @@ namespace SyclChebychevInterpolation
 
 		 // T val=0;
 		 // for(int sigma=0;sigma<ns[0];sigma++) {
-		 //     const double Td=cos(sigma*acos(points[pnt_offset+i]));
+		 //     const PointScalar Td=cos(sigma*acos(points[pnt_offset+i]));
 		 //     val+=interp_values[offset+sigma]*Td;
 		 // }
 		 // dest[dest_offset+i]=val;
 		auto res=eval(mp,interp_values, mn,offset);
 		dest[dest_offset+i]=res[0];
             }
-            //auto mp= reinterpret_cast<const SyclRowMatrix<double, 1, MAX_LOW_ORDER> & >(points[pnt_offset]);
+            //auto mp= reinterpret_cast<const SyclRowMatrix<PointScalar, 1, MAX_LOW_ORDER> & >(points[pnt_offset]);
         } else {
 	    assert(DIM>1);
 	    size_t Np=1;
@@ -480,13 +480,13 @@ namespace SyclChebychevInterpolation
 
 			dest[dest_offset+p+sigma*Np]=b1;
 		    } else {
-			b1 = 2. * points[pnt_offset+sigma] *
+			b1 = PointScalar(2) * points[pnt_offset+sigma] *
 			    tmp[tmp_offset+(ns[DIM-1]-1)*Np+p]+
 			    tmp[tmp_offset+(ns[DIM-1]-2)*Np+p];
 			b2 = tmp[tmp_offset+(ns[DIM-1]-1)*Np+p];
 
 			for (size_t j = ns[DIM - 1] - 3; j > 0; j--) {
-			    tmp2 = (2. * (points[pnt_offset+sigma]*(b1)) - (b2)) +
+			    tmp2 = (PointScalar(2) * (points[pnt_offset+sigma]*(b1)) - (b2)) +
 				tmp[tmp_offset+(j)*Np+p];
 
 			    b2 = b1;
@@ -506,7 +506,7 @@ namespace SyclChebychevInterpolation
 
     template <typename T, unsigned int DIM, size_t PointsAtCompileTime ,typename AccessorType1,typename AccessorType2,typename AccessorType3>
     void tp_evaluate_t(	
-               const sycl::marray<double, PointsAtCompileTime>& points,
+               const sycl::marray<PointScalar, PointsAtCompileTime>& points,
 	       const AccessorType1& interp_values,
 	       size_t offset,		       
 	       const std::array<int, DIM>& ns,

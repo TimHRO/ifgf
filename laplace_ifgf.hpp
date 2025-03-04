@@ -5,20 +5,20 @@
 
 
 template<size_t dim >
-class LaplaceIfgfOperator : public IfgfOperator<double, dim,
+class LaplaceIfgfOperator : public IfgfOperator<PointScalar, dim,
                                                   1, LaplaceIfgfOperator<dim> >
 {
 public:
-    typedef Eigen::Array<double, dim, Eigen::Dynamic> PointArray;
-    typedef Eigen::Vector<double,dim> Point;
+    typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
+    typedef Eigen::Vector<PointScalar,dim> Point;
     LaplaceIfgfOperator(  size_t leafSize,
                           size_t order,
-                          size_t n_elem=1,double tol=-1):
-        IfgfOperator<double, dim, 1, LaplaceIfgfOperator<dim> >(leafSize,order, n_elem,tol)
+                          size_t n_elem=1,PointScalar tol=-1):
+        IfgfOperator<PointScalar, dim, 1, LaplaceIfgfOperator<dim> >(leafSize,order, n_elem,tol)
     {
     }
 
-    typedef double T ;
+    typedef PointScalar T ;
     /*
     template<typename TX>
     inline Eigen::Vector<T, TX::ColsAtCompileTime>  kernelFunction(TX x) const
@@ -29,7 +29,7 @@ public:
 	
 	const auto d=d2*invd;
 
-	const double factor=1.0/ (4.0 * M_PI);        
+	const PointScalar factor=1.0/ (4.0 * M_PI);        
         
         return (factor*Eigen::exp(-k * d) * invd) ;
 	}*/
@@ -37,7 +37,7 @@ public:
 
     inline T kernelFunction(const Eigen::Ref< const Point >&  x) const
     {
-        double d = x.norm();
+        PointScalar d = x.norm();
         return (d == 0) ? 0 : (1 / (4 * M_PI) ) / d;
     }
 
@@ -50,7 +50,7 @@ public:
 	    const auto invd=Eigen::rsqrt(d2.array());
 
 	    const auto d=d2.array()*invd.array();
-	    const double factor= (1.0/ (4.0 * M_PI));
+	    const PointScalar factor= (1.0/ (4.0 * M_PI));
 	    return invd *factor;
 	}else
 	{
@@ -66,7 +66,7 @@ public:
     
 
     template<typename TX, typename TY, typename TZ>
-    inline void transfer_factor(TX x, TY xc, double H, TY pxc, double pH, TZ& result) const
+    inline void transfer_factor(TX x, TY xc, PointScalar H, TY pxc, PointScalar pH, TZ& result) const
     {
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> d2=(x.matrix().colwise()-xc).colwise().squaredNorm().array();
 	const Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> dp2=(x.matrix().colwise()-pxc).colwise().squaredNorm().array();
@@ -76,13 +76,13 @@ public:
 	const auto dp=Eigen::sqrt(dp2);
 	const auto d=d2*invd;*/
 	
-	//double d = (x - xc).norm();
+	//PointScalar d = (x - xc).norm();
         ///Eigen::Array<typename TX::Scalar, TX::ColsAtCompileTime, 1> dp = (x.colwise() - pxc).norm();
 	
         //result*= Eigen::exp( -k*(d-dp) )*(dp*invd);
 	for (size_t i=0;i<x.cols();i++) {
-	    const double d=(x.col(i).matrix()-xc).norm();
-	    const double dp=(x.col(i).matrix()-pxc).norm();
+	    const PointScalar d=(x.col(i).matrix()-xc).norm();
+	    const PointScalar dp=(x.col(i).matrix()-pxc).norm();
 	    
 	    result(i)*=dp/d;
 	}
@@ -105,17 +105,17 @@ public:
 
     Eigen::Array<T, Eigen::Dynamic,1>  evaluateFactoredKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y,
 							      const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights,
-							      const Point& xc, double H, IndexRange srcsIds) const
+							      const Point& xc, PointScalar H, IndexRange srcsIds) const
     {
 
         Eigen::Array<T, Eigen::Dynamic,1> result(y.cols());
 
         result.fill(0);        
 	for (int j = 0; j < y.cols(); j++) {
-            const double dc = (y.matrix().col(j) - xc).norm();
+            const PointScalar dc = (y.matrix().col(j) - xc).norm();
 
 	    for (int i = 0; i < x.cols(); i++) {
-                double d = (x.col(i) - y.col(j)).matrix().norm();
+                PointScalar d = (x.col(i) - y.col(j)).matrix().norm();
 		
                 result[j] +=
 		    (d==0) ? 0 : weights[i] * 
@@ -125,7 +125,7 @@ public:
         return result;
     }
 
-    inline Eigen::Vector<int,dim> orderForBox(double H, Eigen::Vector<int, dim> baseOrder, int step=0) const
+    inline Eigen::Vector<int,dim> orderForBox(PointScalar H, Eigen::Vector<int, dim> baseOrder, int step=0) const
     {
 
 	Eigen::Vector<int,dim> order=baseOrder;
@@ -139,7 +139,7 @@ public:
         return order;
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(double H, Eigen::Vector<int, dim> ,Eigen::Vector<size_t,dim> base, int step=0) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int, dim> ,Eigen::Vector<size_t,dim> base, int step=0) const
     {
 	if(step==0){
 	    base*=3;

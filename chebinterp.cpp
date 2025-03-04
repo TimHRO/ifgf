@@ -7,9 +7,9 @@
 
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 void ChebychevInterpolation::fast_evaluate_tp(
-				 const Eigen::Ref<const Eigen::Array<double, DIM-1, Eigen::Dynamic> >
+				 const Eigen::Ref<const Eigen::Array<PointScalar, DIM-1, Eigen::Dynamic> >
 				  &points,
-                                  const Eigen::Ref<const Eigen::Array<double, 1, Eigen::Dynamic> >
+                                  const Eigen::Ref<const Eigen::Array<PointScalar, 1, Eigen::Dynamic> >
 				  &points2,
                                   int axis,
 				  const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
@@ -21,8 +21,8 @@ void ChebychevInterpolation::fast_evaluate_tp(
 
 
         dest.fill(0);
-        Eigen::Array<double,DIM-1,Eigen::Dynamic> points_t(DIM-1,points.cols());
-        Eigen::Array<double,1,Eigen::Dynamic> points2_t(1,points2.cols());
+        Eigen::Array<PointScalar,DIM-1,Eigen::Dynamic> points_t(DIM-1,points.cols());
+        Eigen::Array<PointScalar,1,Eigen::Dynamic> points2_t(1,points2.cols());
 
 
         const auto a=0.5*(box.max()-box.min()).array();
@@ -137,7 +137,7 @@ void ChebychevInterpolation::fast_evaluate_tp(
 
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 inline void  tp_evaluate_int(
-			     const Eigen::Array<double, Eigen::Dynamic,1> * points,					 
+			     const Eigen::Array<PointScalar, Eigen::Dynamic,1> * points,					 
 			     const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 			     &interp_values,
 			     Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > dest,
@@ -202,7 +202,7 @@ inline void  tp_evaluate_int(
 
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 void ChebychevInterpolation::tp_evaluate(
-					 const std::array<Eigen::Array<double, Eigen::Dynamic,1> , DIM >
+					 const std::array<Eigen::Array<PointScalar, Eigen::Dynamic,1> , DIM >
 		 &points,					 
 		 const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 		 &interp_values,
@@ -214,12 +214,12 @@ void ChebychevInterpolation::tp_evaluate(
 
 
 template
-void ChebychevInterpolation::tp_evaluate<std::complex<double>, 3,1>(
-								    const std::array<Eigen::Array<double,  Eigen::Dynamic,1> , 3 >
+void ChebychevInterpolation::tp_evaluate<std::complex<PointScalar>, 3,1>(
+								    const std::array<Eigen::Array<PointScalar,  Eigen::Dynamic,1> , 3 >
 								    &points,					 
-								    const Eigen::Ref<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> >
+								    const Eigen::Ref<const Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> >
 								    &interp_values,
-								    Eigen::Ref<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> > dest,
+								    Eigen::Ref<Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> > dest,
 								    const Eigen::Vector<int, 3>& ns );
     
 
@@ -228,7 +228,7 @@ void ChebychevInterpolation::tp_evaluate<std::complex<double>, 3,1>(
 
 template <typename T, unsigned int DIM, unsigned int DIMOUT>
 void ChebychevInterpolation::parallel_evaluate(
-					       const Eigen::Ref<const Eigen::Array<double, DIM, Eigen::Dynamic> >
+					       const Eigen::Ref<const Eigen::Array<PointScalar, DIM, Eigen::Dynamic> >
 					       &points,
 					       const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> >
 					       &interp_values,
@@ -237,7 +237,7 @@ void ChebychevInterpolation::parallel_evaluate(
 					       BoundingBox<DIM> box)
     {
 	
-	Eigen::Array<double,DIM,Eigen::Dynamic> points0(DIM,points.cols());
+	Eigen::Array<PointScalar,DIM,Eigen::Dynamic> points0(DIM,points.cols());
 
 	const auto a=0.5*(box.max()-box.min()).array();
 	const auto b=0.5*(box.max()+box.min()).array();
@@ -295,24 +295,24 @@ void ChebychevInterpolation::parallel_evaluate(
 
 // do some explicit initiations
 template
-const Eigen::Array<double, 3, Eigen::Dynamic> &ChebychevInterpolation::chebnodesNdd<double,3>( const Eigen::Ref< const Eigen::Vector<int, 3> >& ns);
+const Eigen::Array<PointScalar, 3, Eigen::Dynamic> &ChebychevInterpolation::chebnodesNdd<PointScalar,3>( const Eigen::Ref< const Eigen::Vector<int, 3> >& ns);
 
 
 #if 0
-//double
-template struct ChebychevInterpolation::InterpolationData<double, 3, 1>;
+//PointScalar
+template struct ChebychevInterpolation::InterpolationData<PointScalar, 3, 1>;
 
 template
-struct ChebychevInterpolation::InterpolationData<double,3,3>;
+struct ChebychevInterpolation::InterpolationData<PointScalar,3,3>;
 
 
 template 
-void ChebychevInterpolation::parallel_evaluate<double,3,1>(
-			      const Eigen::Ref<const Eigen::Array<double, 3, Eigen::Dynamic> >
+void ChebychevInterpolation::parallel_evaluate<PointScalar,3,1>(
+			      const Eigen::Ref<const Eigen::Array<PointScalar, 3, Eigen::Dynamic> >
 			      &points,
-			      const Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1> >
+			      const Eigen::Ref<const Eigen::Array<PointScalar, Eigen::Dynamic, 1> >
 			      &interp_values,
-			      Eigen::Ref<Eigen::Array<double, Eigen::Dynamic, 1> > dest,
+			      Eigen::Ref<Eigen::Array<PointScalar, Eigen::Dynamic, 1> > dest,
 			      const Eigen::Vector<int, 3>& ns,
 			      BoundingBox<3> box = BoundingBox<3>());
 
@@ -320,15 +320,15 @@ void ChebychevInterpolation::parallel_evaluate<double,3,1>(
 
 
 template 
-void ChebychevInterpolation::fast_evaluate_tp<double,3 ,1>(
-				 const Eigen::Ref<const Eigen::Array<double, 2, Eigen::Dynamic> >
+void ChebychevInterpolation::fast_evaluate_tp<PointScalar,3 ,1>(
+				 const Eigen::Ref<const Eigen::Array<PointScalar, 2, Eigen::Dynamic> >
 				  &points,
-                                  const Eigen::Ref<const Eigen::Array<double, 1, Eigen::Dynamic> >
+                                  const Eigen::Ref<const Eigen::Array<PointScalar, 1, Eigen::Dynamic> >
 				  &points2,
                                   int axis,
-				  const Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1> >
+				  const Eigen::Ref<const Eigen::Array<PointScalar, Eigen::Dynamic, 1> >
 				  &interp_values,
-				  Eigen::Ref<Eigen::Array<double, Eigen::Dynamic, 1> > dest,
+				  Eigen::Ref<Eigen::Array<PointScalar, Eigen::Dynamic, 1> > dest,
 				  const Eigen::Vector<int, 3>& ns,
 				 BoundingBox<3> box = BoundingBox<3>());
 
@@ -337,27 +337,27 @@ void ChebychevInterpolation::fast_evaluate_tp<double,3 ,1>(
 
 
 template
-void ChebychevInterpolation::chebtransform<double,3>(const Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1> >& src,
-						     Eigen::Ref<Eigen::Array<double, Eigen::Dynamic, 1> > dest,
+void ChebychevInterpolation::chebtransform<PointScalar,3>(const Eigen::Ref<const Eigen::Array<PointScalar, Eigen::Dynamic, 1> >& src,
+						     Eigen::Ref<Eigen::Array<PointScalar, Eigen::Dynamic, 1> > dest,
 						     const Eigen::Ref<const Eigen::Vector<int,3> >& ns
 						     );
     
 
 //complex
 
-template struct ChebychevInterpolation::InterpolationData<std::complex<double>, 3, 1>;
+template struct ChebychevInterpolation::InterpolationData<std::complex<PointScalar>, 3, 1>;
 
 template
-struct ChebychevInterpolation::InterpolationData<std::complex<double>,3,3>;
+struct ChebychevInterpolation::InterpolationData<std::complex<PointScalar>,3,3>;
 
 
 template 
-void ChebychevInterpolation::parallel_evaluate<std::complex<double>,3,1>(
-			      const Eigen::Ref<const Eigen::Array<double, 3, Eigen::Dynamic> >
+void ChebychevInterpolation::parallel_evaluate<std::complex<PointScalar>,3,1>(
+			      const Eigen::Ref<const Eigen::Array<PointScalar, 3, Eigen::Dynamic> >
 			      &points,
-			      const Eigen::Ref<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> >
+			      const Eigen::Ref<const Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> >
 			      &interp_values,
-			      Eigen::Ref<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> > dest,
+			      Eigen::Ref<Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> > dest,
 			      const Eigen::Vector<int, 3>& ns,
 			      BoundingBox<3> box = BoundingBox<3>());
 
@@ -365,23 +365,23 @@ void ChebychevInterpolation::parallel_evaluate<std::complex<double>,3,1>(
 
 
 template 
-void ChebychevInterpolation::fast_evaluate_tp<std::complex<double>,3 ,1>(
-				 const Eigen::Ref<const Eigen::Array<double, 2, Eigen::Dynamic> >
+void ChebychevInterpolation::fast_evaluate_tp<std::complex<PointScalar>,3 ,1>(
+				 const Eigen::Ref<const Eigen::Array<PointScalar, 2, Eigen::Dynamic> >
 				  &points,
-                                  const Eigen::Ref<const Eigen::Array<double, 1, Eigen::Dynamic> >
+                                  const Eigen::Ref<const Eigen::Array<PointScalar, 1, Eigen::Dynamic> >
 				  &points2,
                                   int axis,
-				 const Eigen::Ref<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> >
+				 const Eigen::Ref<const Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> >
 				  &interp_values,
-				 Eigen::Ref<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> > dest,
+				 Eigen::Ref<Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> > dest,
 				  const Eigen::Vector<int, 3>& ns,
 				 BoundingBox<3> box = BoundingBox<3>());
 
 
 
 template   
-void ChebychevInterpolation::chebtransform<std::complex<double>,3>(const Eigen::Ref<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> >& src,
-								   Eigen::Ref<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1> > dest,
+void ChebychevInterpolation::chebtransform<std::complex<PointScalar>,3>(const Eigen::Ref<const Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> >& src,
+								   Eigen::Ref<Eigen::Array<std::complex<PointScalar>, Eigen::Dynamic, 1> > dest,
 								   const Eigen::Ref<const Eigen::Vector<int,3> >& ns
 								   );
     
