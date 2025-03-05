@@ -22,7 +22,7 @@ public:
     inline T kernelFunction(const sycl::marray<PointScalar,3>& x) const
     {
         PointScalar d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-	return d<1e-8 ? 0 : PointScalar((1. / (4. * M_PI))) * exp(T(0,k) * d) / (d);
+	return d<1e-12 ? 0 : PointScalar((1. / (4. * M_PI))) * T(cos(k*d),sin(k*d)) / (d);
     }
 
 
@@ -62,7 +62,7 @@ public:
 
 	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
 
-	    result +=  ws[i] *  exp(T(0,k)* (d - dc)) * (dc) / d;
+	    result +=  ws[i] *  T(sycl::cos(k*(d-dc)),sycl::sin(k*(d-dc))) * (dc) / d;
 	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
 	}
 	return result;
@@ -78,7 +78,7 @@ public:
 	const PointScalar d=d2*id;
 
 	
-	return T(cos(k*d),sin(k*d))*id  *PointScalar(1./(4.0 * M_PI));	    
+	return T(sycl::cos(k*d),sycl::sin(k*d))*id  *PointScalar(1./(4.0 * M_PI));	    
 
     }
 
@@ -91,7 +91,7 @@ public:
 	const PointScalar d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
 	const PointScalar dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
 
-	return exp(T(0,k)*(d-dp))*dp/d;
+	return T(sycl::cos(k*(d-dp)),sycl::sin(k*(d-dp)))*dp/d;
 	
     }
 

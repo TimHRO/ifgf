@@ -63,7 +63,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 100000;
+    const int N = 1000000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -145,7 +145,7 @@ int main()
 
         double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
         maxE = std::max(e, maxE);
-        std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+        //std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
     }
 
     std::cout << "summary: e=" << maxE << std::endl;

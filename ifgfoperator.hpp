@@ -243,6 +243,7 @@ public:
 
 	//std::vector<tbb::queuing_mutex> resultMutex(m_numTargets);
 
+        { //scope to contain all the sycl stuff. that way we make sure that all the data is copied to the host before proceeding.
 
 	sycl::queue Q(sycl::default_selector_v);
 	const auto &device = Q.get_device();
@@ -1251,7 +1252,7 @@ public:
 
 	    std::cout<<"done with this level"<<std::endl;
         }
-
+        } //end of sycl scope
 	std::cout<<"mult over\n";
 
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
