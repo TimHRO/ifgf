@@ -4,7 +4,7 @@
 #define MIN_RECURSIVE_BOXES 32
 
 
-#define PointScalar double 
+#define PointScalar float
 
 //#define  RECURSIVE_MULT
 //#define CHECK_CONNECTIVITY

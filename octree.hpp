@@ -258,8 +258,8 @@ public:
 
 
         //make the bbox slightly larger to not have to deal with boundary issues
-        min.array() -= 1e-8 * min.norm();
-        max.array() += 1e-8 * max.norm();
+        min.array() -= std::numeric_limits<PointScalar>::epsilon()*10 * min.norm();
+        max.array() += std::numeric_limits<PointScalar>::epsilon()*10 * max.norm();
 
         BoundingBox<DIM> bbox(min, max);
         std::cout << "bbox=" << min.transpose() << "\t" << max.transpose() << std::endl;

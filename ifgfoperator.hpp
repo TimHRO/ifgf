@@ -579,27 +579,35 @@ public:
 		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
 				
 
-
 		    //TODO unify order type
 		    std::array<int,DIM> ns_ho;
 		    std::copy(high_order.begin(),high_order.end(),ns_ho.begin());
 		
 		
 		    const sycl::accessor a_chebvals(b_chebvals,h,sycl::read_only);
-
+		    const auto &srcDataAcc = srcData->accessor(h);
 
 		    const size_t sizeB=interpolationDataBuffer->size();
 		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
 
 		    const size_t stride=ho_chebNodes.cols();
 		    std::cout<<"survived setup"<<std::endl;
+		    auto out = sycl::stream(1024, 1024, h);
+
 
 		    h.parallel_for(sycl::range<1>( numActiveCones),
 				   [=](sycl::id<1> i)
 				   {
-				       //before we can use the interpolation data, we habe to run a chebychev transform on it
-				       SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_intData,  ns_ho, a_chebvals,i*stride);
+				       
+				       const ConeRef ref=srcDataAcc.activeCone(i);
+				       const size_t boxId=ref.boxId();				       
 
+				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
+					   //out<<"i="<<i<<"\n";
+					   //before we can use the interpolation data, we habe to run a chebychev transform on it
+					   SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_intData,  ns_ho, a_chebvals,i*stride);
+					   //out<<"i2="<<a_intData[i*stride].real()<<"\n";
+				       }
 				   });
 		});
 		Q.wait();
@@ -808,8 +816,8 @@ public:
 					const PointScalar h=2;
 					assert(lo_ns[d]<=MAX_LOW_ORDER);
 				    
-					auto mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
-					auto mmax=(mmin+(h/((PointScalar) factors[d])));
+					const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
+					const PointScalar mmax=(mmin+(h/((PointScalar) factors[d])));
 					const PointScalar a=0.5*(mmax-mmin);
 					const PointScalar b=0.5*(mmax+mmin);
 
@@ -994,7 +1002,6 @@ public:
 			
 			res*= cf;
 
-			
 			a_result[it]+=res;
 		    }
 
