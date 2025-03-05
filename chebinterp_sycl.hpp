@@ -4,6 +4,7 @@
 #include "Eigen/src/Core/util/Constants.h"
 #include "boundingbox.hpp"
 #include <cstddef>
+#include <sycl/access/access.hpp>
 #include <tuple>
 
 #include <fenv.h>
@@ -390,7 +391,7 @@ namespace SyclChebychevInterpolation
     void tp_evaluate_int(
 			 const sycl::marray<PointScalar, POINTS_AT_CTIME> &points,
 			 int pnt_offset,
-			 const sycl::local_accessor<const T> &interp_values,
+			 const sycl::accessor<const T,1,sycl::access_mode::read> &interp_values,
 			 size_t offset,
 			 DestType& dest,				
 			 const std::array<int, DIMX> &ns,

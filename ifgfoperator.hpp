@@ -699,11 +699,16 @@ public:
 			points.segment(offset,chebNodes1d.size())=chebNodes1d.array();
 			offset+=chebNodes1d.size();		    
 
-			if(d<DIM-1) {
-			    Np*=chebNodes1d.size();
-			    buffer_size+=high_order[d]*Np;
+		    }
+
+		    for(int d=DIM-1;d>0;d--) {
+			int Np=1;
+			for(int j=0;j<d;j++)
+			{
+			    Np*=order[j];
 			}
-		    }		    		
+			buffer_size+=high_order[d]*Np;
+		    }
 		
 		    const size_t ho_stride=high_order.prod();
 		    sycl::buffer<PointScalar> b_points(points.data(),points.size());
@@ -734,14 +739,8 @@ public:
 
 
 
-		
-		    size_t group_size= std::min(device.get_info<sycl::info::device::max_work_group_size>(), local_mem_size/((buffer_size+ho_stride)*sizeof(T)));
-		    group_size=std::min(group_size,factor.prod()/2); //TODO CHEAT. for some reason the case group_size=factor.prod() is broken when compiled with -O1
-		    std::cout<<"local="<<local_mem_size<<" "<<buffer_size<<" ideal groups="<<group_size<<std::endl;
+		    std::cout<<"buffer="<<buffer_size<<std::endl;
 
-		    if (!has_local_mem || local_mem_size < (group_size * buffer_size*sizeof(T))) {
-			throw "Device doesn't have enough local memory!";
-		    }
 	    
 		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
 		    if(numActiveCones == 0)		    
@@ -765,44 +764,23 @@ public:
 			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(hoGrid.num_elements());
 			auto out = sycl::stream(100, 100, h);
 
-			sycl::local_accessor<T> local_int_data(ho_stride,h);
-			sycl::local_accessor<T> tmp(group_size*buffer_size,h);
 
 			sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
-			sycl::local_accessor<PointScalar> local_pnts(fine_stride*group_size,h);
-
-
-			std::cout<<"group="<<group_size<<" "<<buffer_size<<" "<<group_size*buffer_size<<" Np="<<Np<<" "<<Np*group_size<<std::endl;
 
 
 
-			h.parallel_for(sycl::nd_range<2>( {numActiveCones,factor.prod()}, {1,group_size}), [=](auto it)			
+			const int nF=factor.prod();
+			h.parallel_for(sycl::range( {numActiveCones*nF}), [=](auto it)			
 			{		
-			    assert(it.get_local_id()[0]==0);
-			    auto local=it.get_local_id()[1];
-			    const size_t coneId=it.get_global_id()[0];		
-
-			    //copy the interpolation data to local memory for speed
-			    const size_t l_stride=(ho_stride+it.get_local_range(1)-1)/it.get_local_range(1); //rounded up integer division
-			    assert(l_stride*it.get_local_range(1)>=ho_stride); //make sure we cover the whole range of indices
-			    size_t target=std::min((local+1)*l_stride,ho_stride);
-			    for(size_t m=local*l_stride;m<target;m++){
-				local_int_data[m]=a_intData[coneId*ho_stride+m];
 			    
-			    }
-
-			    for(int i=0;i<buffer_size;i++)  {
-				tmp[local*buffer_size+i]=0;
-			    }
-
-			    it.barrier(sycl::access::fence_space::local_space);
-
-
+			    const size_t coneId=it/nF;		
+			    
+			    
 			    ConeRef hoCone=srcDataAcc.activeCone(coneId);
 			    if( srcDataAcc.hasFarTargetsIncludingAncestors(hoCone.boxId())){ // we dont need the interpolation info for those levels.
 				auto ho_id=SyclConeDomain<DIM>::indicesFromId(hoCone.id(),n_el);
 
-				auto lid=SyclConeDomain<DIM>::indicesFromId(it.get_global_id()[1],factors);
+				auto lid=SyclConeDomain<DIM>::indicesFromId(it%nF,factors);
 				const size_t fine_el=
 				    (ho_id[2]*factors[2]+(lid[2]))*n_elements[1]*n_elements[0]+
 				    (ho_id[1]*factors[1]+(lid[1]))*n_elements[0]+
@@ -817,27 +795,14 @@ public:
 				
 					
 
-#if 0
-				    size_t offset=0;
-				    for(size_t pnt=0; pnt<fine_stride;pnt++) {
-					for(int d=0;d<DIM;d++) {
-					    const auto h=2;
-					    auto min=-1+(lid[d]*(h/((PointScalar) factors[d])));
-					    auto max=(min+(h/((PointScalar) factors[d])));
-					    const PointScalar a=0.5*(max-min);
-					    const PointScalar b=0.5*(max+min);
-
-					    local_pnts[fine_stride*local+pnt*DIM+d]=a_chebNodes[pnt*DIM+d]*a+b;
-
-					}
-
-				    }
-
-				    SyclChebychevInterpolation::eval<T,DIM,4>(local_pnts,fine_stride*local, a_intData,coneId*ho_stride, ns, a_parentIntData, fineMemId*fine_stride, 0, fine_stride);
-#else
 				    size_t offset=0;
 				    const int MAX_LOW_ORDER=8;
 				    sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
+				    sycl::marray<T,542> tmp; //Temporary storage for the sum-factorization. This should be enough up to orders (8,10,10) (5,7,7)*3
+			
+
+
+				    tmp=0;
 				    t_pnts=0;		//Fill up the remaining points. otherwise the compiler optimization breaks the code
 				    for(int d=0;d<DIM;d++) {
 					const PointScalar h=2;
@@ -856,17 +821,17 @@ public:
 				    }
 		    								    
 
-				
-				    SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(t_pnts, local_int_data, 0,
+				    const size_t int_data_offset=coneId*ho_stride;
+				    
+				    SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(t_pnts, a_intData, int_data_offset,
 										     ns,lo_ns, a_parentIntData,
 										     tmp,
-										     fineMemId*fine_stride, local*buffer_size);
+										     fineMemId*fine_stride, 0);
 
 
 				    //and chebtrafo all in one go
 				    SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_parentIntData,  lo_ns, a_chebvals,fineMemId*fine_stride);
 				    
-#endif
 				
 				}
 
