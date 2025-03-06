@@ -251,10 +251,9 @@ public:
         Point min = pnts.col(0);
         Point max = pnts.col(0);
 
-        for (size_t i = 0; i < pnts.cols(); i++) {
-            min = min.array().min(pnts.col(i).array());
-            max = max.array().max(pnts.col(i).array());
-        }
+	min=pnts.rowwise().minCoeff();
+	max=pnts.rowwise().maxCoeff();
+	
 
 
         //make the bbox slightly larger to not have to deal with boundary issues

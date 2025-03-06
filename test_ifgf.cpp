@@ -95,15 +95,15 @@ int main()
     //size_t  N=srcs.cols();
     //(dim,N);
 
-    srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
-    //for(int i=0;i<srcs.cols();i++){
-    //	srcs.col(i)=randomPointOnSphere();
-    //}
+    //srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
+    for(int i=0;i<srcs.cols();i++){
+    	srcs.col(i)=randomPointOnSphere();
+    }
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = 0.9*srcs;//(PointArray::Random(dim, N).array());
-    /*for(int i=0;i<targets.cols();i++){
+    for(int i=0;i<targets.cols();i++){
 	targets.col(i)=randomPointOnSphere();
-	}*/
+    }
 
 
     normals.colwise().normalize();

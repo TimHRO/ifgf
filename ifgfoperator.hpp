@@ -99,6 +99,14 @@ public:
 						  [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
 						  *m_target_octree);
 
+
+	//copy to level data
+	m_octreeData.resize(m_src_octree->levels());
+	for(int level=0;level<m_src_octree->levels();level++) {
+	    m_octreeData[level]=std::make_unique<OctreeLevelData<T,DIM> >(*m_src_octree,level);
+	}
+
+	
 	std::cout<<"done initializing"<<std::endl;
     }
 
@@ -281,8 +289,8 @@ public:
 	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
 	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
 
-	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
-	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
+	std::shared_ptr<OctreeLevelData<T,DIM> > parentData;
+	std::shared_ptr<OctreeLevelData<T,DIM> > srcData;
         for (; level >= 0; --level) {
 	    	    
             std::cout << "level=" << level << " "<< m_src_octree->numBoxes(level)<< std::endl;
@@ -293,7 +301,7 @@ public:
 	    std::cout<<"lets go"<<std::endl;
 
 	    if(parentData==0) {
-		srcData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
+		srcData = m_octreeData[level];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
 	    }else {
 		std::swap(parentData,srcData);
 		parentData.reset();
@@ -1063,7 +1071,7 @@ public:
 	    }
 
 	    Q.wait();
-	    parentData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
+	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 	    Q.submit([&](sycl::handler &h) {
 		// start by pushing  some data to the GPU (octree stuff)
 
@@ -1721,6 +1729,7 @@ protected:
     }
 
 private:
+    std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
     std::unique_ptr<Octree<T, DIM> > m_src_octree;
     std::unique_ptr<Octree<T, DIM> > m_target_octree;
     unsigned int m_numTargets;
