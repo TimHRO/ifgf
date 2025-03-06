@@ -258,8 +258,8 @@ public:
 
 
         //make the bbox slightly larger to not have to deal with boundary issues
-        min.array() -= std::numeric_limits<PointScalar>::epsilon()*10 * min.norm();
-        max.array() += std::numeric_limits<PointScalar>::epsilon()*10 * max.norm();
+        min.array() -= 0.1 * min.norm();
+        max.array() += 0.1 * max.norm();
 
         BoundingBox<DIM> bbox(min, max);
         std::cout << "bbox=" << min.transpose() << "\t" << max.transpose() << std::endl;
@@ -377,29 +377,7 @@ public:
 	//global_box.min().fill(10);
 	//global_box.max().fill(0);
 
-#ifdef BE_FAST
-	TransformationMode mode=Decomposition;
-#else
 	TransformationMode mode=TwoGrid;
-#endif
-
-#ifdef RECURSIVE_MULT
-	
-	int min_boxes=MIN_RECURSIVE_BOXES;
-	int min_recursive_level=0;
-        for(;min_recursive_level<levels();min_recursive_level++) {
-            if(numBoxes(min_recursive_level) > min_boxes) {
-                break;
-            }
-        }
-
-	
-#else
-	const size_t min_recursive_level = levels();
-#endif
-
-	std::cout<<"min rec"<<min_recursive_level;
-	
 
 	const auto & target_points=target.points();
 	tbb::queuing_mutex activeConeMutex;
@@ -420,72 +398,10 @@ public:
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
 		BoundingBox<DIM> box;
 
-
-		//do nothing  if there are no sources
-		//TODO this breaks some corner cases where the boxId
-		//is no longer the index in certain vectors
-		/*if(node==0 || node->pntRange().first==node->pntRange().second) {
-		    continue;
-		    }*/
-
 		const Point xc=node->boundingBox().center();
 		
 		const PointScalar H=node->boundingBox().sideLength();		
 		const std::vector<IndexRange> farTargets=node->farTargets();
-#ifdef EXACT_INTERP_RANGE
-
-		
-		for(const IndexRange& iR : farTargets)
-		{
-		    for(int i=iR.first;i<iR.second;i++) {
-			//std::cout<<"asd"<<node->boundingBox().exteriorDistance(m_targets.col(i))<<" "<<H<<std::endl;
-			
-			const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);
-			assert(s[0]<=sqrt(DIM)/DIM);
-			
-			box.extend(s); //make sure the target is in the interpolation domain
-		    }
-		}
-		
-		BoundingBox<DIM> pBox;
-		std::shared_ptr<const OctreeNode> parent=node->parent().lock();
-		//now also add all the parents targets	       
-		if(parent && parentHasFarTargets(node))
-		{	    
-		    pBox=parent->interpolationRange();
-		    const Point pxc=parent->boundingBox().center();
-		    const PointScalar pH=parent->boundingBox().sideLength();
-
-
-		    if(!pBox.isNull())
-		    {
-			//transform the parents interpolation range to the physical coordinates
-			auto cMin=Util::interpToCart<DIM>(pBox.min().array(),pxc,pH);
-			auto cMax=Util::interpToCart<DIM>(pBox.max().array(),pxc,pH);
-
-
-			//pull those physical coordinates back to the interpolation-coordinates of node
-			//box.extend(Util::cartToInterp<DIM>(cMin,xc,H));	
-			//box.extend(Util::cartToInterp<DIM>(cMax,xc,H));
-
-			//TODO check if this is necessary
-			const ConeDomain<DIM>& p_grid=parent->coneDomain();
-			auto chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,0));
-			for(size_t el : p_grid.activeCones() ) {
-			    for (size_t i = 0; i < chebNodes.cols(); i++) {
-				auto pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
-				box.extend(Util::cartToInterp<DIM>(pnt,xc,H).matrix());
-			    }
-			}
-		    }
-		}
-
-		if(!box.isNull()) {
-		    //extend the box slighlty such that the boundary points are not used for interpolation
-		    box.extend((box.min().array()-1e-06).matrix());
-		    box.extend((box.max().array()+1e-06).matrix());
-		}
-#else
 
 		//just use a default value for the boxes
 
@@ -507,7 +423,7 @@ public:
 
 		
                 const PointScalar dist_t=0;//target.bbox(0,0).exteriorDistance(xc);
-		PointScalar smin= smin_for_H(H);
+		PointScalar smin= 1e-3;//smin_for_H(H);
 
 		/*
                 if(!pBox.isNull()) {
@@ -540,8 +456,6 @@ public:
 		}
 	
 		    
-		
-#endif		
 
 		BoundingBox<DIM> tbox(pBox);
 
@@ -565,10 +479,8 @@ public:
 		    global_box.extend(box);
 
 		//now we need to do the whole thing again to figure out which cones are active...
-		// 0: where do i need to compute the points directly/from the children in order to be able to sample FF and first rotation
-		// 1: where do i need to compute the points using  the first rotation in order to be able to compute the translation
-		// 2: where do i need to compute the points using the translation in order to be able to compute the second rotation
-		
+		// 0 = fine grid low order (used for evaluating FF and propagating upwards
+		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
 		std::array<IndexSet,N_STEPS> is_cone_active; 
 		
 
@@ -707,19 +619,14 @@ public:
 
 		     //local_active_cones.trim();
 		     ConeDomain d0=coarseDomain;
-		     if(step==3 && mode==Decomposition) {
-			 d0=trans_domain;
-		     }
 		     if(step==0 && mode!=Regular) {
 			 d0=domain;
 		     }
 		     d0.setActiveCones(local_active_cones);		
 		     d0.setConeMap(cone_map);		     
-
-		     //std::cout<<"level"<<node->level()<<"range:"<<box.min().transpose()<<" "<<box.max().transpose()<<std::endl;
+		     
 		     node->setConeDomain(d0,step);		     
 		}
-		//node->setInterpolationRange(box);
 	    }});
 	    {
 		tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
@@ -731,14 +638,10 @@ public:
 	    m_leafCones.push_back(leafCones);
 
 
-	    if(level< min_recursive_level) {
-		//compute the farFieldBoxes
-		m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
-		m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
-		
-		
-	    }
-
+	    //compute the farFieldBoxes
+	    m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
+	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
+			
 
 	}
 

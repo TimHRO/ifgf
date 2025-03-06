@@ -1,6 +1,7 @@
 #ifndef _UTIL_HPP_
 #define _UTIL_HPP_
 
+#include "config.hpp"
 #include <Eigen/Dense>
 #include <numeric>
 
@@ -122,7 +123,7 @@ namespace Util
     template<size_t DIM>
     inline Eigen::Vector<PointScalar, DIM> cartToSpherical(const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> >& p) 
     {
-	Eigen::Vector<PointScalar,DIM> xp = p ;
+	Eigen::Vector<double,DIM> xp = p.template cast<double>() ;
 
 
         if constexpr (DIM==2) {
@@ -141,10 +142,10 @@ namespace Util
 
         }else{
             static_assert(DIM==3);
-            const PointScalar phi = std::atan2(xp[1], xp[0]);
-            const PointScalar a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const PointScalar theta= std::atan2(sqrt(a),xp[2]);
-            const PointScalar r= sqrt(a+xp[2]*xp[2]);
+            const double phi = std::atan2(xp[1], xp[0]);
+            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const double theta= std::atan2(sqrt(a),xp[2]);
+            const double r= sqrt(a+xp[2]*xp[2]);
 
             Eigen::Vector<PointScalar, DIM> res;
             res[0] = r;
@@ -161,12 +162,12 @@ namespace Util
     inline typename PointVector::PlainObject cartToInterp2(const Eigen::ArrayBase<PointVector>& x, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H, PointVector2& rs)
     {
 
-	auto p=x.colwise()-xc.array();
+	auto p=(x.colwise()-xc.array()).template cast<double>();
 	
 	const auto a = p.row(0)*p.row(0)+p.row(1)*p.row(1);
-	rs.row(2)= p.row(0).binaryExpr(p.row(1), [](PointScalar a,PointScalar b) {return  std::atan2(b,a);});
-	rs.row(1)= p.row(2).binaryExpr(a, [](PointScalar b,PointScalar aj){return std::atan2(std::sqrt(aj),b);});
-	rs.row(0)=H/((a+p.row(2)*p.row(2)).sqrt());
+	rs.row(2)= (p.row(0).binaryExpr(p.row(1), [](PointScalar a,PointScalar b) {return  std::atan2(b,a);})).template cast<PointScalar>();
+	rs.row(1)= p.row(2).binaryExpr(a, [](PointScalar b,PointScalar aj){return std::atan2(std::sqrt(aj),b);}).template cast<PointScalar>();
+	rs.row(0)=H/((a+p.row(2)*p.row(2)).sqrt()).template cast<PointScalar>();
 
 
 	return rs;
@@ -175,7 +176,7 @@ namespace Util
         template<size_t DIM>
     inline Eigen::Vector<PointScalar, DIM> cartToInterp(Eigen::Vector<PointScalar, DIM> p, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H) 
     {
-	auto ps=cartToSpherical<DIM>(p-xc);
+	Eigen::Vector<PointScalar,DIM> ps=cartToSpherical<DIM>(p-xc);
 	ps[0]=H/ps[0];
 
 
@@ -187,7 +188,8 @@ namespace Util
     template<size_t DIM>
     inline void cartToInterp(const sycl::marray<PointScalar,DIM>& p, sycl::marray<PointScalar,DIM>& res, const sycl::marray<PointScalar,DIM>& xc, PointScalar H)
     {
-	auto xp=p-xc;
+	//This part we do in double precision.
+	sycl::marray<double, DIM> xp=p-xc;
         if constexpr (DIM==2) {
 	    const PointScalar r = sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
 
@@ -198,10 +200,10 @@ namespace Util
 
         }else{
             static_assert(DIM==3);
-            const PointScalar phi = atan2(xp[1], xp[0]);
-            const PointScalar a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const PointScalar theta= atan2(sqrt(a),xp[2]);
-            const PointScalar r= sqrt(a+xp[2]*xp[2]);
+            const double phi = atan2(xp[1], xp[0]);
+            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const double theta= atan2(sqrt(a),xp[2]);
+            const double r= sqrt(a+xp[2]*xp[2]);
 
 
             res[0] = H/r;

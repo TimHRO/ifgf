@@ -105,7 +105,8 @@ public:
 
     
     Eigen::Vector<size_t, DIM>  estimateRefinement(PointScalar tol,RefinementType refine)
-    { 
+    {
+	#if 0
 	std::cout<<"estimating the order needed to achieve "<<tol<< "using "<< (refine==RefineH ? "h":"p")<<"-refinement"<<m_baseOrder<<" "<<m_base_n_elements.transpose()<<std::endl;
 	//use n boxes randomly to estimate the interpolation error
 	const size_t level=m_src_octree->levels()-1;
@@ -130,8 +131,11 @@ public:
 
 	std::cout<<"using refinemnt="<<ref.transpose()<<std::endl;;
 	return ref;
+	#endif
+	
     }
 
+    #if 0
     Eigen::Vector<size_t,DIM> estimateRefinementOnBox(PointScalar tol,size_t level,size_t id, RefinementType refine)
     {
 	const int maxR=refine== RefineH ? 4 : 10;
@@ -222,7 +226,7 @@ public:
 	
 	return refine == RefineH ? new_n_els : new_p.template cast<size_t>();
     }
-    
+#endif    
     
 
 
@@ -336,6 +340,7 @@ public:
 				       }
 				   });
 		});
+		Q.wait();
 	    }
 #else
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0, m_target_octree->numPoints()),
@@ -572,7 +577,7 @@ public:
 
 
 
-	    
+		Q.wait();
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
 
@@ -778,6 +783,7 @@ public:
 
 
 			const int nF=factor.prod();
+			std::cout<<"doing it"<<std::endl;
 			h.parallel_for(sycl::range( {numActiveCones*nF}), [=](auto it)			
 			{		
 			    
@@ -802,11 +808,11 @@ public:
 				    }
 				
 					
-
+				    out<<it<<" "<<coneId<<"\n";
 				    size_t offset=0;
 				    const int MAX_LOW_ORDER=8;
 				    sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
-				    sycl::marray<T,542> tmp; //Temporary storage for the sum-factorization. This should be enough up to orders (8,10,10) (5,7,7)*3
+				    sycl::marray<T,541> tmp; //Temporary storage for the sum-factorization. This should be enough up to orders (8,10,10) (5,7,7)*3
 			
 
 
@@ -854,7 +860,7 @@ public:
 	    }
 
 
-	    
+	    Q.wait();
 
 #else
 
@@ -931,7 +937,6 @@ public:
 	    }});
 
 #endif
-
 	    std::cout<<"swapping"<<std::endl;
 	    std::swap(interpolationData,parentInterpolationData);
 	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
@@ -983,10 +988,16 @@ public:
 			//out<<transformed[0]<<" "<<transformed[1]<<" "<<transformed[2]<<"\n";
                         const size_t el=grid.elementForPoint(transformed);
 			
-			assert(el<SIZE_MAX); //we used to cutoff targets like that
+			//assert(el<SIZE_MAX); //we used to cutoff targets like that
+			if(el== SIZE_MAX) {
+			    return;
+			}
 
 			
 			const size_t memId=srcDataAcc.memId(boxId,el);
+			if(memId==SIZE_MAX){
+			    return;
+			}
 			assert(memId<SIZE_MAX); //the requested element should always be active since it contains a target point
 
 			target_pnt=0;
@@ -1051,6 +1062,7 @@ public:
 		continue;
 	    }
 
+	    Q.wait();
 	    parentData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 	    Q.submit([&](sycl::handler &h) {
 		// start by pushing  some data to the GPU (octree stuff)
@@ -1248,11 +1260,6 @@ public:
 
 	//make sure no old buffer is around	
 	buf=std::make_unique<sycl::buffer<T,1> > (m_src_octree->numActiveCones(level,step)*order.prod());
-	// {
-	//     //TMP: zero it out
-	//      auto bufA=buf->get_host_access();
-	//      std::fill(bufA.begin(),bufA.end(),0);
-	//  }
 #if 0
 	i_data.resize(m_src_octree->numBoxes(level));
 
@@ -1699,7 +1706,7 @@ public:
 
     inline  PointScalar  cutoff_limit(PointScalar H) const
     {
-	return 1e-4;
+	return 0;
     }
 
 

@@ -1,19 +1,20 @@
 #ifndef __HELMHOLTZ_IFGF_HPP__
 #define __HELMHOLTZ_IFGF_HPP__
 
+#include "config.hpp"
 #include "ifgfoperator.hpp"
 
 
 
 class HelmholtzKernelFunctions
 {
-    typedef std::complex<PointScalar> T;
+    typedef std::complex<RealScalar> T;
     const static  int dim=3;
     typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<PointScalar,dim> Point;
 
 public:
-    HelmholtzKernelFunctions(PointScalar waveNr):
+    HelmholtzKernelFunctions(RealScalar waveNr):
 	k(waveNr)
     {
     }
@@ -21,8 +22,8 @@ public:
 
     inline T kernelFunction(const sycl::marray<PointScalar,3>& x) const
     {
-        PointScalar d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-	return d<1e-12 ? 0 : PointScalar((1. / (4. * M_PI))) * T(cos(k*d),sin(k*d)) / (d);
+        RealScalar d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
+	return std::abs(d)==0.0 ? RealScalar(0) : RealScalar((1. / (4. * M_PI))) * T(cos(k*d),sin(k*d)) / (d);
     }
 
 
@@ -54,15 +55,15 @@ public:
 	T result=0;
 
 	sycl::marray<PointScalar,3> pnt{y[0]-xc[0],y[1]-xc[1],y[2]-xc[2]};
-	PointScalar dc = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+	RealScalar dc = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
 
 	for(size_t i=x0;i<xend;i++) {
 	    sycl::marray<PointScalar,3> pnt{xs[i*dim]-y[0],xs[i*dim+1]-y[1],xs[i*dim+2]-y[2]};
-	    PointScalar d = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+	    RealScalar d = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
 
 	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
 
-	    result +=  ws[i] *  T(sycl::cos(k*(d-dc)),sycl::sin(k*(d-dc))) * (dc) / d;
+	    result += (abs(d)<1e-12) ? RealScalar(0) :  ws[i] *  T(sycl::cos(k*(d-dc)),sycl::sin(k*(d-dc))) * (dc) / d;
 	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
 	}
 	return result;
@@ -72,13 +73,16 @@ public:
     template<typename TX>
     inline T CF(TX x) const
     {
-	const PointScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
+	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 
-	const PointScalar id=1./(sqrt(d2));
-	const PointScalar d=d2*id;
+	if(abs(d2)<1e-12) {
+	    return 0;
+	}
+	const RealScalar id=1./(sqrt(d2));
+	const RealScalar d=d2*id;
 
 	
-	return T(sycl::cos(k*d),sycl::sin(k*d))*id  *PointScalar(1./(4.0 * M_PI));	    
+	return T(sycl::cos(k*d),sycl::sin(k*d))*id  *RealScalar(1./(4.0 * M_PI));	    
 
     }
 
@@ -88,8 +92,12 @@ public:
     {
 	auto z=x-xc;
 	auto zp=x-pxc;
-	const PointScalar d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
-	const PointScalar dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
+	const RealScalar d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
+	const RealScalar dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
+
+	if(abs(d)<1e-12) {
+	    return 0;
+	}
 
 	return T(sycl::cos(k*(d-dp)),sycl::sin(k*(d-dp)))*dp/d;
 	
@@ -105,7 +113,7 @@ private:
 
 
 template<size_t dim >
-class HelmholtzIfgfOperator : public IfgfOperator<std::complex<PointScalar>, dim,
+class HelmholtzIfgfOperator : public IfgfOperator<std::complex<RealScalar>, dim,
                                                   1, HelmholtzIfgfOperator<dim> >
 {
 public:
@@ -115,11 +123,11 @@ public:
 
     
     
-    HelmholtzIfgfOperator(PointScalar waveNumber,
+    HelmholtzIfgfOperator(RealScalar waveNumber,
                           size_t leafSize,
                           size_t order,
                           size_t n_elem=1,PointScalar tol=-1):
-        IfgfOperator<std::complex<PointScalar>, dim, 1, HelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
+        IfgfOperator<std::complex<RealScalar>, dim, 1, HelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
         k(waveNumber)
     {
 
@@ -228,7 +236,7 @@ public:
 
 
 
-
+#if 0
     Eigen::Vector<T, Eigen::Dynamic>  evaluateFactoredKernel(const Eigen::Ref<const PointArray> &x, const Eigen::Ref<const PointArray> &y,
             const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights,
 							     const Point& xc, PointScalar H, IndexRange srcsIds) const
@@ -238,10 +246,10 @@ public:
 
 	const int pkg_size=4;
 	Eigen::Array<T, pkg_size,1> tmp;
-	Eigen::Array<PointScalar, pkg_size,1> d;
+	Eigen::Array<RealScalar, pkg_size,1> d;
         result.fill(0);        
 	for (int j = 0; j < y.cols(); j++) {
-            const PointScalar dc = (y.matrix().col(j) - xc).norm();
+            const RealScalar dc = (y.matrix().col(j) - xc).norm();
 
 	    size_t i=0;
 	    for (i = 0; i < x.cols()/ pkg_size; i++) {
@@ -255,14 +263,14 @@ public:
 
 	    for(size_t l=i* pkg_size;l<x.cols();l++)
 	    {
-		const PointScalar d = (x.col(l) - y.col(j)).matrix().norm();
+		const RealScalar d = (x.col(l) - y.col(j)).matrix().norm();
                 result[j] +=  weights[l] *  exp(T(0,k)* (d - dc)) * (dc) / d;
 		
 	    }
 	}
         return result;
     }
-
+#endif
 
 
         

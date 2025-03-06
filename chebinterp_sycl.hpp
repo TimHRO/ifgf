@@ -87,7 +87,7 @@ namespace SyclChebychevInterpolation
 		    const PointScalar Td=cv[cv_offset+idx*Nd+sigma];
 		    //const PointScalar Td=cos(idx*M_PI*(2.*sigma+1.)/(2.*ns[DIM-1]));
 		    assert(nsigma==1);
-		    dest[dest_offset+idx]+=src[offset+sigma]*Td;
+		    dest[dest_offset+idx]+=src[offset+sigma]*T(Td);
 		    //dest.segment(idx*stride,nsigma)+=src.segment(sigma*stride,nsigma)*Td;
 		}
 		dest[dest_offset+idx]*=(idx ==0 ? 1.:2. )*1./ns[0];
@@ -126,7 +126,7 @@ namespace SyclChebychevInterpolation
 		    (*dest_it)*=Td;*/
 
 		    for(size_t l=0;l<nsigma;l++) {
-			dest[dest_offset+idx*stride+l]+=M[sigma][l]*Td;
+			dest[dest_offset+idx*stride+l]+=M[sigma][l]*T(Td);
 		    }
 		    
 		    
@@ -194,7 +194,10 @@ namespace SyclChebychevInterpolation
 		    result=vals[0+offset];
 		    return result;
 		}else {
-		    result = vals[1+offset]*x.row(0)+vals[0+offset];  
+		    //result = vals[1+offset]*x.row(0)+vals[0+offset];
+		    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+			result[j]=vals[1+offset]*T(x(0,j))+vals[0+offset];
+		    }
 		    return result;
 		}
 	    }
@@ -475,26 +478,26 @@ namespace SyclChebychevInterpolation
 			if (ns[DIM - 1] == 0) {
 			    b1=tmp[tmp_offset+p];
 			} else {
-			    b1= points[pnt_offset+sigma] * tmp[tmp_offset+1*Np+p]
+			    b1= T(points[pnt_offset+sigma]) * tmp[tmp_offset+1*Np+p]
 				+ tmp[tmp_offset+0*Np+p];			    
 			}
 
 			dest[dest_offset+p+sigma*Np]=b1;
 		    } else {
-			b1 = PointScalar(2) * points[pnt_offset+sigma] *
+			b1 = RealScalar(2) * T(points[pnt_offset+sigma]) *
 			    tmp[tmp_offset+(ns[DIM-1]-1)*Np+p]+
 			    tmp[tmp_offset+(ns[DIM-1]-2)*Np+p];
 			b2 = tmp[tmp_offset+(ns[DIM-1]-1)*Np+p];
 
 			for (size_t j = ns[DIM - 1] - 3; j > 0; j--) {
-			    tmp2 = (PointScalar(2) * (points[pnt_offset+sigma]*(b1)) - (b2)) +
+			    tmp2 = (RealScalar(2) * (T(points[pnt_offset+sigma])*(b1)) - (b2)) +
 				tmp[tmp_offset+(j)*Np+p];
 
 			    b2 = b1;
 			    b1 = tmp2;
 			}
 
-			const T result=(points[pnt_offset+sigma]*b1 - b2) + tmp[tmp_offset+(0)*Np+p];
+			const T result=(T(points[pnt_offset+sigma])*b1 - b2) + tmp[tmp_offset+(0)*Np+p];
 
 			dest[dest_offset+sigma*Np+p]=result;
 		    }

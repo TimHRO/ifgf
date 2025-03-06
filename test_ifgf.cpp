@@ -19,7 +19,7 @@
 
 const int dim=3;
 
-typedef std::complex<PointScalar> Complex;
+typedef std::complex<RealScalar> Complex;
 const std::complex<double>  kappa = Complex(0,-10);
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
@@ -63,7 +63,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 100000;
+    const int N = 1000000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -84,7 +84,7 @@ int main()
     //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
     //oneapi::tbb::task_arena arena(1);
 
-    HelmholtzIfgfOperator<dim> op(-kappa.imag(),200,10,1,-1); //3
+    HelmholtzIfgfOperator<dim> op(-kappa.imag(),100,8,1,-1); //3
     //GradHelmholtzIfgfOperator<dim> op(kappa,10,3,1,1e-5); //3
     //op.setDx(-1);
 
@@ -95,15 +95,15 @@ int main()
     //size_t  N=srcs.cols();
     //(dim,N);
 
-    //srcs <<(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
-    for(int i=0;i<srcs.cols();i++){
-    	srcs.col(i)=randomPointOnSphere();
-    }
+    srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
+    //for(int i=0;i<srcs.cols();i++){
+    //	srcs.col(i)=randomPointOnSphere();
+    //}
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
-    PointArray targets = srcs;//(PointArray::Random(dim, N).array());
-    for(int i=0;i<targets.cols();i++){
+    PointArray targets = 0.9*srcs;//(PointArray::Random(dim, N).array());
+    /*for(int i=0;i<targets.cols();i++){
 	targets.col(i)=randomPointOnSphere();
-    }
+	}*/
 
 
     normals.colwise().normalize();
@@ -112,17 +112,17 @@ int main()
     //feenableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
     op.init(srcs, targets);//,normals);
 
-    Eigen::Vector<std::complex<PointScalar>, Eigen::Dynamic> weights(srcs.cols());
-    weights = Eigen::Vector<PointScalar, Eigen::Dynamic>::Random(srcs.cols());
+    Eigen::Vector<std::complex<RealScalar>, Eigen::Dynamic> weights(srcs.cols());
+    weights = Eigen::Vector<RealScalar, Eigen::Dynamic>::Random(srcs.cols());
 
-    Eigen::Vector<std::complex<PointScalar>, Eigen::Dynamic> result;
+    Eigen::Vector<std::complex<RealScalar>, Eigen::Dynamic> result;
 
 
     //first one is not timed!
     result = op.mult(weights);
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
-    const int Nmult=1;
+    const int Nmult=2;
     for(int i=0;i<Nmult;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
