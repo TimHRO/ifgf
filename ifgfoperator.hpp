@@ -100,11 +100,13 @@ public:
 						  *m_target_octree);
 
 
-	//copy to level data
+#ifdef KEEP_LEVEL_DATA
+	//copy to level data	
 	m_octreeData.resize(m_src_octree->levels());
 	for(int level=0;level<m_src_octree->levels();level++) {
 	    m_octreeData[level]=std::make_unique<OctreeLevelData<T,DIM> >(*m_src_octree,level);
 	}
+#endif
 
 	
 	std::cout<<"done initializing"<<std::endl;
@@ -291,6 +293,7 @@ public:
 
 	std::shared_ptr<OctreeLevelData<T,DIM> > parentData;
 	std::shared_ptr<OctreeLevelData<T,DIM> > srcData;
+
         for (; level >= 0; --level) {
 	    	    
             std::cout << "level=" << level << " "<< m_src_octree->numBoxes(level)<< std::endl;
@@ -300,8 +303,13 @@ public:
 
 	    std::cout<<"lets go"<<std::endl;
 
+
 	    if(parentData==0) {
+#ifdef KEEP_LEVEL_DATA	   
 		srcData = m_octreeData[level];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
+#else
+		srcData = std::make_shared< OctreeLevelData<T,DIM> >(*m_src_octree,level);
+#endif
 	    }else {
 		std::swap(parentData,srcData);
 		parentData.reset();
@@ -1071,7 +1079,11 @@ public:
 	    }
 
 	    Q.wait();
+#ifdef KEEP_LEVEL_DATA
 	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
+#else
+	    parentData = std::make_shared< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
+#endif
 	    Q.submit([&](sycl::handler &h) {
 		// start by pushing  some data to the GPU (octree stuff)
 

@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include <oneapi/tbb/blocked_range.h>
 #include <random>
 #include <cstdlib>
 #include <tbb/task_arena.h>
@@ -63,7 +64,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 1000000;
+    const int N = 100000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -96,15 +97,18 @@ int main()
     //(dim,N);
 
     //srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
-    for(int i=0;i<srcs.cols();i++){
-    	srcs.col(i)=randomPointOnSphere();
-    }
+    tbb::parallel_for(tbb::blocked_range<size_t>(0,srcs.cols()), [&](tbb::blocked_range<size_t> r) {
+	for(size_t i=r.begin();i<r.end();i++){
+	    srcs.col(i)=randomPointOnSphere();
+	}});
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = 0.9*srcs;//(PointArray::Random(dim, N).array());
-    for(int i=0;i<targets.cols();i++){
-	targets.col(i)=randomPointOnSphere();
-    }
 
+    tbb::parallel_for(tbb::blocked_range<size_t>(0,targets.cols()), [&](tbb::blocked_range<size_t> r) {
+	for(size_t i=r.begin();i<r.end();i++){
+	    targets.col(i)=randomPointOnSphere();
+	}});
+ 
 
     normals.colwise().normalize();
 
