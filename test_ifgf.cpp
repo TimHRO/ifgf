@@ -64,7 +64,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 1000;
+    const int N = 10000000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -85,7 +85,7 @@ int main()
     //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
     //oneapi::tbb::task_arena arena(1);
 
-    HelmholtzIfgfOperator<dim> op(-kappa.imag(),100,8,1,-1); //3
+    HelmholtzIfgfOperator<dim> op(-kappa.imag(),200,8,1,-1); //3
     //GradHelmholtzIfgfOperator<dim> op(kappa,10,3,1,1e-5); //3
     //op.setDx(-1);
 
@@ -102,7 +102,10 @@ int main()
 	    srcs.col(i)=randomPointOnSphere();
 	}});
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
-    PointArray targets = 0.9*srcs;//(PointArray::Random(dim, N).array());
+    PointArray targets = srcs;//(PointArray::Random(dim, N).array());
+    for(int i=0;i<targets.cols();i++){
+	targets.col(i)=randomPointOnSphere();
+    }
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0,targets.cols()), [&](tbb::blocked_range<size_t> r) {
 	for(size_t i=r.begin();i<r.end();i++){

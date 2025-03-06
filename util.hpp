@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <oneapi/tbb/parallel_for.h>
 #include <tbb/parallel_sort.h>
+#include <execution>
 
 namespace Util
 {
@@ -17,7 +18,7 @@ namespace Util
 	auto len = std::distance(cbegin, cend);
 	std::vector<size_t> perm(len);
 	std::iota(perm.begin(), perm.end(), 0U);
-	std::sort (perm.begin(), perm.end(),
+	std::sort (std::execution::par_unseq,perm.begin(), perm.end(),
 			    [&](const size_t &a, const size_t &b) {
 				return comp(*(cbegin + a), *(cbegin + b));
 			    });
