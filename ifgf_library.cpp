@@ -19,13 +19,19 @@
 #include "octree.hpp"
 
 
+class HIfgfPrivate {
+public:
+    HelmholtzIfgfOperator<3>* ptr;
+};
+
 
 HelmholtzIfgfOperator3d::HelmholtzIfgfOperator3d(RealScalar waveNumber,
 						 size_t leafSize,
 						 size_t order,
-						 size_t n_elem,PointScalar tol) :
-    HelmholtzIfgfOperator<3>(waveNumber,leafSize,order,n_elem,tol)
+						 size_t n_elem,PointScalar tol)
 {
+    d=new HIfgfPrivate();
+    d->ptr=new HelmholtzIfgfOperator<3>(waveNumber,leafSize,order,n_elem,tol);
     
 }
 
@@ -41,16 +47,16 @@ void HelmholtzIfgfOperator3d::init(const PointScalar* srcs, size_t n_srcs ,const
     Eigen::Map<const Eigen::Array<PointScalar, 3, Eigen::Dynamic> > e_srcs(srcs, 3,n_srcs);
     Eigen::Map<const Eigen::Array<PointScalar, 3, Eigen::Dynamic> > e_targets(targets, 3,n_targets);
     
-    HelmholtzIfgfOperator<3>::init(e_srcs,e_targets);	
+    d->ptr->init(e_srcs,e_targets);	
 }
 
-void HelmholtzIfgfOperator3d::mult(const Complex* weights, size_t n_weights,Complex* result, size_t n_targets)
+void HelmholtzIfgfOperator3d::mult(const std::complex<float>* weights, size_t n_weights,std::complex<float>* result, size_t n_targets)
 {
-    Eigen::Map<const Eigen::Array<Complex, Eigen::Dynamic, 1> > e_weights(weights,n_weights);
+    Eigen::Map<const Eigen::Array<std::complex<float>, Eigen::Dynamic, 1> > e_weights(weights,n_weights);
     
-    Eigen::Map<Eigen::Array<Complex, Eigen::Dynamic, 1>  > e_res(result,n_targets);
+    Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, 1>  > e_res(result,n_targets);
 	
-    e_res=HelmholtzIfgfOperator<3>::mult(e_weights);	
+    e_res=d->ptr->mult(e_weights);	
 }
 
 
@@ -61,6 +67,6 @@ void HelmholtzIfgfOperator3d::mult(const std::complex<double>* weights, size_t n
     
     Eigen::Map<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>  > e_res(result,n_targets);
 
-    e_res=HelmholtzIfgfOperator<3>::mult(e_weights.template cast<Complex>()).template cast<std::complex<double> >();
+    e_res=d->ptr->mult(e_weights.template cast<std::complex<float>>()).template cast<std::complex<double> >();
 	
 }   

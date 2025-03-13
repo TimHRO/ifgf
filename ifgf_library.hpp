@@ -3,18 +3,15 @@
 #define __IFGF_LIBRARY__
 
 
-#include <Eigen/Dense>
-
 #include "config.hpp"
-#include "helmholtz_ifgf.hpp"
-#include "ifgfoperator.hpp"
-#include "octree.hpp"
+#include <complex>
 
 
 
-typedef std::complex<RealScalar> Complex;
 
-class HelmholtzIfgfOperator3d :  public HelmholtzIfgfOperator<3>
+class HIfgfPrivate;
+
+class HelmholtzIfgfOperator3d 
 {
 public:
     HelmholtzIfgfOperator3d(RealScalar waveNumber,
@@ -26,11 +23,15 @@ public:
 
     void init(const PointScalar* srcs, size_t n_srcs ,const PointScalar* targets, size_t n_targets);
 
-    void mult(const Complex* weights, size_t n_weights,Complex* result, size_t n_targets);
+    void mult(const std::complex<float>* weights, size_t n_weights,std::complex<float>* result, size_t n_targets);
 
 
     //for convenience also provide a double version that casts
     void mult(const std::complex<double>* weights, size_t n_weights,std::complex<double>* result, size_t n_targets);
+
+
+private:
+    HIfgfPrivate* d;
 
 };
 
