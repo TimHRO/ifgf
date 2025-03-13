@@ -47,3 +47,11 @@ add_executable(${TARGET_NAME} ${SOURCE_FILE})
 add_sycl_to_target(TARGET ${TARGET_NAME}  SOURCES ${SOURCE_FILE} )
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 20)
 target_link_libraries (${TARGET_NAME} PRIVATE tbb)
+
+
+add_library(ifgflib SHARED
+    ifgf_library.cpp)
+add_sycl_to_target(TARGET ifgflib ifgf_library.cpp)
+set_property(TARGET ifgflib PROPERTY CXX_STANDARD 20)
+target_link_libraries (ifgflib PRIVATE tbb)
+
