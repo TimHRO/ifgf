@@ -62,7 +62,7 @@ public:
 
 	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
 
-	    result += (abs(d)<1e-12) ? RealScalar(0) :  ws[i] *  T(exp(-k.real())*(d-dc))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
+	    result += (abs(d)<1e-12) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
 	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
 	}
 	return result;
@@ -81,7 +81,7 @@ public:
 	const RealScalar d=d2*id;
 
 	
-	return T(exp(-k.real()*d))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
+	return T(sycl::exp(-k.real()*d))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
 
     }
 
@@ -98,7 +98,7 @@ public:
 	    return 0;
 	}
 
-	return T(exp(-k.real()*(d-dp)))*T(sycl::cos(k.imag()*(d-dp)),sycl::sin(k.imag()*(d-dp)))*dp/d;
+	return T(exp(-k.real()*(d-dp)))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
 	
     }
 
@@ -144,7 +144,7 @@ public:
 	Eigen::Vector<int,dim> order=baseOrder;
 
 	if(step==0) {
-	    order=baseOrder.array()-3;//(baseOrder.array().template cast<PointScalar>()*Eigen::log(4./baseOrder.array().template cast<PointScalar>())).template cast<int>();
+	    order=(baseOrder.array()-3).cwiseMax(2);//(baseOrder.array().template cast<PointScalar>()*Eigen::log(4./baseOrder.array().template cast<PointScalar>())).template cast<int>();
 	}
 	
         return order;
@@ -161,7 +161,7 @@ public:
 	}
 	    
 	for(int i=0;i<dim;i++) {
-	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
+	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded	    
 	    PointScalar delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
 	    
 
