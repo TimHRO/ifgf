@@ -56,8 +56,8 @@ void HelmholtzIfgfOperator3d::mult(const std::complex<float>* weights, size_t n_
     Eigen::Map<const Eigen::Array<std::complex<float>, Eigen::Dynamic, 1> > e_weights(weights,n_weights);
     
     Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, 1>  > e_res(result,n_targets);
-	    
-    e_res=d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>()).template cast<std::complex<float> >();
+	
+    e_res=d->ptr->mult(e_weights.template cast<std::complex<RealScalar> >()).template cast<std::complex<float> >();	
 }
 
 
