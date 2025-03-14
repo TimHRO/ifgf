@@ -141,7 +141,7 @@ public:
     typedef std::complex<PointScalar > T ;
 
 
-    HelmholtzKernelFunctions kernelFunctions() const {
+    inline HelmholtzKernelFunctions kernelFunctions() const {
 	HelmholtzKernelFunctions f(k);
 	return f; 
     }
