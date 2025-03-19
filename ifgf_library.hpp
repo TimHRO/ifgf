@@ -58,7 +58,7 @@ public:
 
 
 private:
-    MHIfgfPrivate* d;
+    std::unique_ptr<MHIfgfPrivate> d;
 
 };
 
