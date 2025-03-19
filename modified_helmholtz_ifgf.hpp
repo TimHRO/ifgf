@@ -165,8 +165,8 @@ public:
 	}
 	    
 	for(int i=0;i<dim;i++) {
-	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded	    
-	    PointScalar delta=std::max( maxk *H/4 ,1.0);
+	//int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded	    
+	PointScalar delta=std::max( maxk *H/4 ,1.0);
 	    
 
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    

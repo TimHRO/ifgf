@@ -245,9 +245,9 @@ public:
 
     void build(const PointArray &pnts)
     {
-        std::cout << "building a new octree" << pnts.cols()<<std::endl;
+        //std::cout << "building a new octree" << pnts.cols()<<std::endl;
 
-        std::cout << "finding bbox" << std::endl;
+        //std::cout << "finding bbox" << std::endl;
         Point min = pnts.col(0);
         Point max = pnts.col(0);
 
@@ -261,10 +261,10 @@ public:
         max.array() += 0.1 * max.norm();
 
         BoundingBox<DIM> bbox(min, max);
-        std::cout << "bbox=" << min.transpose() << "\t" << max.transpose() << std::endl;
+        //std::cout << "bbox=" << min.transpose() << "\t" << max.transpose() << std::endl;
 
         //sort the points by their morton order for better locality later on
-        std::cout << "sorting..." << std::endl;
+        //std::cout << "sorting..." << std::endl;
         m_permutation = Util::sort_with_permutation( pnts.colwise().begin(), pnts.colwise().end(), zorder_knn::Less<Point, DIM>(bbox));
 	m_pnts.resize(DIM, pnts.cols());
         Util::copy_with_permutation_colwise<PointScalar,DIM>(pnts, m_permutation,m_pnts);
@@ -277,7 +277,7 @@ public:
 	m_depth=m_levels;
 
 
-        std::cout << "building the nodes up to level"<<m_depth << std::endl;
+        //std::cout << "building the nodes up to level"<<m_depth << std::endl;
   
 
 	
@@ -387,7 +387,7 @@ public:
 	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain. 
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
-	    std::cout<<"l= "<<level<<std::endl;
+	    //std::cout<<"l= "<<level<<std::endl;
 	    //update all nodes in this level
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
@@ -443,7 +443,7 @@ public:
                     smin=std::min(smin,0.75/(sqrt(DIM)/3.0+2.0/pBox.min()[0]));
 		    //smin=std::min(smin, pBox.min()[0]/2.0);
 		}
-		smin=1e-3;
+		smin=1e-2;
 		*/
                 //1e-3;//H/(m_diameter+dist+target.m_diameter);
 
@@ -483,8 +483,8 @@ public:
 		assert(H>0);
 		if(N_for_H(H,0)!=oldN) {
 		    oldN=N_for_H(H,0);
-		    std::cout<<"n="<<N_for_H(H,0).transpose()<<"/"<<N_for_H(H,1).transpose()<<std::endl;
-		    std::cout<<"box="<<box<<" "<<box.isNull()<<"H="<<H<<std::endl;
+		    //std::cout<<"n="<<N_for_H(H,0).transpose()<<"/"<<N_for_H(H,1).transpose()<<std::endl;
+		    //std::cout<<"box="<<box<<" "<<box.isNull()<<"H="<<H<<std::endl;
 		}
 
 		if(!box.isNull())
@@ -669,10 +669,10 @@ public:
 		activeCones[step].shrink_to_fit();
 	    }
 	    {
-		//tbb::spin_mutex::scoped_lock lock(activeConeMutex);
-		std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
-		std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
-		std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
+		//tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+		//std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
+		//std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
+		//std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
 	    }
 	    m_activeCones.push_back(activeCones);
 	    m_leafCones.push_back(leafCones);
@@ -685,7 +685,7 @@ public:
 
 	}
 
-	std::cout<<"interp_domain:" <<global_box<<std::endl;
+	//std::cout<<"interp_domain:" <<global_box<<std::endl;
 
     }
 
@@ -1162,7 +1162,7 @@ public:
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
     {
-	std::cout<<"creating ocdata"<<std::endl;
+	//std::cout<<"creating ocdata"<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
 	sycl::host_accessor ends(points_end,sycl::write_only);
 
@@ -1177,7 +1177,7 @@ public:
 
 
 
-	std::cout<<"boxcenters"<<boxCenters.size()<<"\n";
+	//std::cout<<"boxcenters"<<boxCenters.size()<<"\n";
 
 
 	
@@ -1220,7 +1220,7 @@ public:
 
 	}
 
-	std::cout<<"done"<<std::endl;
+	//std::cout<<"done"<<std::endl;
 
     }
   

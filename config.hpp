@@ -5,7 +5,7 @@
 
 
 #define PointScalar double
-typedef float  RealScalar;
+typedef double  RealScalar;
 //#define  RECURSIVE_MULT
 //#define CHECK_CONNECTIVITY
 //#define BE_FAST
