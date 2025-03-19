@@ -120,12 +120,16 @@ public:
     typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<PointScalar,dim> Point;
     ModifiedHelmholtzIfgfOperator(std::complex<RealScalar> waveNumber,
-                          size_t leafSize,
-                          size_t order,
-                          size_t n_elem=1,PointScalar tol=-1):
+				  size_t leafSize,
+				  size_t order,
+				  size_t n_elem=1,PointScalar tol=-1,double p_maxk=-1):
         IfgfOperator<std::complex<RealScalar>, dim, 1, ModifiedHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
-        k(waveNumber)
+        k(waveNumber),
+	maxk(p_maxk)
     {
+	if(maxk<0) {
+	    maxk=std::abs(k.imag())/(2*(2+k.real()));
+	}
     }
 
     typedef std::complex<PointScalar > T ;
@@ -162,7 +166,7 @@ public:
 	    
 	for(int i=0;i<dim;i++) {
 	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded	    
-	    PointScalar delta=std::max( std::abs(k.imag())*H/4., 1.0)*exp(-0.2*(dim/sqrt(dim))*H*k.real());
+	    PointScalar delta=std::max( maxk *H/4 ,1.0);
 	    
 
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
@@ -175,6 +179,7 @@ public:
 
 private:
     std::complex<RealScalar> k;
+    double maxk;
 
 };
 

@@ -86,7 +86,7 @@ ModifiedHelmholtzIfgfOperator3d::ModifiedHelmholtzIfgfOperator3d(std::complex<Re
 								 size_t n_elem,PointScalar tol,double maxk)
 {
     d=std::make_unique<MHIfgfPrivate>();
-    d->ptr=std::make_unique<ModifiedHelmholtzIfgfOperator<3> >(waveNumber,leafSize,order,n_elem,tol);
+    d->ptr=std::make_unique<ModifiedHelmholtzIfgfOperator<3> >(waveNumber,leafSize,order,n_elem,tol,maxk);
     
 }
 
