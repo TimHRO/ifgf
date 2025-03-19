@@ -22,7 +22,7 @@
 
 class HIfgfPrivate {
 public:
-    HelmholtzIfgfOperator<3>* ptr;
+    std::unique_ptr<HelmholtzIfgfOperator<3> >  ptr;
 };
 
 
@@ -31,8 +31,8 @@ HelmholtzIfgfOperator3d::HelmholtzIfgfOperator3d(RealScalar waveNumber,
 						 size_t order,
 						 size_t n_elem,PointScalar tol)
 {
-    d=new HIfgfPrivate();
-    d->ptr=new HelmholtzIfgfOperator<3>(waveNumber,leafSize,order,n_elem,tol);
+    d=std::make_unique<HIfgfPrivate>();
+    d->ptr=std::make_unique<HelmholtzIfgfOperator<3> >(waveNumber,leafSize,order,n_elem,tol);
     
 }
 
@@ -83,7 +83,7 @@ public:
 ModifiedHelmholtzIfgfOperator3d::ModifiedHelmholtzIfgfOperator3d(std::complex<RealScalar> waveNumber,
 						 size_t leafSize,
 						 size_t order,
-						 size_t n_elem,PointScalar tol)
+								 size_t n_elem,PointScalar tol,double maxk)
 {
     d=std::make_unique<MHIfgfPrivate>();
     d->ptr=std::make_unique<ModifiedHelmholtzIfgfOperator<3> >(waveNumber,leafSize,order,n_elem,tol);

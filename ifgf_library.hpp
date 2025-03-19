@@ -31,7 +31,7 @@ public:
 
 
 private:
-    HIfgfPrivate* d;
+    std::unique_ptr<HIfgfPrivate>  d;
 
 };
 
@@ -42,9 +42,9 @@ class ModifiedHelmholtzIfgfOperator3d
 {
 public:
     ModifiedHelmholtzIfgfOperator3d(std::complex<RealScalar> waveNumber,
-			    size_t leafSize,
-			    size_t order,
-			    size_t n_elem=1,PointScalar tol=-1);
+				    size_t leafSize,
+				    size_t order,
+				    size_t n_elem=1,PointScalar tol=-1, double maxk=0);
     ~ModifiedHelmholtzIfgfOperator3d();
 
 
