@@ -259,8 +259,8 @@ public:
 
         { //scope to contain all the sycl stuff. that way we make sure that all the data is copied to the host before proceeding.
 
-	sycl::queue Q(sycl::default_selector_v);
-	const auto &device = Q.get_device();
+	sycl::queue& Q=SyclHelpers::QueueSingleton::getInstance().queue();//(sycl::default_selector_v);
+	//const auto &device = Q.get_device();
 	//std::cout << "Running on: "
 	//	  << Q.get_device().get_info<sycl::info::device::name>()
 	//	  <<device.get_info<sycl::info::device::max_compute_units>()
@@ -293,8 +293,8 @@ public:
 	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
 	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
 
-	std::shared_ptr<OctreeLevelData<T,DIM> > parentData;
-	std::shared_ptr<OctreeLevelData<T,DIM> > srcData;
+	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
+	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
 
         for (; level >= 0; --level) {
 	    	    
@@ -310,7 +310,7 @@ public:
 #ifdef KEEP_LEVEL_DATA	   
 		srcData = m_octreeData[level];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
 #else
-		srcData = std::make_shared< OctreeLevelData<T,DIM> >(*m_src_octree,level);
+		srcData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
 #endif
 	    }else {
 		std::swap(parentData,srcData);
@@ -745,8 +745,8 @@ public:
 		    sycl::buffer<PointScalar> b_points(points.data(),points.size());
 
 		    // Make sure the size is not too large
-		    auto has_local_mem = (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
-		    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
+		    //auto has_local_mem = (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
+		    //auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
 
 		    
 		    const size_t cv_size=order.unaryExpr([&](int v){ return v*v; }).sum();
@@ -1084,7 +1084,7 @@ public:
 #ifdef KEEP_LEVEL_DATA
 	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 #else
-	    parentData = std::make_shared< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
+	    parentData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 #endif
 	    Q.submit([&](sycl::handler &h) {
 		// start by pushing  some data to the GPU (octree stuff)
@@ -1743,7 +1743,9 @@ protected:
     }
 
 private:
-    std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
+#ifdef KEEP_LEVEL_DATA
+    //std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
+#endif
     std::unique_ptr<Octree<T, DIM> > m_src_octree;
     std::unique_ptr<Octree<T, DIM> > m_target_octree;
     unsigned int m_numTargets;

@@ -62,6 +62,40 @@ public:
 
 namespace SyclHelpers {
 
+class QueueSingleton
+{
+    public:
+        static QueueSingleton& getInstance()
+        {
+            static QueueSingleton    instance; // Guaranteed to be destroyed.
+                                      // Instantiated on first use.
+            return instance;
+        }
+    private:
+        QueueSingleton() {
+            std::cout<<"Building a new Queue"<<std::endl;
+            Q=std::make_unique<sycl::queue>(sycl::default_selector_v);
+            //const auto &device = Q.get_device();
+
+        }                    // Constructor? (the {} brackets) are needed here.
+
+        std::unique_ptr<sycl::queue> Q;
+    public:
+        QueueSingleton(QueueSingleton const&)               = delete;
+        void operator=(QueueSingleton const&)  = delete;
+
+        sycl::queue& queue() 
+        {
+           return *Q;
+        }
+
+        // Note: Scott Meyers mentions in his Effective Modern
+        //       C++ book, that deleted functions should generally
+        //       be public as it results in better error messages
+        //       due to the compilers behavior to check accessibility
+        //       before deleted status
+};
+
     template<typename AccT>
     class SubRange
     {
