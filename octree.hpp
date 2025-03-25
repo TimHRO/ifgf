@@ -56,7 +56,7 @@ public:
     private:
         std::weak_ptr<OctreeNode > m_parent;
         long int m_id;
-        std::shared_ptr<OctreeNode> m_children[N_Children];
+        std::weak_ptr<OctreeNode> m_children[N_Children];
         //std::vector<std::shared_ptr<const OctreeNode> > m_neighbors;
 
 	std::vector<IndexRange> m_farTargets;
@@ -131,12 +131,12 @@ public:
 	    return m_coneDomain[substep].domain();
 	}
 
-        const std::shared_ptr<const OctreeNode> child(size_t idx) const
+        const std::weak_ptr<const OctreeNode> child(size_t idx) const
         {
             return m_children[idx];
         }
 
-        std::shared_ptr<OctreeNode> child(size_t idx)
+        std::weak_ptr<OctreeNode> child(size_t idx)
         {
             return m_children[idx];
         }
@@ -216,8 +216,9 @@ public:
             std::cout<<std::endl;*/
             if (!m_isLeaf) {
                 for (int i = 0; i < N_Children; i++) {
-                    if (m_children[i] != 0) {
-                        m_children[i]->print(prefix + "    ");
+                    const auto& c = m_children[i].lock();
+                    if (c) {
+                        c->print(prefix + "    ");
                     } else {
                         std::cout << prefix + "    ----x" << std::endl;
                     }
@@ -331,14 +332,14 @@ public:
 	//If either src or target has children recurse down
 	if(src->isLeaf() && !target->isLeaf()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src,target->child(j));
+		buildInteractionList(src,target->child(j).lock());
 	    }
 	    return;
 	}
 
 	if(target->isLeaf() && !src->isLeaf()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src->child(j),target);
+		buildInteractionList(src->child(j).lock(),target);
 	    }
 	    return;
 	}
@@ -346,12 +347,12 @@ public:
 	//if both src and target have children, we recurse down the one with the larger bbox
 	if(src->boundingBox().sideLength() > target->boundingBox().sideLength()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src->child(j),target);
+		buildInteractionList(src->child(j).lock(),target);
 	    }
 	    return;
 	}else {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src,target->child(j));
+		buildInteractionList(src,target->child(j).lock());
 	    }
 	    return;
 	}
@@ -578,31 +579,6 @@ public:
 		}
 
 
-		/*
-		if(mode==TwoGrid) {
-		    //mark all children of active elements in the coarse grid also as active.
-		    //reinterpolation step from HO to regular
-		    const int n_children=domain.n_elements()/coarseDomain.n_elements();
-		    const int factor=domain.n_elements(0)/coarseDomain.n_elements(0);
-		    for(size_t cone : is_cone_active[1]) {
-			Eigen::Vector<size_t, DIM> indices=coarseDomain.indicesFromId(cone);
-			indices*=factor;
-			for(int i=0;i<n_children;i++) {
-			    //compute the different indices given the id
-			    Eigen::Vector<size_t, DIM> d;
-			    size_t tmp=i;
-			    for(int l=0;l<DIM;l++) {
-				const size_t idx=tmp % factor;
-				tmp=tmp / factor;
-	    
-				d[l]=idx;
-			    }
-			    
-			    const size_t childId=domain.idFromIndices(indices+d);
-			    is_cone_active[0].insert(childId);
-			}
-			}
-			}*/
 
 		for (int step=0;step<N_STEPS;step++ ) {
 
@@ -888,7 +864,7 @@ public:
 	auto parent=m_nodes[level][i];
 	std::vector<size_t> children;
 	for(int i=0;i<N_Children;i++) {
-	    const auto child=parent->child(i);
+	    const auto child=parent->child(i).lock();
 	    if(child) {
 		children.push_back(child->id());
 	    }	    
