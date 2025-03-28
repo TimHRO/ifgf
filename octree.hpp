@@ -480,8 +480,11 @@ public:
 		//now we need to do the whole thing again to figure out which cones are active...
 		// 0 = fine grid low order (used for evaluating FF and propagating upwards
 		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
-		std::array<IndexSet,N_STEPS> is_cone_active; 
-		
+		std::array<IndexSet,N_STEPS> is_cone_active;
+
+		std::array<size_t,N_STEPS> numActiveCones;
+		std::fill(numActiveCones.begin(),numActiveCones.end(),0);
+
 
 		PointArray s(DIM,32);
 		for(const IndexRange& iR : farTargets)
@@ -493,14 +496,18 @@ public:
 			//const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);			  
 			auto coneId=domain.elementForPoint(s.col(i));
 			auto coneId2=coarseDomain.elementForPoint(s.col(i));
-			if(coneId2<SIZE_MAX)
+			if(coneId2<SIZE_MAX) {
+			    numActiveCones[1]++;
 			    is_cone_active[1].insert(coneId2);
-			if(coneId<SIZE_MAX)
+			}
+			if(coneId<SIZE_MAX) {
+			    numActiveCones[0]++;
 			    is_cone_active[0].insert(coneId);
+			}
 		    }
 		}
 
-		
+
 		//now also add all the parents targets
 		if(!pBox.isNull())
 		{
@@ -526,9 +533,14 @@ public:
 				    auto coneId=domain.elementForPoint(interp_pnts.col(i));
 				    auto coneId2=coarseDomain.elementForPoint(interp_pnts.col(i));
 				    if(coneId2<SIZE_MAX)
+				    {
 					is_cone_active[1].insert(coneId2);
-				    if(coneId<SIZE_MAX)
+					numActiveCones[1]++;
+				    }
+				    if(coneId<SIZE_MAX) {
 					is_cone_active[0].insert(coneId);
+					numActiveCones[0]++;
+				    }
 				}
 			    }			
 
@@ -542,8 +554,10 @@ public:
 				    Point interp_pnt=Util::cartToInterp<DIM>(cart_pnt,xc,H);
 
 				    auto coneId=domain.elementForPoint(interp_pnt);
-				    if(coneId<SIZE_MAX)
+				    if(coneId<SIZE_MAX) {
 					is_cone_active[0].insert(coneId);
+					numActiveCones[0]++;
+				    }
 				}
 			    }
 			}
@@ -578,13 +592,22 @@ public:
 			}*/
 
 		for (int step=0;step<N_STEPS;step++ ) {
-		     std::vector<size_t> local_active_cones;
-		     IndexMap cone_map;
-		     //local_active_cones.reserve(domain.n_elements());
+		    
+		    std::vector<size_t> local_active_cones;
+		    local_active_cones.reserve(numActiveCones[step]);
+		    IndexMap cone_map;
+		    cone_map.reserve(numActiveCones[step]);
+		    {
+			tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+			const size_t  na=activeCones[step].size()+numActiveCones[step];
+			activeCones[step].reserve(na);
+		    }
+		    
+		    //std::cout<<"NA="<<na<<std::endl;
+
+		    //local_active_cones.reserve(domain.n_elements());
 		     for( size_t i : is_cone_active[step])
 		     {			 
-			 
-			 
 			 tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
 			 
 			 ConeRef cone(level, i, local_active_cones.size(), n,activeCones[step].size());
