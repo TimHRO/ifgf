@@ -64,7 +64,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 100000;
+    const int N = 1000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -126,7 +126,7 @@ int main()
     result = op.mult(weights);
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
-    const int Nmult=2;
+    const int Nmult=1;
     for(int i=0;i<Nmult;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
@@ -149,7 +149,7 @@ int main()
 
         double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
         maxE = std::max(e, maxE);
-        std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+        //std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
     }
 
     std::cout << "summary: e=" << maxE << std::endl;

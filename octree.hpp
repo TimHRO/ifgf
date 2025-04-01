@@ -379,17 +379,30 @@ public:
 	TransformationMode mode=TwoGrid;
 
 	const auto & target_points=target.points();
-	tbb::queuing_mutex activeConeMutex;
+	tbb::spin_mutex activeConeMutex;
 
-	std::vector<tbb::spin_mutex> target_mutexes(target.numPoints());
 	Eigen::Vector<size_t,DIM> oldN;
 	oldN.fill(0);
+
+	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain. 
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
 	    std::cout<<"l= "<<level<<std::endl;
 	    //update all nodes in this level
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
+
+
+	    //make some heuristic about the number of cones
+	    for(int step=0;step<N_STEPS;step++) {
+		auto N=N_for_H(est_H,step);
+		const size_t na=2*numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
+		
+		activeCones[step].reserve(na);
+		est_H/=2;
+	    }
+
+	    
 	    std::vector<ConeRef> leafCones;
 	    m_coneMaps[level].resize(numBoxes(level));
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0,numBoxes(level)), [&](tbb::blocked_range<size_t> r) {
@@ -592,23 +605,23 @@ public:
 			}*/
 
 		for (int step=0;step<N_STEPS;step++ ) {
-		    
+
 		    std::vector<size_t> local_active_cones;
 		    local_active_cones.reserve(numActiveCones[step]);
 		    IndexMap cone_map;
 		    cone_map.reserve(numActiveCones[step]);
-		    {
-			tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+		    /*{
+			tbb::spin_mutex::scoped_lock lock(activeConeMutex);
 			const size_t  na=activeCones[step].size()+numActiveCones[step];
 			activeCones[step].reserve(na);
-		    }
+			}*/
 		    
 		    //std::cout<<"NA="<<na<<std::endl;
 
 		    //local_active_cones.reserve(domain.n_elements());
 		     for( size_t i : is_cone_active[step])
 		     {			 
-			 tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+			 tbb::spin_mutex::scoped_lock lock(activeConeMutex);
 			 
 			 ConeRef cone(level, i, local_active_cones.size(), n,activeCones[step].size());
 			 activeCones[step].push_back(cone);
@@ -650,8 +663,13 @@ public:
 		     node->setConeDomain(d0,step);		     
 		}
 	    }});
+
+	    //Free any unused memory
+	    for(int step=0;step<N_STEPS;step++) {
+		activeCones[step].shrink_to_fit();
+	    }
 	    {
-		tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
+		//tbb::spin_mutex::scoped_lock lock(activeConeMutex);
 		std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
 		std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
 		std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
