@@ -321,7 +321,7 @@ public:
 		});
 
 	    }
-            Q.wait();
+            //Q.wait();
 
 
             const size_t stride=chebNodes.cols();
@@ -337,8 +337,7 @@ public:
 		{
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
-		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
-		    sycl::accessor a_targets(b_targets, h, sycl::read_only);
+		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);		    
 		    sycl::accessor a_weights(b_weights, h, sycl::read_only);
 
 		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
@@ -392,7 +391,7 @@ public:
 
 				   });
 		 });
-		Q.wait();
+		//Q.wait();
 		}
 	    }
 
@@ -560,14 +559,14 @@ public:
 		}
 	    }
 
-
+	    
 	    Q.wait();
 
 	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
 	    parentInterpolationDataBuffer.reset();
 
 
-	    Q.wait();
+	    //Q.wait();
 	    Q.submit([&](sycl::handler &h) {
 		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
 		sycl::accessor a_targets(b_targets,h, sycl::read_only);
@@ -656,7 +655,7 @@ public:
 		continue;
 	    }
 
-	    Q.wait();
+	    //Q.wait();
 #ifdef KEEP_LEVEL_DATA
 	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 #else
