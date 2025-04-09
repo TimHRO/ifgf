@@ -12,7 +12,9 @@ typedef double  RealScalar;
 
 #define USE_FAST_HASH
 
-#define INITIALIZE_BY_ZERO
+// #define INITIALIZE_BY_ZERO
+
+#define KEEP_LEVEL_DATA
 
 #ifdef USE_FAST_HASH
 #include "unordered_dense.h"

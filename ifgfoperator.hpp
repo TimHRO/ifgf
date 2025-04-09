@@ -106,6 +106,9 @@ public:
 	for(int level=0;level<m_src_octree->levels();level++) {
 	    m_octreeData[level]=std::make_unique<OctreeLevelData<T,DIM> >(*m_src_octree,level);
 	}
+
+	m_src_octree->freeData();
+	m_target_octree->freeData();
 #endif
 
 	
@@ -152,7 +155,7 @@ public:
 	
         Eigen::Array<T, Eigen::Dynamic, DIMOUT> result(m_numTargets,DIMOUT);
         result.fill(0);
-        int level = m_src_octree->levels() - 1;
+        int level = levels() - 1;
 
 	//std::cout<<"boxes="<<m_src_octree->numBoxes(level)<<std::endl;
 	const PointScalar hmin=m_src_octree->diameter()*std::pow(0.5,m_src_octree->levels());
@@ -174,14 +177,17 @@ public:
 	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
 	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
 
+#ifdef KEEP_LEVEL_DATA
+        std::shared_ptr<OctreeLevelData<T,DIM> > parentData;
+	std::shared_ptr<OctreeLevelData<T,DIM> > srcData;
+#else
 	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
 	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
-
+#endif
 
 
 	//Get an exemplary bbox to determine the interpolation order
-	BoundingBox bbox = m_src_octree->bbox(level, 0);
-	PointScalar H0 = bbox.sideLength();
+	PointScalar H0 = m_src_octree->sideLength();
 	const auto order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,0);
 	const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
 	const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
@@ -275,9 +281,6 @@ public:
 		std::swap(parentData,srcData);
 		parentData.reset();
 	    }
-
-	    BoundingBox bbox = m_src_octree->bbox(level, 0);
-	    PointScalar H0 = bbox.sideLength();
 
 
 	    //std::cout<<"created ocdata"<<std::endl;
@@ -447,14 +450,6 @@ public:
 
 		//first set up some common data structures
 		{
-		    auto fine_N=static_cast<Derived *>(this)->elementsForBox(H0, this->m_baseOrder,this->m_base_n_elements,0);
-		    const auto& hoGrid= m_src_octree->coneDomain(level,0,1);
-		    
-		    Eigen::Vector<size_t,DIM> factor=fine_N.array()/hoGrid.num_elements().array();
-		    std::array<int, DIM> factors=SyclHelpers::EigenVectorToCPPArray<int,DIM>(factor.template cast<int>());
-		    std::array<int, DIM> n_elements=SyclHelpers::EigenVectorToCPPArray<int,DIM>(fine_N.template cast<int>());
-
-	    
 		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
 		    if(numActiveCones == 0)		    
 		        continue;
@@ -470,11 +465,22 @@ public:
 			const sycl::accessor a_chebvals(b_chebvals,h,sycl::read_only);
 
 
+
 			size_t fine_stride=order.prod();
 
 			const auto &srcDataAcc = srcData->accessor(h);
+			
 
-			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(hoGrid.num_elements());
+			const double H=H0*pow(2,-level);//m_src_octree->bbox(level,0).sideLength();//H0*pow(2,-level);
+			auto fine_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,0);
+			auto coarse_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,1);
+		    
+			Eigen::Vector<size_t,DIM> factor=fine_N.array()/coarse_N.array();
+			std::array<int, DIM> factors=SyclHelpers::EigenVectorToCPPArray<int,DIM>(factor.template cast<int>());
+			std::array<int, DIM> n_elements=SyclHelpers::EigenVectorToCPPArray<int,DIM>(fine_N.template cast<int>());
+
+
+			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(coarse_N);
 			auto out = sycl::stream(100, 100, h);
 
 
@@ -819,6 +825,17 @@ public:
 	return m_tolerance;
     }
 
+    int levels() const {
+#ifdef KEEP_LEVEL_DATA
+	return m_octreeData.size();
+
+#else
+	return m_src_octree->levels();
+#endif
+    }
+
+    
+
 protected:
     void onOctreeReady()
     {
@@ -827,7 +844,7 @@ protected:
 
 private:
 #ifdef KEEP_LEVEL_DATA
-    //std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
+    std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
 #endif
     std::unique_ptr<Octree<T, DIM> > m_src_octree;
     std::unique_ptr<Octree<T, DIM> > m_target_octree;

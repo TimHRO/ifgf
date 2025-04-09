@@ -271,6 +271,7 @@ public:
         Util::copy_with_permutation_colwise<PointScalar,DIM>(pnts, m_permutation,m_pnts);
 
 	m_diameter=bbox.diagonal().norm();
+	m_sideLength=bbox.sideLength();
 
 	m_levels = 0;
 	m_depth = -1;
@@ -372,6 +373,8 @@ public:
 	m_nearFieldBoxes.resize(levels());
 
 	m_coneMaps.resize(levels());
+
+	m_numLeafCones.resize(levels());
 	
 	BoundingBox<DIM> global_box;
 	//global_box.min().fill(10);
@@ -652,6 +655,7 @@ public:
 	    }
 	    m_activeCones.push_back(activeCones);
 	    m_leafCones.push_back(leafCones);
+	    m_numLeafCones[level]=leafCones.size();
 
 
 	    //compute the farFieldBoxes
@@ -730,6 +734,11 @@ public:
     inline PointScalar diameter () const
     {
 	return m_diameter;
+    }
+
+    inline PointScalar sideLength() const
+    {
+	return m_sideLength;
     }
 
     unsigned int levels() const
@@ -903,7 +912,7 @@ public:
 
     size_t numLeafCones(size_t level) const
     {
-	return m_leafCones[level].size();
+	return m_numLeafCones[level];
     }
 
     ConeRef leafCone(size_t level, size_t num) const
@@ -972,6 +981,25 @@ public:
                 assert(indices[i] == 1);
             }
         }
+    }
+
+
+    void freeData() {
+	m_root.reset();
+	m_nodes.clear();
+	m_nodes.shrink_to_fit();
+	//m_activeCones.clear();
+	//m_activeCones.shrink_to_fit();
+	//m_leafCones.clear();
+	//m_leafCones.shrink_to_fit();
+	//m_farFieldBoxes.clear();
+	//m_farFieldBoxes.shrink_to_fit();
+	//m_nearFieldBoxes.clear();
+	//m_nearFieldBoxes.shrink_to_fit();
+
+	//m_coneMaps.clear();
+	//m_coneMaps.shrink_to_fit();
+
     }
 
     const auto& points() const {
@@ -1098,6 +1126,8 @@ private:
     std::vector< FieldInfo > m_farFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield
     std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield 
     std::vector<unsigned int> m_numBoxes;
+    std::vector<unsigned int> m_numLeafCones;
+
     unsigned int m_levels;
 
     std::vector<std::vector<ConeMap> > m_coneMaps;
@@ -1107,6 +1137,7 @@ private:
     PointArray m_pnts;
     std::vector<size_t> m_permutation;
     PointScalar m_diameter;
+    PointScalar m_sideLength;
 
     std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
 };
@@ -1123,17 +1154,17 @@ public:
     OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
     points_start(octree.numBoxes(level)),
     points_end(octree.numBoxes(level)),
-    ffB_indices(octree.m_farFieldBoxes[level].indices),	
-    ffB_starts(octree.m_farFieldBoxes[level].starts),
-    nfB_indices(octree.m_nearFieldBoxes[level].indices),
-    nfB_starts(octree.m_nearFieldBoxes[level].starts),
-    leafCones(octree.m_leafCones[level]),
+    ffB_indices((octree.m_farFieldBoxes[level].indices)),	
+    ffB_starts((octree.m_farFieldBoxes[level].starts)),
+    nfB_indices((octree.m_nearFieldBoxes[level].indices)),
+    nfB_starts((octree.m_nearFieldBoxes[level].starts)),
+    leafCones((octree.m_leafCones[level])),
     ftAFlags(octree.numBoxes(level)),
     boxCenters(octree.numBoxes(level)*DIM),
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
     coneDomains1(octree.numBoxes(level)),
-    activeCones(octree.m_activeCones[level][1]),
+    activeCones((octree.m_activeCones[level][1])),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
@@ -1150,13 +1181,6 @@ public:
 	sycl::host_accessor cds0(coneDomains0,sycl::write_only);
 	sycl::host_accessor cds1(coneDomains1,sycl::write_only);
 
-
-
-
-	//std::cout<<"boxcenters"<<boxCenters.size()<<"\n";
-
-
-	
 
 	sycl::host_accessor cB(childBoxes,sycl::write_only);
 	
