@@ -243,6 +243,25 @@ public:
 	}
 
 
+	const size_t hoCv_size=high_order.unaryExpr([&](int v){ return v*v; }).sum();
+	sycl::buffer<PointScalar> b_hoChebvals(hoCv_size);
+	{
+	    sycl::host_accessor a_cv(b_hoChebvals);
+	    size_t idx=0;
+	    //make sure the factors for the chebtrafo are precomputed...
+	    for(int d=DIM-1;d>=0;d--) {
+		//std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
+		const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(high_order[d]);
+		std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
+		idx+=high_order[d]*high_order[d];
+		
+	    }
+	    
+	    assert(idx==cv_size); //check that we initialized correctly (TODO remove)
+	}
+
+
+
 
 
         for (; level >= 0; --level) {
@@ -380,24 +399,6 @@ public:
 	    //chebtrafo everything
 
 	    {
-		const size_t cv_size=high_order.unaryExpr([&](int v){ return v*v; }).sum();
-		sycl::buffer<PointScalar> b_chebvals(cv_size);
-		{
-		    sycl::host_accessor a_cv(b_chebvals);
-		    size_t idx=0;
-		    //make sure the factors for the chebtrafo are precomputed...
-		    for(int d=DIM-1;d>=0;d--) {
-			//std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
-			const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(high_order[d]);
-			std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
-			idx+=high_order[d]*high_order[d];
-
-		    }
-
-		    assert(idx==cv_size); //check that we initialized correctly (TODO remove)
-		}
-
-
 
 		Q.wait();
 		Q.submit([&](sycl::handler &h) {
@@ -411,7 +412,7 @@ public:
 		    std::copy(high_order.begin(),high_order.end(),ns_ho.begin());
 		
 		
-		    const sycl::accessor a_chebvals(b_chebvals,h,sycl::read_only);
+		    const sycl::accessor a_chebvals(b_hoChebvals,h,sycl::read_only);
 		    const auto &srcDataAcc = srcData->accessor(h);
 
 		    const size_t sizeB=interpolationDataBuffer->size();
