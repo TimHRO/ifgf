@@ -177,6 +177,23 @@ public:
 	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
 	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
 
+
+
+	//Get an exemplary bbox to determine the interpolation order
+	BoundingBox bbox = m_src_octree->bbox(level, 0);
+	PointScalar H0 = bbox.sideLength();
+	const auto order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,0);
+	const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
+	const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
+	const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
+
+	//Cache chebychev nodes on the GPU
+
+	sycl::buffer<const PointScalar,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
+	sycl::buffer<const PointScalar,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
+
+
+
         for (; level >= 0; --level) {
 	    if(parentData==0) {
 #ifdef KEEP_LEVEL_DATA	   
@@ -188,6 +205,10 @@ public:
 		std::swap(parentData,srcData);
 		parentData.reset();
 	    }
+
+	    BoundingBox bbox = m_src_octree->bbox(level, 0);
+	    PointScalar H0 = bbox.sideLength();
+
 
 	    //std::cout<<"created ocdata"<<std::endl;
 	    
@@ -232,24 +253,8 @@ public:
 	    }
             Q.wait();
 
-            //Get an exemplary bbox to determine the interpolation order
-	    BoundingBox bbox = m_src_octree->bbox(level, 0);
-	    PointScalar H0 = bbox.sideLength();
-	    const auto order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,0);
-	    const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
-	    const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
-	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
-
-	    //Cache chebychev nodes on the GPU
-
-	    sycl::buffer<const PointScalar,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
-	    sycl::buffer<const PointScalar,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
-
 
             const size_t stride=chebNodes.cols();
-
-
-
 
 	    //prepare the interpolation data for all leaves
 	    if(level==m_src_octree->levels()-1) {
