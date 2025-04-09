@@ -188,9 +188,60 @@ public:
 	const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
 
 	//Cache chebychev nodes on the GPU
-
 	sycl::buffer<const PointScalar,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
 	sycl::buffer<const PointScalar,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
+
+
+	size_t Ntp=order.sum();
+	Eigen::Array<PointScalar,Eigen::Dynamic,1>  points(Ntp);
+
+	std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(high_order);
+	std::array<int, DIM> lo_ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
+		
+
+	//std::cout<<"stuff; "<<ns<<" "<<lo_ns<<" "<<factors<<" "<<n_elements<<std::endl;
+	size_t Np=1;
+	size_t offset=0;
+	size_t buffer_size=1;
+	//store the points for the inner most dimension separately from the others
+	for(int d=0;d<DIM;d++) {
+	    const auto& chebNodes1d=ChebychevInterpolation::chebnodesNdd<PointScalar,1>(Eigen::Vector<int,1>(order[d]));
+
+	    points.segment(offset,chebNodes1d.size())=chebNodes1d.array();
+	    offset+=chebNodes1d.size();		    
+
+	}
+
+	for(int d=DIM-1;d>0;d--) {
+	    int Np=1;
+	    for(int j=0;j<d;j++)
+	    {
+		Np*=order[j];
+	    }
+	    buffer_size+=high_order[d]*Np;
+	}
+		
+	const size_t ho_stride=high_order.prod();
+	sycl::buffer<PointScalar> b_points(points.data(),points.size());
+
+		    
+	const size_t cv_size=order.unaryExpr([&](int v){ return v*v; }).sum();
+	sycl::buffer<PointScalar> b_chebvals(cv_size);
+	{
+	    sycl::host_accessor a_cv(b_chebvals);
+	    size_t idx=0;
+	    //make sure the factors for the chebtrafo are precomputed...
+	    for(int d=DIM-1;d>=0;d--) {
+		//std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
+		const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(order[d]);
+		std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
+		idx+=order[d]*order[d];
+
+	    }
+
+	    assert(idx==cv_size); //check that we initialized correctly (TODO remove)
+	}
+
 
 
 
@@ -258,13 +309,8 @@ public:
 
 	    //prepare the interpolation data for all leaves
 	    if(level==m_src_octree->levels()-1) {
-		//std::cout<<"init"<<std::endl;
 		initInterpolationData(level,1, interpolationDataBuffer);
 	    }
-
-    
-
-	    //std::cout<<"interpolate leaves"<<m_src_octree->numLeafCones(level)<<std::endl;
 
 	    if(m_src_octree->numLeafCones(level) > 0)
 	    {
@@ -318,18 +364,11 @@ public:
 
 					       Util::interpToCart(transformed,transformed2,center,H);
 
-
-					       //out<<"t"<<i<<" in "<<j<<" at "<<transformed2[0]<<"/"<<transformed2[1]<<"/"<<transformed2[2]<<"\n";
+ 
 					       a_intData[j+offset]=functions.evaluateFactoredKernel(a_srcs, srcs.first, srcs.second,
 					       							    transformed2, a_weights,center, H);
 
 					   }
-					     
-					     // interpolationData[boxId].values.middleRows(ref.memId()*stride,stride) =
-					     // static_cast<const Derived *>(this)
-					     // ->evaluateFactoredKernel(m_src_octree->points(srcs),
-					     // transformedNodes.local(),
-					     // new_weights.segment(srcs.first, nS), center, H,srcs);
 				       }
 
 				   });
@@ -339,8 +378,6 @@ public:
 	    }
 
 	    //chebtrafo everything
-	    //std::cout<<"chebtrafo"<<std::endl;
-
 
 	    {
 		const size_t cv_size=high_order.unaryExpr([&](int v){ return v*v; }).sum();
@@ -407,79 +444,15 @@ public:
 		//interpolation Data contains the values using the coarse- high-order interpolation scheme. Project to the low-order fine grid
 		//which is faster for point-evaluations. We use parentInteprolationData as a termpoary buffer.
 
-		//std::cout<<"reinterpolating"<<std::endl;
 
 		//first set up some common data structures
 		{
 		    auto fine_N=static_cast<Derived *>(this)->elementsForBox(H0, this->m_baseOrder,this->m_base_n_elements,0);
 		    const auto& hoGrid= m_src_octree->coneDomain(level,0,1);
+		    
 		    Eigen::Vector<size_t,DIM> factor=fine_N.array()/hoGrid.num_elements().array();
-
-
-		    //std::cout<<"fine:"<<fine_N<<std::endl;
-
-		    size_t Ntp=order.sum();
-
-		    Eigen::Array<PointScalar,Eigen::Dynamic,1>  points(Ntp);
-
-		    std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(high_order);
-		    std::array<int, DIM> lo_ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
 		    std::array<int, DIM> factors=SyclHelpers::EigenVectorToCPPArray<int,DIM>(factor.template cast<int>());
 		    std::array<int, DIM> n_elements=SyclHelpers::EigenVectorToCPPArray<int,DIM>(fine_N.template cast<int>());
-		
-
-		    //std::cout<<"stuff; "<<ns<<" "<<lo_ns<<" "<<factors<<" "<<n_elements<<std::endl;
-		    size_t Np=1;
-		    size_t offset=0;
-		    size_t buffer_size=1;
-		    //store the points for the inner most dimension separately from the others
-		    for(int d=0;d<DIM;d++) {
-			const auto& chebNodes1d=ChebychevInterpolation::chebnodesNdd<PointScalar,1>(Eigen::Vector<int,1>(order[d]));
-
-			points.segment(offset,chebNodes1d.size())=chebNodes1d.array();
-			offset+=chebNodes1d.size();		    
-
-		    }
-
-		    for(int d=DIM-1;d>0;d--) {
-			int Np=1;
-			for(int j=0;j<d;j++)
-			{
-			    Np*=order[j];
-			}
-			buffer_size+=high_order[d]*Np;
-		    }
-		
-		    const size_t ho_stride=high_order.prod();
-		    sycl::buffer<PointScalar> b_points(points.data(),points.size());
-
-		    // Make sure the size is not too large
-		    //auto has_local_mem = (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
-		    //auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
-
-		    
-		    const size_t cv_size=order.unaryExpr([&](int v){ return v*v; }).sum();
-                    sycl::buffer<PointScalar> b_chebvals(cv_size);
-		    {
-			sycl::host_accessor a_cv(b_chebvals);
-			size_t idx=0;
-			//make sure the factors for the chebtrafo are precomputed...
-			for(int d=DIM-1;d>=0;d--) {
-			    //std::cout<<"idx="<<idx<<" vs "<<cv_size<<" "<<d<<std::endl;
-			    const auto& cv=ChebychevInterpolation::chebvals<PointScalar>(order[d]);
-			    std::copy(cv.reshaped().begin(),cv.reshaped().end(),a_cv.begin()+idx);
-			    idx+=order[d]*order[d];
-
-			}
-
-			assert(idx==cv_size); //check that we initialized correctly (TODO remove)
-		    }
-
-
-
-
-
-		    //std::cout<<"buffer="<<buffer_size<<std::endl;
 
 	    
 		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
