@@ -63,7 +63,6 @@ int main()
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-
     const int N = 1000000;
 
     for (auto platform : sycl::platform::get_platforms())

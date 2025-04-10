@@ -392,7 +392,7 @@ public:
 	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain. 
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
-	    //std::cout<<"l= "<<level<<std::endl;
+	    std::cout<<"l= "<<level<<std::endl;
 	    //update all nodes in this level
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
@@ -401,8 +401,8 @@ public:
 	    //make some heuristic about the number of cones
 	    for(int step=0;step<N_STEPS;step++) {
 		auto N=N_for_H(est_H,step);
-		const size_t na=4*numBoxes(level)*std::pow((double) N.prod(),(double) (DIM-1.0)/DIM);
-		
+		const size_t na=numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
+	        std::cout<<"reserving "<<na<<std::endl;	
 		activeCones[step].reserve(na);
 		est_H/=2;
 	    }
@@ -499,7 +499,7 @@ public:
 		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
 		std::array<IndexSet,N_STEPS> is_cone_active;
 		auto N=N_for_H(est_H,0);
-		is_cone_active[0].reserve(4*std::pow((double) N.prod(),(DIM-1.0)/DIM));
+		//is_cone_active[0].reserve(std::pow((double) N.prod(),(DIM-1.0)/DIM));
 		
 		std::array<size_t,N_STEPS> numActiveCones;
 		std::fill(numActiveCones.begin(),numActiveCones.end(),0);
@@ -515,8 +515,8 @@ public:
 			//const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);			  
 			auto coneId=domain.elementForPoint(s.col(i));
 			if(coneId<SIZE_MAX) {
-			    numActiveCones[0]++;
-			    is_cone_active[0].insert(coneId);
+			    auto p=is_cone_active[0].emplace(coneId);
+                            numActiveCones[0]+=(p.second ? 1 : 0);
 			}
 		    }
 		}
@@ -545,9 +545,8 @@ public:
 			    for (size_t i=0;i<HoChebNodes.cols();i++) {
 				auto coneId=domain.elementForPoint(interp_pnts.col(i));
 				if(coneId<SIZE_MAX) {
-				    is_cone_active[0].insert(coneId);
-				    numActiveCones[0]++;
-				
+                                    auto p=is_cone_active[0].emplace(coneId);
+                                    numActiveCones[0]+=(p.second ? 1 : 0);
 				}
 			    }			
 
@@ -566,8 +565,8 @@ public:
 			const auto pnt=domain.transform(el, Eigen::Vector<PointScalar,DIM>::Zero());
 			auto coneId=coarseDomain.elementForPoint(pnt);
 			if(coneId<SIZE_MAX) {
-			    is_cone_active[1].insert(coneId);
-			    numActiveCones[1]++;							    
+                            auto p=is_cone_active[1].emplace(coneId);
+                            numActiveCones[1]+=(p.second ? 1 : 0);
 			}
 		    }
 		}
@@ -641,9 +640,9 @@ public:
 	    }
 	    {
 		//tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
-		//std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
-		//std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
-		//std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
+		std::cout<<"level= "<<level<<" active cones"<<activeCones[0].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,0).n_elements()<<std::endl;
+		std::cout<<"level= "<<level<<" active cones"<<activeCones[1].size()<<" full: "<<numBoxes(level)*coneDomain(level,0,1).n_elements()<<std::endl;		
+		std::cout<<"level= "<<level<<" leafCones "<<leafCones.size()<<std::endl;
 	    }
 	    m_activeCones.push_back(activeCones);
 	    m_leafCones.push_back(leafCones);

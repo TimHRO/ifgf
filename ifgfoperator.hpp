@@ -150,7 +150,7 @@ public:
  	case 6:  return mult_impl<6>(weights);
 	case 7:  
 	case 8:  return mult_impl<8>(weights);
-	default: return mult_impl<10>(weights);
+	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl;//return mult_impl<10>(weights);
 	}
 
     }
@@ -162,7 +162,7 @@ public:
     template <int MAX_ORDER>
     Eigen::Array<T, Eigen::Dynamic,DIMOUT> mult_impl(const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights)
     {
-
+        std::cout<<"multimpl"<<std::endl;
         Eigen::Array<T, Eigen::Dynamic, DIMOUT> result(m_numTargets,DIMOUT);
         result.fill(0);
         int level = levels() - 1;
@@ -288,7 +288,7 @@ public:
 	    //std::cout<<"created ocdata"<<std::endl;
 	    
 	    {
-		//std::cout<<"nearfield"<<std::endl;
+		std::cout<<"nearfield"<<std::endl;
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
 		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
@@ -338,7 +338,7 @@ public:
 
 	    if(m_src_octree->numLeafCones(level) > 0)
 	    {
-
+                std::cout<<"interp"<<std::endl;
 		{
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
@@ -403,8 +403,8 @@ public:
 	    //chebtrafo everything
 
 	    {
-
-		Q.wait();
+                std::cout<<"chebtrafo"<<std::endl;
+		//Q.wait();
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
 
@@ -442,10 +442,11 @@ public:
 				       }
 				   });
 		});
-		Q.wait();
+		//Q.wait();
 	    }
 	    initInterpolationData(level,0, parentInterpolationDataBuffer);
 	    {
+                std::cout<<"CTF"<<std::endl;
 		//interpolation Data contains the values using the coarse- high-order interpolation scheme. Project to the low-order fine grid
 		//which is faster for point-evaluations. We use parentInteprolationData as a termpoary buffer.
 
@@ -483,12 +484,9 @@ public:
 
 
 			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(coarse_N);
-			auto out = sycl::stream(100, 100, h);
 
 
 			sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
-
-
 
 			const int nF=factor.prod();
 			//std::cout<<"doing it"<<std::endl;
@@ -571,12 +569,12 @@ public:
 	    }
 
 	    
-	    Q.wait();
+	    //Q.wait();
 
 	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
 	    parentInterpolationDataBuffer.reset();
 
-
+            std::cout<<"far field"<<std::endl;
 	    //Q.wait();
 	    Q.submit([&](sycl::handler &h) {
 		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
@@ -666,7 +664,7 @@ public:
 		continue;
 	    }
 
-	    //Q.wait();
+	    Q.wait();
 #ifdef KEEP_LEVEL_DATA
 	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
 #else
@@ -758,7 +756,6 @@ public:
 
 		});});
 
-	//std::cout<<"done"<<std::endl;
 
 	    Q.wait();
 
@@ -770,10 +767,11 @@ public:
 	    parentInterpolationDataBuffer.reset();
             //parentInterpolationData.resize(0);
 
-	    //std::cout<<"done with this level"<<std::endl;
+	    std::cout<<"done with this level"<<std::endl;
         }
+            std::cout<<"copying back"<<std::endl;
         } //end of sycl scope
-	//std::cout<<"mult over\n";
+	std::cout<<"mult over\n";
 
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
         Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_target_octree->permutation(),true_result);
