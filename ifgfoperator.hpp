@@ -27,6 +27,24 @@
 
 #include <memory>
 
+
+template<int DIM>
+constexpr int _CtFBufferSize(int order,int high_order)
+{
+    size_t buffer_size=0;	
+    for(int d=DIM-1;d>0;d--) {
+	int Np=1;
+	for(int j=0;j<d;j++)
+	{
+	    Np*= (j== 0 ? std::max(order-2,2) : order);
+	}
+	buffer_size+=(d== 0 ? std::max(high_order-2,2) : high_order) *Np;
+    }
+	
+    return buffer_size;
+}
+
+
 template<typename T, unsigned int DIM, unsigned int DIMOUT, typename Derived>
 class IfgfOperator
 {
@@ -85,10 +103,13 @@ public:
 	if(m_tolerance>0) {
 	
 	    //m_base_n_elements*=estimateRefinement(m_tolerance,RefineH);
-	    m_baseOrder=estimateRefinement(m_tolerance,RefineP).template cast<int>();
+	    //m_baseOrder=estimateRefinement(m_tolerance,RefineP).template cast<int>();
+	    
+	    //std::cout<<"settled on order="<<m_baseOrder.transpose()<<std::endl;
+	    std::cout<<"ADAPTIVITY NOT IMPLEMENTED YET. IGONORING TOL"<<std::endl;
+	}
 
-	    std::cout<<"settled on order="<<m_baseOrder.transpose()<<std::endl;
-	}else {
+	{
 	    m_baseOrder[0]=std::max(m_baseOrder[0]-2,2); 
 	}
 
@@ -117,42 +138,31 @@ public:
 
 
     
-    Eigen::Vector<size_t, DIM>  estimateRefinement(PointScalar tol,RefinementType refine)
+
+    Eigen::Array<T, Eigen::Dynamic,DIMOUT> mult(const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights)
     {
-	#if 0
-	std::cout<<"estimating the order needed to achieve "<<tol<< "using "<< (refine==RefineH ? "h":"p")<<"-refinement"<<m_baseOrder<<" "<<m_base_n_elements.transpose()<<std::endl;
-	//use n boxes randomly to estimate the interpolation error
-	const size_t level=m_src_octree->levels()-1;
-	const size_t Nboxes= m_src_octree->numBoxes(level);
-	const size_t sampleBoxes=10;
-	const size_t stride= Nboxes/sampleBoxes;
+	switch(m_baseOrder.maxCoeff()) {
+	case 1: 
+	case 2: 
+	case 3: 
+	case 4:  return mult_impl<4>(weights);
+	case 5:  
+ 	case 6:  return mult_impl<6>(weights);
+	case 7:  
+	case 8:  return mult_impl<8>(weights);
+	default: return mult_impl<10>(weights);
+	}
 
-	std::cout<<"working on level"<<level<<" "<<m_src_octree->numBoxes(level)<<std::endl;
-
-	auto ref=tbb::parallel_reduce<tbb::blocked_range<size_t>,Eigen::Vector<size_t,DIM> >(
-					tbb::blocked_range<size_t>(0,sampleBoxes),
-					Eigen::Vector<size_t,DIM>::Zero(),					
-					[&](const tbb::blocked_range<size_t>& r, const Eigen::Vector<size_t, DIM>& refinements) {
-					    Eigen::Vector<size_t,DIM> tmp=refinements;
-					    for(size_t i=r.begin();i<r.end();i++)
-					    {
-						const size_t boxId=i*stride;
-						tmp=refinements.cwiseMax(estimateRefinementOnBox(tol,level,boxId,refine));
-					    }
-					    return tmp;
-					},[](const Eigen::Vector<size_t, DIM>&  a, const Eigen::Vector<size_t, DIM>& b) -> Eigen::Vector<size_t,DIM> {return  a.cwiseMax(b);});
-
-	std::cout<<"using refinemnt="<<ref.transpose()<<std::endl;;
-	return ref;
-	#endif
-	
     }
 
 
 
-    Eigen::Array<T, Eigen::Dynamic,DIMOUT> mult(const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights)
+
+
+    template <int MAX_ORDER>
+    Eigen::Array<T, Eigen::Dynamic,DIMOUT> mult_impl(const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights)
     {
-	
+
         Eigen::Array<T, Eigen::Dynamic, DIMOUT> result(m_numTargets,DIMOUT);
         result.fill(0);
         int level = levels() - 1;
@@ -208,7 +218,7 @@ public:
 	//std::cout<<"stuff; "<<ns<<" "<<lo_ns<<" "<<factors<<" "<<n_elements<<std::endl;
 	size_t Np=1;
 	size_t offset=0;
-	size_t buffer_size=1;
+
 	//store the points for the inner most dimension separately from the others
 	for(int d=0;d<DIM;d++) {
 	    const auto& chebNodes1d=ChebychevInterpolation::chebnodesNdd<PointScalar,1>(Eigen::Vector<int,1>(order[d]));
@@ -218,14 +228,6 @@ public:
 
 	}
 
-	for(int d=DIM-1;d>0;d--) {
-	    int Np=1;
-	    for(int j=0;j<d;j++)
-	    {
-		Np*=order[j];
-	    }
-	    buffer_size+=high_order[d]*Np;
-	}
 		
 	const size_t ho_stride=high_order.prod();
 	sycl::buffer<PointScalar> b_points(points.data(),points.size());
@@ -435,7 +437,7 @@ public:
 				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
 					   //out<<"i="<<i<<"\n";
 					   //before we can use the interpolation data, we habe to run a chebychev transform on it
-					   SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_intData,  ns_ho, a_chebvals,i*stride);
+					   SyclChebychevInterpolation::chebtransform_inplace<T,DIM, MAX_ORDER>( a_intData,  ns_ho, a_chebvals,i*stride);
 					   //out<<"i2="<<a_intData[i*stride].real()<<"\n";
 				       }
 				   });
@@ -516,9 +518,12 @@ public:
 					
 				    //out<<it<<" "<<coneId<<"\n";
 				    size_t offset=0;
-				    const int MAX_LOW_ORDER=8;
+				    constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-2,1);
+				    constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
+
 				    sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
-				    sycl::marray<T,541> tmp; //Temporary storage for the sum-factorization. This should be enough up to orders (8,10,10) (5,7,7)*3
+				    
+				    sycl::marray<T,BUF_SIZE> tmp; //Temporary storage for the sum-factorization. 
 			
 
 
@@ -550,7 +555,7 @@ public:
 
 
 				    //and chebtrafo all in one go
-				    SyclChebychevInterpolation::chebtransform_inplace<T,DIM>( a_parentIntData,  lo_ns, a_chebvals,fineMemId*fine_stride);
+				    SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( a_parentIntData,  lo_ns, a_chebvals,fineMemId*fine_stride);
 				    
 				
 				}

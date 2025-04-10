@@ -28,8 +28,6 @@
 namespace SyclChebychevInterpolation
 {
 
-    #define MAX_ORDER 10
-
     template<typename TV, typename  TP>
     auto inline  transformNodesToInterval(TV& nodes, TP min, TP max) 
     {
@@ -40,29 +38,31 @@ namespace SyclChebychevInterpolation
 
 
     template<int DIM>
-    inline constexpr size_t max_buffer_size(int order=MAX_ORDER, int els=1) 
+    inline constexpr size_t max_buffer_size(int order, int els=1) 
     {
-	return order*els*max_buffer_size<DIM-1>(order,els);
+        if constexpr(DIM==1) {
+            return std::max((order-2),2)*els;
+        }
+
+        if constexpr(DIM==2){
+            return std::max((order-2),2)*order*els*els;
+         }
+        
+        return std::max((order-2),2)*order*order*els*els*els;
+
     }
 
-    template<>
-    inline constexpr size_t max_buffer_size<0>(int order, int els) 
-    {
-	return 1;
-    }
+    
 
 
-
-
-
-    template <typename T, int DIM, int DIMX>
+    template <typename T, int DIM, int DIMX, int MAX_ORDER>
     void chebtransform_impl(const sycl::accessor<T> &src,
-                       sycl::marray<T, max_buffer_size<DIM>() > & dest,
-                       const std::array<int,DIMX>& ns,
-		       const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
-		       size_t offset,
-		       size_t dest_offset,
-		       size_t cv_offset
+                            sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER) > & dest,
+                            const std::array<int,DIMX>& ns,
+                            const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
+                            size_t offset,
+                            size_t dest_offset,
+                            size_t cv_offset
 		       )
     {
 	//evaluate all line-functions
@@ -94,14 +94,14 @@ namespace SyclChebychevInterpolation
 	    }
 	    //std::cout<<"done inner"<<std::endl;
 	}else {
-	    std::array<sycl::marray<T, max_buffer_size<DIM-1>() >, MAX_ORDER > M;	    
+	    std::array<sycl::marray<T, max_buffer_size<DIM-1>(MAX_ORDER) >, MAX_ORDER > M;	    
 	    size_t idx=0;
 	    for(idx=0;idx<ns[DIM-1];idx++) {
 		//M[idx]=0; //just to be safe
 
 		//std::cout<<"idx"<<idx<<" "<<idx*stride<<" "<<M.size()<<" "<<src.size()<<" "<<nsigma<<std::endl;
 		//chebtransform<T,DIM-1>(src.segment(idx*stride,nsigma),M.segment(idx*stride,nsigma),ns.template head<DIM-1>());
-		chebtransform_impl<T,DIM-1,DIMX>(src,
+		chebtransform_impl<T,DIM-1,DIMX,MAX_ORDER>(src,
 				       M[idx],
 				       ns,
 				       cv,
@@ -144,16 +144,16 @@ namespace SyclChebychevInterpolation
     }
 
         
-    template <typename T, int DIM, typename BufType>
+    template <typename T, int DIM, int MAX_ORDER,typename BufType>
     void chebtransform_inplace(BufType &buf,
 			       const std::array<int,DIM>& ns,
 			       const sycl::accessor<PointScalar,1, sycl::access_mode::read>& cv,
 			       size_t offset
 			       )
     {
-	sycl::marray<T, max_buffer_size<DIM>()> tmp;
+	sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER)> tmp;
 	tmp=0;
-	chebtransform_impl<T,DIM,DIM>(buf,tmp,ns,cv,offset,0,0);
+	chebtransform_impl<T,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,offset,0,0);
 
 	size_t size=1;
 	for(int i=0;i<DIM;i++) {
