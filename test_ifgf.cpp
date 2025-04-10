@@ -64,7 +64,7 @@ int main()
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
 
-    const int N = 100000;
+    const int N = 1000000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -116,6 +116,9 @@ int main()
     normals.colwise().normalize();
 
 
+    using namespace std::chrono;
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
     //feenableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
     op.init(srcs, targets);//,normals);
 
@@ -125,10 +128,11 @@ int main()
     Eigen::Vector<std::complex<RealScalar>, Eigen::Dynamic> result;
 
 
+    high_resolution_clock::time_point t12 = high_resolution_clock::now();
+    duration<PointScalar> time_span = duration_cast<duration<PointScalar>>(t12 - t1);
+    std::cout <<"init"<< time_span.count() << " seconds" << std::endl;
     //first one is not timed!
     result = op.mult(weights);
-    using namespace std::chrono;
-    high_resolution_clock::time_point t1 = high_resolution_clock::now();
     const int Nmult=1;
     for(int i=0;i<Nmult;i++) {
 	std::cout<<"mult"<<std::endl;
@@ -137,7 +141,7 @@ int main()
     }
     high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
-    duration<PointScalar> time_span = duration_cast<duration<PointScalar>>(t2 - t1);
+     time_span = duration_cast<duration<PointScalar>>(t2 - t1);
     std::cout << time_span.count()/Nmult << " seconds" << std::endl;
 
     srand((unsigned) time(NULL));

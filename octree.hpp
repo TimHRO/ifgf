@@ -2,6 +2,7 @@
 #define _OCTREE_HPP_
 
 #include "Eigen/src/Core/VectorBlock.h"
+#include "Eigen/src/Core/util/XprHelper.h"
 #include "config.hpp"
 
 #include <Eigen/Dense>
@@ -400,7 +401,7 @@ public:
 	    //make some heuristic about the number of cones
 	    for(int step=0;step<N_STEPS;step++) {
 		auto N=N_for_H(est_H,step);
-		const size_t na=2*numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
+		const size_t na=4*numBoxes(level)*std::pow((double) N.prod(),(double) (DIM-1.0)/DIM);
 		
 		activeCones[step].reserve(na);
 		est_H/=2;
@@ -477,7 +478,6 @@ public:
 
 		
 		ConeDomain<DIM> domain(N_for_H(H,0),box);
-		ConeDomain<DIM> trans_domain(N_for_H(2*H,1),tbox);
 
 		auto hoN=N_for_H(H,1);
 
@@ -498,7 +498,9 @@ public:
 		// 0 = fine grid low order (used for evaluating FF and propagating upwards
 		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
 		std::array<IndexSet,N_STEPS> is_cone_active;
-
+		auto N=N_for_H(est_H,0);
+		is_cone_active[0].reserve(4*std::pow((double) N.prod(),(DIM-1.0)/DIM));
+		
 		std::array<size_t,N_STEPS> numActiveCones;
 		std::fill(numActiveCones.begin(),numActiveCones.end(),0);
 
@@ -512,11 +514,6 @@ public:
 		    {
 			//const auto s=Util::cartToInterp<DIM>(target_points.col(i),xc,H);			  
 			auto coneId=domain.elementForPoint(s.col(i));
-			auto coneId2=coarseDomain.elementForPoint(s.col(i));
-			if(coneId2<SIZE_MAX) {
-			    numActiveCones[1]++;
-			    is_cone_active[1].insert(coneId2);
-			}
 			if(coneId<SIZE_MAX) {
 			    numActiveCones[0]++;
 			    is_cone_active[0].insert(coneId);
@@ -535,56 +532,50 @@ public:
 
 		    if(parentHasFarTargets(level,n))
 		    {		    
-			if(mode==TwoGrid) {
-			    //We use a coarse grid with high order and a fine grid of lower order
-			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));			
-			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
+			//We use a coarse grid with high order and a fine grid of lower order
+			auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));			
+			const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
 			    //
 
-			    PointArray pnts(DIM,HoChebNodes.cols());
-			    PointArray interp_pnts(DIM,HoChebNodes.cols());
-			    for(size_t el : p_hoGrid.activeCones() ) {
-				pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),pxc,pH);
-				Util::cartToInterp2<DIM>(pnts.array(),xc,H,interp_pnts.array());
-				for (size_t i=0;i<HoChebNodes.cols();i++) {
-				    auto coneId=domain.elementForPoint(interp_pnts.col(i));
-				    auto coneId2=coarseDomain.elementForPoint(interp_pnts.col(i));
-				    if(coneId2<SIZE_MAX)
-				    {
-					is_cone_active[1].insert(coneId2);
-					numActiveCones[1]++;
-				    }
-				    if(coneId<SIZE_MAX) {
-					is_cone_active[0].insert(coneId);
-					numActiveCones[0]++;
-				    }
+			PointArray pnts(DIM,HoChebNodes.cols());
+			PointArray interp_pnts(DIM,HoChebNodes.cols());
+			for(size_t el : p_hoGrid.activeCones() ) {
+			    pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),pxc,pH);
+			    Util::cartToInterp2<DIM>(pnts.array(),xc,H,interp_pnts.array());
+			    for (size_t i=0;i<HoChebNodes.cols();i++) {
+				auto coneId=domain.elementForPoint(interp_pnts.col(i));
+				if(coneId<SIZE_MAX) {
+				    is_cone_active[0].insert(coneId);
+				    numActiveCones[0]++;
+				
 				}
 			    }			
 
-			}
-			else   {
-			    //now we add all the points used in the regular method
-			    auto chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,0));
-			    for(size_t el : p_grid.activeCones() ) {	    
-				for (size_t i=0;i<chebNodes.cols();i++) {
-				    Point cart_pnt=Util::interpToCart<DIM>(p_grid.transform(el,chebNodes.col(i)).array(),pxc,pH);
-				    Point interp_pnt=Util::cartToInterp<DIM>(cart_pnt,xc,H);
-
-				    auto coneId=domain.elementForPoint(interp_pnt);
-				    if(coneId<SIZE_MAX) {
-					is_cone_active[0].insert(coneId);
-					numActiveCones[0]++;
-				    }
-				}
-			    }
-			}
+			}						
 		    }
 		}
 
 
+		//We now activate all of the elements in the coarse(high order grid) that are needed to
+		//create the fine grid later on.
+		{
+		    auto factor=9;//(N_for_H(est_H,0).array()/N_for_H(est_H,1).array()).prod();
+		    is_cone_active[1].reserve(is_cone_active.size()/factor);
+		    for( size_t el : is_cone_active[0])
+		    {
+			const auto pnt=domain.transform(el, Eigen::Vector<PointScalar,DIM>::Zero());
+			auto coneId=coarseDomain.elementForPoint(pnt);
+			if(coneId<SIZE_MAX) {
+			    is_cone_active[1].insert(coneId);
+			    numActiveCones[1]++;							    
+			}
+		    }
+		}
+		
+
+
 
 		for (int step=0;step<N_STEPS;step++ ) {
-
 		    std::vector<size_t> local_active_cones;
 		    local_active_cones.reserve(numActiveCones[step]);
 		    IndexMap cone_map;
@@ -604,7 +595,7 @@ public:
 			 
 			 ConeRef cone(level, i, local_active_cones.size(), n,activeCones[step].size());
 			 activeCones[step].push_back(cone);
-
+			 
 
 			 int leafStep=0;
 			 if(mode!=Regular) {
@@ -646,6 +637,7 @@ public:
 	    //Free any unused memory
 	    for(int step=0;step<N_STEPS;step++) {
 		activeCones[step].shrink_to_fit();
+		leafCones.shrink_to_fit();
 	    }
 	    {
 		//tbb::queuing_mutex::scoped_lock lock(activeConeMutex);
@@ -988,6 +980,11 @@ public:
 	m_root.reset();
 	m_nodes.clear();
 	m_nodes.shrink_to_fit();
+
+	/*for(int i=0;i<levels();i++){
+	    m_activeCones[i][0].clear();
+	    m_activeCones[i][0].shrink_to_fit();
+	    }*/
 	//m_activeCones.clear();
 	//m_activeCones.shrink_to_fit();
 	//m_leafCones.clear();
