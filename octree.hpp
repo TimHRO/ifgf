@@ -402,10 +402,10 @@ public:
 	    for(int step=0;step<N_STEPS;step++) {
 		auto N=N_for_H(est_H,step);
 		const size_t na=numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
-	        std::cout<<"reserving "<<na<<std::endl;	
+	        //std::cout<<"reserving "<<na<<std::endl;	
 		activeCones[step].reserve(na);
-		est_H/=2;
 	    }
+
 
 	    
 	    std::vector<ConeRef> leafCones;
@@ -417,7 +417,10 @@ public:
 
 		const Point xc=node->boundingBox().center();
 		
-		const PointScalar H=node->boundingBox().sideLength();		
+		const PointScalar H=node->boundingBox().sideLength();
+
+		//std::cout<<"est_H"<<est_H<<" vs "<<H<<std::endl;
+		assert(abs(est_H -H)<1e-5);
 		const std::vector<IndexRange> farTargets=node->farTargets();
 
 		//just use a default value for the boxes
@@ -654,6 +657,7 @@ public:
 	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
 			
 
+	    est_H/=2;
 	}
 
 	//std::cout<<"interp_domain:" <<global_box<<std::endl;
