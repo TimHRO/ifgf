@@ -265,7 +265,7 @@ public:
 		
 	    }
 	    
-	    assert(idx==cv_size); //check that we initialized correctly (TODO remove)
+	    assert(idx==hoCv_size); //check that we initialized correctly (TODO remove)
 	}
 
 
@@ -785,11 +785,7 @@ public:
 	assert(level<m_src_octree->levels());
 
 
-	//get an exemplary box to query the polynomial order
-	BoundingBox bbox = m_src_octree->bbox(level , 0);
-	//std::cout<<"bbox="<<bbox.min().transpose()<<" "<<bbox.max().transpose()<<std::endl;
-	auto center = bbox.center();
-	PointScalar H = bbox.sideLength();
+	PointScalar H = 1;
 	auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
 
 	//make sure no old buffer is around	
