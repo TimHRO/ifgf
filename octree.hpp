@@ -5,6 +5,7 @@
 #include "Eigen/src/Core/util/XprHelper.h"
 #include "config.hpp"
 
+
 #include <Eigen/Dense>
 #include <iterator>
 #include <memory>
@@ -12,7 +13,6 @@
 #include <vector>
 #include <execution>
 #include <iostream>
-#include <unordered_set>
 
 #include "util.hpp"
 
@@ -389,7 +389,16 @@ public:
 	Eigen::Vector<size_t,DIM> oldN;
 	oldN.fill(0);
 
-	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain. 
+	Eigen::Vector<size_t,DIM> oldPN;
+	oldN.fill(0);
+	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain.
+
+
+	typedef std::vector<std::vector<size_t> > ConeToActivityMap;
+	std::array<ConeToActivityMap, 1 << DIM > parentToChildActiveSets;
+
+
+	
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
 	    std::cout<<"l= "<<level<<std::endl;
@@ -406,6 +415,83 @@ public:
 		activeCones[step].reserve(na);
 	    }
 
+	    //We use a coarse grid with high order and a fine grid of lower order
+
+	    BoundingBox<DIM> interp_box;
+	    PointScalar smax=sqrt(DIM)/DIM;	    
+	    PointScalar smin= 1e-3;//smin_for_H(H);
+
+	    interp_box.min()(0)=smin;
+	    interp_box.max()(0)=smax;
+	    
+			
+	    if constexpr(DIM==2) {	    
+		interp_box.min()(1)=-M_PI;
+		interp_box.max()(1)=M_PI;
+	    }else{
+		interp_box.min()(1)=0;
+		interp_box.max()(1)=M_PI;
+			    
+		interp_box.min()(2)=-M_PI;
+		interp_box.max()(2)=M_PI;
+	    }
+
+
+	    //lower levels have very few boxes and active cones. it does not pay to cache them
+	    // similarly, we only need to update the cache if the numbe of elements changed in either this level or the parent
+            if(level > 2 ) { 
+		const PointScalar pH=bbox(level-1,0).sideLength();
+		const PointScalar HH=bbox(level,0).sideLength();
+
+		assert(abs(HH-est_H)<1e-5);
+
+
+		auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
+		const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), interp_box );
+		const ConeDomain<DIM> loGrid(N_for_H(HH,0), interp_box );
+		{
+
+		    tbb::enumerable_thread_specific<PointArray> pnts;
+		    tbb::enumerable_thread_specific<PointArray> interp_pnts;
+		    
+		    for(int cube_corner=0;cube_corner< parentToChildActiveSets.size();cube_corner++){
+			Eigen::Vector<double,DIM> d;
+			for(int j=0;j<DIM;j++) {
+			    bool flag=cube_corner & (1<<j);
+			    d[j]= flag ? 0.5: -0.5;		    
+			}
+
+			//size_t numCones=0;
+
+			parentToChildActiveSets[cube_corner].resize(p_hoGrid.n_elements());
+			tbb::parallel_for(tbb::blocked_range<size_t>(0,p_hoGrid.n_elements()), [&](tbb::blocked_range<size_t> r) {
+			    pnts.local().resize(DIM,HoChebNodes.cols());
+			    interp_pnts.local().resize(DIM,HoChebNodes.cols());
+			    
+			    for(size_t el=r.begin();el< r.end();++el ) {
+				IndexSet is_active;
+				is_active.reserve(1 << DIM);
+				pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
+				Util::cartToInterp2<DIM>(pnts.local().array(),d*HH,HH,interp_pnts.local().array());  //xc-pxc
+				for (size_t i=0;i<HoChebNodes.cols();i++) {
+				    auto coneId=loGrid.elementForPoint(interp_pnts.local().col(i));
+				    if(coneId<SIZE_MAX) {
+					auto p=is_active.emplace(coneId);
+					//numCones+=(p.second ? 1 : 0);
+					
+				    }
+				}
+
+				parentToChildActiveSets[cube_corner][el]=std::move(is_active.values());
+				//std::sort(parentToChildActiveSets[cube_corner][el].begin(),parentToChildActiveSets[cube_corner][el].begin());
+			    }});
+		    }
+		
+		}
+	    }
+
+
+	    
 
 	    
 	    std::vector<ConeRef> leafCones;
@@ -426,60 +512,17 @@ public:
 		//just use a default value for the boxes
 
 		PointScalar smax=sqrt(DIM)/DIM;
-		//if the sources and targets are well-separated we don't have to cover the near field 
-		const PointScalar dist=0;//bbox(0,0).exteriorDistance(target.bbox(0,0));
-		if(dist >0) {
-		    smax=std::min(smax, H/dist);
-		}
-
+		
                 
 		std::shared_ptr<const OctreeNode> parent=node->parent().lock();
 		BoundingBox<DIM> pBox;
-		//now also add all the parents targets	       
 		if(parent && parentHasFarTargets(node))
 		{	    
 		    pBox=parent->interpolationRange();
 		}
 
 		
-                const PointScalar dist_t=0;//target.bbox(0,0).exteriorDistance(xc);
-		PointScalar smin= 1e-3;//smin_for_H(H);
-
-		/*
-                if(!pBox.isNull()) {
-		    //std::cout<<"diam:"<<m_diameter<<" "<<pBox.min()[0]<<std::endl;
-                    smin=std::min(smin,0.75/(sqrt(DIM)/3.0+2.0/pBox.min()[0]));
-		    //smin=std::min(smin, pBox.min()[0]/2.0);
-		}
-		smin=1e-2;
-		*/
-                //1e-3;//H/(m_diameter+dist+target.m_diameter);
-
-
-		if(smin >=smax) {
-		    smin=smax-0.05;
-		}
-		
-		box.min()(0)=smin;
-		box.max()(0)=smax;
-
-			
-		if constexpr(DIM==2) {	    
-		    box.min()(1)=-M_PI;
-		    box.max()(1)=M_PI;
-		}else{
-		    box.min()(1)=0;
-		    box.max()(1)=M_PI;
-			    
-		    box.min()(2)=-M_PI;
-		    box.max()(2)=M_PI;
-		}
-	
-		    
-
-		BoundingBox<DIM> tbox(pBox);
-
-		
+		box=interp_box;
 		ConeDomain<DIM> domain(N_for_H(H,0),box);
 
 		auto hoN=N_for_H(H,1);
@@ -488,15 +531,10 @@ public:
 
 		    
 		assert(H>0);
-		if(N_for_H(H,0)!=oldN) {
-		    oldN=N_for_H(H,0);
-		    //std::cout<<"n="<<N_for_H(H,0).transpose()<<"/"<<N_for_H(H,1).transpose()<<std::endl;
-		    //std::cout<<"box="<<box<<" "<<box.isNull()<<"H="<<H<<std::endl;
-		}
 
 		if(!box.isNull())
 		    global_box.extend(box);
-
+		
 		//now we need to do the whole thing again to figure out which cones are active...
 		// 0 = fine grid low order (used for evaluating FF and propagating upwards
 		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
@@ -508,6 +546,65 @@ public:
 		std::fill(numActiveCones.begin(),numActiveCones.end(),0);
 
 
+
+		//now add all the parents targets
+		if(!pBox.isNull())
+		{
+		    const Point pxc=parent->boundingBox().center();
+                    const PointScalar pH=parent->boundingBox().sideLength();
+
+                    const ConeDomain<DIM>& p_grid=parent->coneDomain(1);
+
+		    if(parentHasFarTargets(level,n))
+                    {
+			int fingerprint=0;
+			auto diff=(xc-pxc)/(H);
+			for(int l=0;l<DIM;l++) {
+			    if( diff[l] > 0) {
+				fingerprint=fingerprint | (1 << l);
+			    }
+			}
+
+			bool is_cached= level > 2 ;
+			if(!is_cached) {
+			    //We use a coarse grid with high order and a fine grid of lower order
+			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
+			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
+
+			    PointArray pnts(DIM,HoChebNodes.cols());
+			    PointArray interp_pnts(DIM,HoChebNodes.cols());
+			    IndexSet activity;
+			    for(size_t el : p_hoGrid.activeCones() ) {
+				pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
+				Util::cartToInterp2<DIM>(pnts.array(),xc-pxc,H,interp_pnts.array());
+				for (size_t i=0;i<HoChebNodes.cols();i++) {
+				    auto coneId=domain.elementForPoint(interp_pnts.col(i));
+				    if(coneId<SIZE_MAX) {
+					auto p=is_cone_active[0].emplace(coneId);
+					numActiveCones[0]+=(p.second ? 1 : 0);
+				    }
+				}
+
+			    }		    
+			}else{
+			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
+			    size_t minIdx=0;
+			    for(size_t p_el : p_hoGrid.activeCones() ) {				
+				for(size_t el : parentToChildActiveSets[fingerprint][p_el]) {
+				    {					
+					auto p = is_cone_active[0].emplace(el);
+					numActiveCones[0]+=(p.second ? 1 : 0);
+					minIdx=el;
+				    }
+				}
+			    }			   			    
+			}
+			
+                    }
+
+		}
+
+		//now add the actual targets
 		PointArray s(DIM,32);
 		for(const IndexRange& iR : farTargets)
 		{
@@ -525,37 +622,8 @@ public:
 		}
 
 
-		//now also add all the parents targets
-		if(!pBox.isNull())
-		{
-		    const Point pxc=parent->boundingBox().center();
-		    const PointScalar pH=parent->boundingBox().sideLength();
 
-		    const ConeDomain<DIM>& p_grid=parent->coneDomain(1);
 
-		    if(parentHasFarTargets(level,n))
-		    {		    
-			//We use a coarse grid with high order and a fine grid of lower order
-			auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));			
-			const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
-			    //
-
-			PointArray pnts(DIM,HoChebNodes.cols());
-			PointArray interp_pnts(DIM,HoChebNodes.cols());
-			for(size_t el : p_hoGrid.activeCones() ) {
-			    pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),pxc,pH);
-			    Util::cartToInterp2<DIM>(pnts.array(),xc,H,interp_pnts.array());
-			    for (size_t i=0;i<HoChebNodes.cols();i++) {
-				auto coneId=domain.elementForPoint(interp_pnts.col(i));
-				if(coneId<SIZE_MAX) {
-                                    auto p=is_cone_active[0].emplace(coneId);
-                                    numActiveCones[0]+=(p.second ? 1 : 0);
-				}
-			    }			
-
-			}						
-		    }
-		}
 
 
 		//We now activate all of the elements in the coarse(high order grid) that are needed to
@@ -654,11 +722,13 @@ public:
 
 	    //compute the farFieldBoxes
 	    m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
-	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
-			
+	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);			
 
 	    est_H/=2;
 	}
+
+
+	m_activeCones.shrink_to_fit();
 
 	//std::cout<<"interp_domain:" <<global_box<<std::endl;
 
