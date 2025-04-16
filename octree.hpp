@@ -385,6 +385,7 @@ public:
 
 	const auto & target_points=target.points();
 	tbb::spin_mutex activeConeMutex;
+	tbb::spin_mutex ptCMutex;
 
 	Eigen::Vector<size_t,DIM> oldN;
 	oldN.fill(0);
@@ -394,13 +395,14 @@ public:
 	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain.
 
 
-	typedef std::vector<std::vector<size_t> > ConeToActivityMap;
-	std::array<ConeToActivityMap, 1 << DIM > parentToChildActiveSets;
 
 
 	
 	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
+	    typedef ankerl::unordered_dense::map<size_t,std::vector<size_t> > ConeToActivityMap;
+	    std::array<ConeToActivityMap, 1 << DIM > parentToChildActiveSets;
+
 	    std::cout<<"l= "<<level<<std::endl;
 	    //update all nodes in this level
 
@@ -437,9 +439,11 @@ public:
 	    }
 
 
-	    //lower levels have very few boxes and active cones. it does not pay to cache them
-	    // similarly, we only need to update the cache if the numbe of elements changed in either this level or the parent
-            if(level > 2 ) { 
+	    const PointScalar pH=bbox(level > 0 ? (level-1): 0,0).sideLength();
+	    const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), interp_box );
+	    // //lower levels have very few boxes and active cones. it does not pay to cache them
+	    // // similarly, we only need to update the cache if the numbe of elements changed in either this level or the parent
+	    const auto calculateParentToChildActiveSet=[&](int cube_corner, size_t el) {   
 		const PointScalar pH=bbox(level-1,0).sideLength();
 		const PointScalar HH=bbox(level,0).sideLength();
 
@@ -449,47 +453,43 @@ public:
 		auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
 		const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), interp_box );
 		const ConeDomain<DIM> loGrid(N_for_H(HH,0), interp_box );
-		{
-
-		    tbb::enumerable_thread_specific<PointArray> pnts;
-		    tbb::enumerable_thread_specific<PointArray> interp_pnts;
-		    
-		    for(int cube_corner=0;cube_corner< parentToChildActiveSets.size();cube_corner++){
-			Eigen::Vector<double,DIM> d;
-			for(int j=0;j<DIM;j++) {
-			    bool flag=cube_corner & (1<<j);
-			    d[j]= flag ? 0.5: -0.5;		    
-			}
-
-			//size_t numCones=0;
-
-			parentToChildActiveSets[cube_corner].resize(p_hoGrid.n_elements());
-			tbb::parallel_for(tbb::blocked_range<size_t>(0,p_hoGrid.n_elements()), [&](tbb::blocked_range<size_t> r) {
-			    pnts.local().resize(DIM,HoChebNodes.cols());
-			    interp_pnts.local().resize(DIM,HoChebNodes.cols());
-			    
-			    for(size_t el=r.begin();el< r.end();++el ) {
-				IndexSet is_active;
-				is_active.reserve(1 << DIM);
-				pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
-				Util::cartToInterp2<DIM>(pnts.local().array(),d*HH,HH,interp_pnts.local().array());  //xc-pxc
-				for (size_t i=0;i<HoChebNodes.cols();i++) {
-				    auto coneId=loGrid.elementForPoint(interp_pnts.local().col(i));
-				    if(coneId<SIZE_MAX) {
-					auto p=is_active.emplace(coneId);
-					//numCones+=(p.second ? 1 : 0);
-					
-				    }
-				}
-
-				parentToChildActiveSets[cube_corner][el]=std::move(is_active.values());
-				//std::sort(parentToChildActiveSets[cube_corner][el].begin(),parentToChildActiveSets[cube_corner][el].begin());
-			    }});
-		    }
 		
-		}
-	    }
 
+		PointArray pnts;
+		PointArray interp_pnts;
+		
+		// for(int cube_corner=0;cube_corner< parentToChildActiveSets.size();cube_corner++){
+		Eigen::Vector<double,DIM> d;
+		for(int j=0;j<DIM;j++) {
+		    bool flag=cube_corner & (1<<j);
+		    d[j]= flag ? 0.5: -0.5;		    
+		}
+		
+		//size_t numCones=0;
+		
+		//parentToChildActiveSets[cube_corner].resize(p_hoGrid.n_elements());
+		pnts.resize(DIM,HoChebNodes.cols());
+		interp_pnts.resize(DIM,HoChebNodes.cols());
+		
+		IndexSet is_active;
+		is_active.reserve(1 << DIM);
+		pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
+		Util::cartToInterp2<DIM>(pnts.array(),d*HH,HH,interp_pnts.array());  //xc-pxc
+		for (size_t i=0;i<HoChebNodes.cols();i++) {
+		    auto coneId=loGrid.elementForPoint(interp_pnts.col(i));
+		    if(coneId<SIZE_MAX) {
+			auto p=is_active.emplace(coneId);
+			//numCones+=(p.second ? 1 : 0);
+			
+		    }
+		}
+		    
+		return is_active.values();
+		//std::sort(parentToChildActiveSets[cube_corner][el].begin(),parentToChildActiveSets[cube_corner][el].begin());
+		
+	    };
+    		
+ 
 
 	    
 
@@ -565,40 +565,42 @@ public:
 			    }
 			}
 
-			bool is_cached= level > 2 ;
-			if(!is_cached) {
-			    //We use a coarse grid with high order and a fine grid of lower order
-			    auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
-			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
+			
+		       
+			//We use a coarse grid with high order and a fine grid of lower order
+			auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
+			const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
 
-			    PointArray pnts(DIM,HoChebNodes.cols());
-			    PointArray interp_pnts(DIM,HoChebNodes.cols());
-			    IndexSet activity;
-			    for(size_t el : p_hoGrid.activeCones() ) {
-				pnts=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
-				Util::cartToInterp2<DIM>(pnts.array(),xc-pxc,H,interp_pnts.array());
-				for (size_t i=0;i<HoChebNodes.cols();i++) {
-				    auto coneId=domain.elementForPoint(interp_pnts.col(i));
-				    if(coneId<SIZE_MAX) {
-					auto p=is_cone_active[0].emplace(coneId);
-					numActiveCones[0]+=(p.second ? 1 : 0);
-				    }
-				}
+			PointArray pnts(DIM,HoChebNodes.cols());
+			PointArray interp_pnts(DIM,HoChebNodes.cols());
+			IndexSet activity;
+			for(size_t el : p_hoGrid.activeCones() ) {
+			    bool is_cached=level > 2;
+			    if(level>2)
+			    {				
+				is_cached=(parentToChildActiveSets[fingerprint].count(el)>0);
+			    }
 
-			    }		    
-			}else{
-			    const ConeDomain<DIM>& p_hoGrid=parent->coneDomain(1);
-			    size_t minIdx=0;
-			    for(size_t p_el : p_hoGrid.activeCones() ) {				
-				for(size_t el : parentToChildActiveSets[fingerprint][p_el]) {
-				    {					
-					auto p = is_cone_active[0].emplace(el);
-					numActiveCones[0]+=(p.second ? 1 : 0);
-					minIdx=el;
-				    }
+			    const std::vector<size_t>& pElSet= (!is_cached ? calculateParentToChildActiveSet(fingerprint, el) : parentToChildActiveSets[fingerprint][el]);
+			    for ( size_t coneId : pElSet )
+			    {
+				
+				auto p=is_cone_active[0].emplace(coneId);
+				numActiveCones[0]+=(p.second ? 1 : 0);
+			    }
+
+			    
+			    if(!is_cached) {
+				tbb::spin_mutex::scoped_lock lock(ptCMutex);
+				if(parentToChildActiveSets[fingerprint].count(el)>0) {
+				    parentToChildActiveSets[fingerprint].emplace(el,std::move(pElSet));
 				}
-			    }			   			    
-			}
+			    }
+
+						     
+			
+			}		    
+
 			
                     }
 
