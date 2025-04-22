@@ -130,7 +130,7 @@ public:
         IfgfOperator<std::complex<RealScalar>, dim, 1, HelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
         k(waveNumber)
     {
-
+	//try to find an octree in the cache!
     }
 
     ~HelmholtzIfgfOperator()

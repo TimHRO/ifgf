@@ -16,7 +16,6 @@
 
 #include "boundingbox.hpp"
 #include "cone_domain.hpp"
-#include "helmholtz_ifgf.hpp"
 #include "octree.hpp"
 #include "chebinterp.hpp"
 #include "chebinterp_sycl.hpp"
@@ -88,11 +87,13 @@ public:
 
     void init(const PointArray &srcs, const PointArray targets)
     {
-        m_src_octree->build(srcs);
-	m_target_octree->build(targets);
+	bool is_ready=m_src_octree->levels()!=0; //not initialized yet (e.g. by some kind of cache)
+	if(!is_ready) { 
+	    m_src_octree->build(srcs);
+	    m_target_octree->build(targets);
 	
-	m_src_octree->buildInteractionList(*m_target_octree);
-
+	    m_src_octree->buildInteractionList(*m_target_octree);
+	}
 
 	static_cast<Derived *>(this)->onOctreeReady();
         //m_src_octree->sanitize();
@@ -113,12 +114,13 @@ public:
 	    m_baseOrder[0]=std::max(m_baseOrder[0]-2,2); 
 	}
 
-
-	std::cout<<"calculating interp range"<<std::endl;
-	m_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
-						  [this](PointScalar H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
-						  [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
-						  *m_target_octree);
+	if(!is_ready) {
+	    std::cout<<"calculating interp range"<<std::endl;
+	    m_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
+						      [this](PointScalar H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
+						      [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
+						      *m_target_octree);
+	}
 
 
 #ifdef KEEP_LEVEL_DATA
@@ -128,8 +130,8 @@ public:
 	    m_octreeData[level]=std::make_unique<OctreeLevelData<T,DIM> >(*m_src_octree,level);
 	}
 
-	m_src_octree->freeData();
-	m_target_octree->freeData();
+	//m_src_octree->freeData();
+	//m_target_octree->freeData();
 #endif
 
 	
@@ -150,9 +152,9 @@ public:
  	case 6:  return mult_impl<6>(weights);
 	case 7:  
 	case 8:  return mult_impl<8>(weights);
-	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl;//return mult_impl<10>(weights);
+	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
 	}
-
+	
     }
 
 
@@ -288,6 +290,7 @@ public:
 	    //std::cout<<"created ocdata"<<std::endl;
 	    
 	    {
+		Q.wait();
 		std::cout<<"nearfield"<<std::endl;
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
@@ -326,7 +329,8 @@ public:
 		});
 
 	    }
-            //Q.wait();
+	    std::cout<<"done nf"<<std::endl;
+            Q.wait();
 
 
             const size_t stride=chebNodes.cols();
@@ -569,7 +573,7 @@ public:
 	    }
 
 	    
-	    //Q.wait();
+	    Q.wait();
 
 	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
 	    parentInterpolationDataBuffer.reset();
@@ -841,12 +845,13 @@ protected:
 	//do nothing. but give subclasses the opportunity to initialize some things
     }
 
+    std::shared_ptr<Octree<T, DIM> > m_src_octree;
+    std::shared_ptr<Octree<T, DIM> > m_target_octree;
+
 private:
 #ifdef KEEP_LEVEL_DATA
     std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
 #endif
-    std::unique_ptr<Octree<T, DIM> > m_src_octree;
-    std::unique_ptr<Octree<T, DIM> > m_target_octree;
     unsigned int m_numTargets;
     unsigned int m_numSrcs;
     Eigen::Vector<size_t, DIM> m_base_n_elements;

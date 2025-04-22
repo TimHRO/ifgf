@@ -14,6 +14,8 @@ typedef double  RealScalar;
 
 // #define INITIALIZE_BY_ZERO
 
+#define CACHE_OCTREE 
+
 #define KEEP_LEVEL_DATA
 
 #ifdef USE_FAST_HASH

@@ -116,6 +116,26 @@ template<size_t dim >
 class ModifiedHelmholtzIfgfOperator : public IfgfOperator<std::complex<RealScalar>, dim,
 							  1, ModifiedHelmholtzIfgfOperator<dim> >
 {
+private:
+    struct SrcOctreeKeyType {
+	double maxk;
+	size_t Ndof;
+	auto operator==(const SrcOctreeKeyType& other) const
+	{
+	    return std::abs(maxk-other.maxk)<1e-12 && Ndof==other.Ndof;
+	}
+    };
+    struct TargetOctreeKeyType {
+	double maxk;
+	size_t Ndof;
+
+	
+	auto operator==(const TargetOctreeKeyType& other) const
+	{
+	    return std::abs(maxk-other.maxk)<1e-12 && Ndof==other.Ndof;
+	}
+    };
+
 public:
     typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<PointScalar,dim> Point;
@@ -130,9 +150,44 @@ public:
 	if(maxk<0) {
 	    maxk=std::abs(k.imag())/(2*(2+k.real()));
 	}
+
+
     }
 
     typedef std::complex<PointScalar > T ;
+    
+    void init(const PointArray &srcs, const PointArray targets)
+    {
+	std::cout<<"modinit"<<std::endl;
+	SrcOctreeKeyType src_key;
+	src_key.maxk=maxk;
+	src_key.Ndof=srcs.cols();
+
+	TargetOctreeKeyType target_key;
+	target_key.maxk=maxk;
+	target_key.Ndof=targets.cols();
+
+
+	auto src=OctreeCache<T,dim, SrcOctreeKeyType>::getInstance().find(src_key);
+	if(src)
+	    this->m_src_octree=src;
+	    
+	std::cout<<"using cached octree="<<src<<std::endl;
+
+	auto target=OctreeCache<T,dim, TargetOctreeKeyType>::getInstance().find(target_key);
+	if(target)
+	    this->m_target_octree=target;
+
+	IfgfOperator<T,dim,1, ModifiedHelmholtzIfgfOperator<dim> >::init(srcs,targets);
+
+#ifdef CACHE_OCTREE
+	OctreeCache<T,dim, SrcOctreeKeyType>::getInstance().add(src_key,this->m_src_octree);
+	OctreeCache<T,dim, TargetOctreeKeyType>::getInstance().add(target_key,this->m_target_octree);
+#endif
+	
+    }
+
+
 
 
     inline ModifiedHelmholtzKernelFunctions kernelFunctions() const {

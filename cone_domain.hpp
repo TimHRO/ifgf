@@ -133,6 +133,11 @@ public:
 	return m_h[2];
     }
 
+    Eigen::Vector<PointScalar,DIM> full_h() const
+    {
+	return m_h;
+    }
+
 
 
 
@@ -429,6 +434,8 @@ public:
 
 	return indices;
     }
+
+    
 
 
     size_t elementForPoint(const sycl::marray<PointScalar,DIM> & pnt) const

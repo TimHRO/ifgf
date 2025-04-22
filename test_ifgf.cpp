@@ -12,7 +12,7 @@
 #include <chrono>
 
 #include "config.hpp"
-#include "helmholtz_ifgf.hpp"
+#include "modified_helmholtz_ifgf.hpp"
 #include "ifgfoperator.hpp"
 #include "octree.hpp"
 
@@ -21,7 +21,7 @@
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-const std::complex<double>  kappa = Complex(0,-10);
+const std::complex<double>  kappa = Complex(0.1,-10);
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
 {    
@@ -63,7 +63,7 @@ int main()
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-    const int N = 1000000;
+    const int N = 100000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -84,7 +84,6 @@ int main()
     //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
     //oneapi::tbb::task_arena arena(1);
 
-    HelmholtzIfgfOperator<dim> op(-kappa.imag(),200,8,1,-1); //3
     //GradHelmholtzIfgfOperator<dim> op(kappa,10,3,1,1e-5); //3
     //op.setDx(-1);
 
@@ -106,6 +105,8 @@ int main()
 	targets.col(i)=randomPointOnSphere();
     }
 
+
+
     tbb::parallel_for(tbb::blocked_range<size_t>(0,targets.cols()), [&](tbb::blocked_range<size_t> r) {
 	for(size_t i=r.begin();i<r.end();i++){
 	    targets.col(i)=randomPointOnSphere();
@@ -114,6 +115,9 @@ int main()
 
     normals.colwise().normalize();
 
+
+    for(int j=0;j<2;j++) {
+    ModifiedHelmholtzIfgfOperator<dim> op(kappa,200,8,1,-1); //3
 
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -140,7 +144,7 @@ int main()
     }
     high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
-     time_span = duration_cast<duration<PointScalar>>(t2 - t1);
+    time_span = duration_cast<duration<PointScalar>>(t2 - t1);
     std::cout << time_span.count()/Nmult << " seconds" << std::endl;
 
     srand((unsigned) time(NULL));
@@ -159,5 +163,5 @@ int main()
     }
 
     std::cout << "summary: e=" << maxE << std::endl;
-
+    }
 }
