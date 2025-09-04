@@ -52,7 +52,8 @@ public:
 
     enum RefinementType { RefineH, RefineP};
 
-    IfgfOperator(long int maxLeafSize = -1, size_t order=5, size_t n_elements=1, PointScalar tolerance = -1)
+    IfgfOperator(long int maxLeafSize = -1, size_t order=5, size_t n_elements=1, PointScalar tolerance = -1):
+	m_maxLeafSize(maxLeafSize)
     {
 	assert(n_elements>0);
 	if constexpr (DIM==3) {
@@ -66,8 +67,6 @@ public:
 	m_base_n_elements*=n_elements;	
 
 	std::cout<<"creating new ifgf operator. n_leaf="<<maxLeafSize<<" order= "<<order<<" n_elements="<<n_elements<<std::endl;
-        m_src_octree = std::make_unique<Octree<T, DIM> >(maxLeafSize);
-	m_target_octree = std::make_unique<Octree<T, DIM> >(maxLeafSize);
 	m_baseOrder.fill(order);
 	m_tolerance=tolerance;
 
@@ -79,30 +78,37 @@ public:
 	std::cout<<"freeing ifgf"<<std::endl;
     }
 
-    const Octree<T,DIM>& src_octree() const {
-	return *m_src_octree;
+    const FlatOctree<T,DIM>& src_octree() const {
+	return *m_octree;
     }
 
 
 
     void init(const PointArray &srcs, const PointArray targets)
     {
-	bool is_ready=m_src_octree->levels()!=0; //not initialized yet (e.g. by some kind of cache)
-	if(!is_ready) { 
-	    m_src_octree->build(srcs);
-	    m_target_octree->build(targets);
+	std::cout<<"init"<<std::endl;
+
+	auto tmp_src_octree = std::make_unique< Octree<T, DIM> >(m_maxLeafSize);
+	auto tmp_target_octree = std::make_unique<Octree<T, DIM> >(m_maxLeafSize);
+
+	bool is_ready=m_octree!=0; //not initialized yet (e.g. by some kind of cache)
+	if(!is_ready) {
+	    std::cout<<"not ready"<<std::endl;
+
+	    tmp_src_octree->build(srcs);
+	    tmp_target_octree->build(targets);
 	
-	    m_src_octree->buildInteractionList(*m_target_octree);
+	    tmp_src_octree->buildInteractionList(*tmp_target_octree);
+
 	}
 
 	static_cast<Derived *>(this)->onOctreeReady();
-        //m_src_octree->sanitize();
+        //m_octree->sanitize();
 
         m_numTargets = targets.cols();
         m_numSrcs = srcs.cols();
 
-	if(m_tolerance>0) {
-	
+	if(m_tolerance>0) {	
 	    //m_base_n_elements*=estimateRefinement(m_tolerance,RefineH);
 	    //m_baseOrder=estimateRefinement(m_tolerance,RefineP).template cast<int>();
 	    
@@ -116,24 +122,15 @@ public:
 
 	if(!is_ready) {
 	    std::cout<<"calculating interp range"<<std::endl;
-	    m_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
+	    tmp_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
 						      [this](PointScalar H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
 						      [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
-						      *m_target_octree);
+						      *tmp_target_octree);
+
+
+	    m_octree=std::make_shared<FlatOctree<T,DIM> >(*tmp_src_octree,*tmp_target_octree);
+	    
 	}
-
-
-#ifdef KEEP_LEVEL_DATA
-	//copy to level data	
-	m_octreeData.resize(m_src_octree->levels());
-	for(int level=0;level<m_src_octree->levels();level++) {
-	    m_octreeData[level]=std::make_unique<OctreeLevelData<T,DIM> >(*m_src_octree,level);
-	}
-
-	//m_src_octree->freeData();
-	//m_target_octree->freeData();
-#endif
-
 	
 	std::cout<<"done initializing"<<std::endl;
     }
@@ -169,8 +166,8 @@ public:
         result.fill(0);
         int level = levels() - 1;
 
-	//std::cout<<"boxes="<<m_src_octree->numBoxes(level)<<std::endl;
-	const PointScalar hmin=m_src_octree->diameter()*std::pow(0.5,m_src_octree->levels());
+	//std::cout<<"boxes="<<m_octree->numBoxes(level)<<std::endl;
+	const PointScalar hmin=m_octree->diameter()*std::pow(0.5,m_octree->levels());
 	//std::vector<tbb::queuing_mutex> resultMutex(m_numTargets);
 
         { //scope to contain all the sycl stuff. that way we make sure that all the data is copied to the host before proceeding.
@@ -179,30 +176,25 @@ public:
 
         //push some global data to the GPU
 	Eigen::Vector<T, Eigen::Dynamic> new_weights(weights.size());
-        Util::copy_with_permutation_rowwise<T,1> (weights.array(), m_src_octree->permutation(),new_weights.array());
+        Util::copy_with_permutation_rowwise<T,1> (weights.array(), m_octree->srcPermutation(),new_weights.array());
 	sycl::buffer<const T, 1> b_weights(new_weights.data(),weights.size());
-	sycl::buffer<const PointScalar, 1> b_srcs(m_src_octree->points().data(),m_src_octree->numPoints()*DIM);
-	sycl::buffer<const PointScalar, 1> b_targets(m_target_octree->points().data(),m_target_octree->numPoints()*DIM);
+	sycl::buffer<const PointScalar, 1> b_srcs(m_octree->srcPoints().data(),m_octree->srcPoints().cols()*DIM);
+	sycl::buffer<const PointScalar, 1> b_targets(m_octree->targetPoints().data(),m_octree->targetPoints().cols()*DIM);
 
 	sycl::buffer<T, 1> b_result(result.data(),result.size());       
 
 	std::unique_ptr<sycl::buffer<T,1> > interpolationDataBuffer;
 	std::unique_ptr<sycl::buffer<T,1> > parentInterpolationDataBuffer;
 
-#ifdef KEEP_LEVEL_DATA
         std::shared_ptr<OctreeLevelData<T,DIM> > parentData;
 	std::shared_ptr<OctreeLevelData<T,DIM> > srcData;
-#else
-	std::unique_ptr<OctreeLevelData<T,DIM> > parentData;
-	std::unique_ptr<OctreeLevelData<T,DIM> > srcData;
-#endif
 
 
 	//Get an exemplary bbox to determine the interpolation order
-	PointScalar H0 = m_src_octree->sideLength();
-	const auto order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,0);
+	PointScalar H0 = m_octree->sideLength();
+	const auto order = static_cast<Derived *>(this)->orderForBox(H0*std::pow(0.5,m_octree->levels()+5), m_baseOrder,0);
 	const auto& chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(order);
-	const auto high_order = static_cast<Derived *>(this)->orderForBox(H0, m_baseOrder,1);
+	const auto high_order = static_cast<Derived *>(this)->orderForBox(H0*std::pow(0.5,m_octree->levels()+5), m_baseOrder,1);
 	const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
 
 	//Cache chebychev nodes on the GPU
@@ -276,17 +268,13 @@ public:
 
         for (; level >= 0; --level) {
 	    if(parentData==0) {
-#ifdef KEEP_LEVEL_DATA	   
-		srcData = m_octreeData[level];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
-#else
-		srcData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level);
-#endif
+		srcData = m_octree->data(level);//std::make_unique< OctreeLevelData<T,DIM> >(*m_octree,level);
 	    }else {
 		std::swap(parentData,srcData);
 		parentData.reset();
 	    }
 
-
+	    std::cout<<"level="<<level<<std::endl;
 	    //std::cout<<"created ocdata"<<std::endl;
 	    
 	    {
@@ -306,7 +294,7 @@ public:
 
 
 		    auto out = sycl::stream(1024, 768, h);
-		    const size_t num_targets=m_target_octree->numPoints();
+		    const size_t num_targets=m_octree->targetPoints().cols();
 
 		    //std::cout<<"setup complete"<<num_targets<<std::endl;
 
@@ -332,17 +320,25 @@ public:
 	    std::cout<<"done nf"<<std::endl;
             Q.wait();
 
+            {
+                const double H=m_octree->sideLength()*pow(2,-level);
+                if(static_cast<Derived *>(this)->farfieldCanBeSkipped(H)) {
+                    std::cout<<"skipping farfield computation"<<std::endl;
+                    continue;
+                }
+            }
 
             const size_t stride=chebNodes.cols();
 
 	    //prepare the interpolation data for all leaves
-	    if(level==m_src_octree->levels()-1) {
+	    if(level==m_octree->levels()-1) {
+                std::cout<<"init"<<level<<" "<<H0*std::pow(0.5,m_octree->levels())<<std::endl;
 		initInterpolationData(level,1, interpolationDataBuffer);
 	    }
 
-	    if(m_src_octree->numLeafCones(level) > 0)
+	    if(m_octree->numLeafCones(level) > 0)
 	    {
-                std::cout<<"interp"<<std::endl;
+                std::cout<<"interp "<< m_octree->numLeafCones(level)<<b_hoChebNodes.size()<<std::endl;
 		{
 		Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
@@ -364,7 +360,7 @@ public:
 
 		    const size_t sizeB=interpolationDataBuffer->size();
 
-		    const size_t  numLeafCones=m_src_octree->numLeafCones(level);
+		    const size_t  numLeafCones=m_octree->numLeafCones(level);
 		    //std::cout<<"numm="<<numLeafCones<<std::endl;
 		    auto out = sycl::stream(1024, 1024, h);
 		    h.parallel_for(sycl::range<1>( numLeafCones),
@@ -424,7 +420,7 @@ public:
 		    const auto &srcDataAcc = srcData->accessor(h);
 
 		    const size_t sizeB=interpolationDataBuffer->size();
-		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
+		    const size_t numActiveCones= m_octree->numActiveCones(level,1);
 
 		    const size_t stride=ho_chebNodes.cols();
 		    //std::cout<<"survived setup"<<std::endl;
@@ -457,7 +453,7 @@ public:
 
 		//first set up some common data structures
 		{
-		    const size_t numActiveCones= m_src_octree->numActiveCones(level,1);
+		    const size_t numActiveCones= m_octree->numActiveCones(level,1);
 		    if(numActiveCones == 0)		    
 		        continue;
 
@@ -478,7 +474,7 @@ public:
 			const auto &srcDataAcc = srcData->accessor(h);
 			
 
-			const double H=H0*pow(2,-level);//m_src_octree->bbox(level,0).sideLength();//H0*pow(2,-level);
+			const double H=H0*pow(2,-level);//m_octree->bbox(level,0).sideLength();//H0*pow(2,-level);
 			auto fine_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,0);
 			auto coarse_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,1);
 		    
@@ -578,7 +574,10 @@ public:
 	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
 	    parentInterpolationDataBuffer.reset();
 
-            std::cout<<"far field"<<std::endl;
+            {
+                const double H=m_octree->sideLength()*pow(2,-level);
+                std::cout<<"far field"<<H<<std::endl;
+            }
 	    //Q.wait();
 	    Q.submit([&](sycl::handler &h) {
 		sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
@@ -596,7 +595,8 @@ public:
 		const size_t stride=order.prod();
 		auto out = sycl::stream(100, 100, h);
 
-		h.parallel_for(sycl::range{m_target_octree->numPoints()}, [=](auto it)
+		const size_t nT=m_octree->targetPoints().cols();
+		h.parallel_for(sycl::range<1>{nT}, [=](auto it)
 		{
 		    for( size_t boxId : srcDataAcc.farfieldBoxes(it) ){
 			auto grid=srcDataAcc.coneDomain(boxId,0);
@@ -663,17 +663,13 @@ public:
 
 	    initInterpolationData(level-1,1, parentInterpolationDataBuffer);
 
-	    const size_t numActiveParentCones= m_src_octree->numActiveCones(level-1,1);
+	    const size_t numActiveParentCones= m_octree->numActiveCones(level-1,1);
 	    if(numActiveParentCones==0) {
 		continue;
 	    }
 
 	    Q.wait();
-#ifdef KEEP_LEVEL_DATA
-	    parentData = m_octreeData[level-1];//std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
-#else
-	    parentData = std::make_unique< OctreeLevelData<T,DIM> >(*m_src_octree,level-1);
-#endif
+	    parentData = m_octree->data(level-1);//std::make_unique< OctreeLevelData<T,DIM> >(*m_octree,level-1);
 	    Q.submit([&](sycl::handler &h) {
 		// start by pushing  some data to the GPU (octree stuff)
 
@@ -706,7 +702,7 @@ public:
 		{
 		    ConeRef parentCone=parentDataAcc.activeCone(i); //parent!!
 		    size_t parentBoxId = parentCone.boxId();
-		    auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);//m_src_octree->coneDomain(level-1,parentId,1);				    
+		    auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);//m_octree->coneDomain(level-1,parentId,1);				    
                     auto parent_center = parentDataAcc.boxCenter(parentBoxId);
                     PointScalar pH = parentDataAcc.boxSize(parentBoxId);
 
@@ -778,7 +774,7 @@ public:
 	std::cout<<"mult over\n";
 
 	Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
-        Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_target_octree->permutation(),true_result);
+        Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_octree->targetPermutation(),true_result);
 
 	return true_result;
     }
@@ -786,14 +782,15 @@ public:
 
     void initInterpolationData(size_t level, size_t step, std::unique_ptr<sycl::buffer<T,1>> & buf )
     {
-	assert(level<m_src_octree->levels());
+	assert(level<m_octree->levels());
 
 
-	PointScalar H = 1;
-	auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
+	PointScalar H = m_octree->sideLength()*std::pow(0.5,level+5);
+ 	std::cout<<"h in init?"<<H<<std::endl;
+        auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
 
 	//make sure no old buffer is around	
-	buf=std::make_unique<sycl::buffer<T,1> > (m_src_octree->numActiveCones(level,step)*order.prod());
+	buf=std::make_unique<sycl::buffer<T,1> > (m_octree->numActiveCones(level,step)*order.prod());
     }
 
 
@@ -820,7 +817,7 @@ public:
 
     inline  PointScalar  cutoff_limit(PointScalar H) const
     {
-	return 0;
+	return 1e-3;
     }
 
 
@@ -829,15 +826,12 @@ public:
     }
 
     int levels() const {
-#ifdef KEEP_LEVEL_DATA
-	return m_octreeData.size();
-
-#else
-	return m_src_octree->levels();
-#endif
+	return m_octree->levels();
     }
 
-    
+    bool farfieldCanBeSkipped(PointScalar H) const {    
+         return false;
+    }
 
 protected:
     void onOctreeReady()
@@ -845,15 +839,12 @@ protected:
 	//do nothing. but give subclasses the opportunity to initialize some things
     }
 
-    std::shared_ptr<Octree<T, DIM> > m_src_octree;
-    std::shared_ptr<Octree<T, DIM> > m_target_octree;
+    std::shared_ptr<FlatOctree<T, DIM> > m_octree;
 
 private:
-#ifdef KEEP_LEVEL_DATA
-    std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_octreeData;
-#endif
-    unsigned int m_numTargets;
-    unsigned int m_numSrcs;
+    unsigned int m_maxLeafSize;
+    size_t m_numTargets;
+    size_t m_numSrcs;
     Eigen::Vector<size_t, DIM> m_base_n_elements;
     Eigen::Vector<int, DIM> m_baseOrder;
     PointScalar m_tolerance;

@@ -49,12 +49,12 @@ public:
     typedef Eigen::Vector<PointScalar, DIM> Point;
 
     struct FieldInfo {
-	Eigen::Vector<size_t, Eigen::Dynamic> indices;
-	Eigen::Vector<size_t, Eigen::Dynamic> starts;
+	std::vector<size_t> indices;
+	std::vector<size_t> starts;
     };
 
     class OctreeNode
-    {
+    { 
     private:
         std::weak_ptr<OctreeNode > m_parent;
         long int m_id;
@@ -400,7 +400,6 @@ public:
 
 
 	
-	//No interpolation at the two highest levels 
 	for (size_t level=0;level<levels();level++) {
 	    typedef ankerl::unordered_dense::map<size_t,std::vector<size_t> > ConeToActivityMap;
 	    std::array<ConeToActivityMap, 1 << DIM > parentToChildActiveSets;
@@ -410,20 +409,54 @@ public:
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
 
+            //check if we are in the cutoff regime (only relevant for modified Helmholtz with large real part)
+            {
+                auto order=order_for_H(est_H,0);
+                if(smin_for_H(est_H)>=(sqrt(DIM)/DIM-1e-10)) {
+                    std::cout<<"cutting of at level"<<level<<" "<<est_H<<" order="<<order<<std::endl;
+                    tbb::parallel_for(tbb::blocked_range<size_t>(0,numBoxes(level)), [&](tbb::blocked_range<size_t> r) {
+                    for(size_t n=r.begin();n<r.end();++n) {
+                        std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+
+                        BoundingBox<DIM> domain;
+                        domain.min()=Eigen::Vector<PointScalar,DIM>::Zero();
+                        domain.max()=Eigen::Vector<PointScalar,DIM>::Zero();
+                        ConeDomain<DIM> d0(Eigen::Vector<size_t,DIM>::Ones(),domain);
+                        node->setConeDomain(d0,0);
+                        node->setConeDomain(d0,1);
+                     }});
+                     m_activeCones.push_back(activeCones);
+                     m_leafCones.push_back( std::vector<ConeRef>());
+                     m_numLeafCones[level]=0;
+
+
+                     //compute the farFieldBoxes
+                     FieldInfo info;
+                     info.indices.resize(0);
+                     info.starts.resize(target.points().size()+1);
+                     std::fill(info.starts.begin(),info.starts.end(),0);
+                     m_farFieldBoxes[level]=info;//computeFieldInfo(level,target, true);
+                     m_nearFieldBoxes[level]=computeFieldInfo(level,target, false); //we still do the nearfield regularly
+
+
+ 
+                     est_H/=2.;
+                     continue;
+                }
+            } 
 
 	    //make some heuristic about the number of cones
 	    for(int step=0;step<N_STEPS;step++) {
 		auto N=N_for_H(est_H,step);
 		const size_t na=numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
-	        //std::cout<<"reserving "<<na<<std::endl;	
+		//std::cout<<"reserving "<<na<<std::endl;	
 		activeCones[step].reserve(na);
 	    }
 
 	    //We use a coarse grid with high order and a fine grid of lower order
-
 	    BoundingBox<DIM> interp_box;
 	    PointScalar smax=sqrt(DIM)/DIM;	    
-	    PointScalar smin= 1e-3;//smin_for_H(H);
+	    PointScalar smin= smin_for_H(est_H);
 
 	    interp_box.min()(0)=smin;
 	    interp_box.max()(0)=smax;
@@ -440,15 +473,17 @@ public:
 		interp_box.max()(2)=M_PI;
 	    }
 
+            BoundingBox<DIM> p_interp_box=interp_box;
+            p_interp_box.min()(0)=smin_for_H(2*est_H);
 
 
 	    const PointScalar pH=bbox(level > 0 ? (level-1): 0,0).sideLength();
-	    const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), interp_box );
+	    const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), p_interp_box );
 
 	    const size_t numBoxesOnLevel=numBoxes(level);
 	    const size_t numParentCones=p_hoGrid.n_elements();
 	    
-	    const bool should_be_cached= level > 2 && ((1 << DIM) * numParentCones < 1024 ); //keep the cache small, for larger ones it wont really pay off
+	    const bool should_be_cached= false; //level > 2 && ((1 << DIM) * numParentCones < 1024 ); //keep the cache small, for larger ones it wont really pay off
 
 	    std::cout<<"caching level "<<level<<" "<<should_be_cached<<" "<<N_for_H(pH,1)<<std::endl;
 
@@ -495,7 +530,7 @@ public:
 		//std::sort(parentToChildActiveSets[cube_corner][el].begin(),parentToChildActiveSets[cube_corner][el].begin());
 		
 	    };
-    		
+		
  
 
 	    
@@ -781,7 +816,7 @@ public:
 	    assert(info.starts[target.points().size()]==cnt);
 
 	    nBoxPerTarget.fill(0);
-		    	    
+			    
 	    for(size_t n=0;n<numBoxes(level);++n) {		
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
 		const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
@@ -797,7 +832,7 @@ public:
 	}else{
 	    info.indices.resize(0);
 	    info.starts.resize(target.points().size()+1);
-	    info.starts.fill(0);		
+	    std::fill(info.starts.begin(),info.starts.end(),0);
 		    
 	}
 	return info;
@@ -1226,7 +1261,6 @@ private:
 
 
 
-
 template<typename T,int DIM>
 class OctreeLevelData
 {
@@ -1235,22 +1269,28 @@ public:
     OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
     points_start(octree.numBoxes(level)),
     points_end(octree.numBoxes(level)),
-    ffB_indices((octree.m_farFieldBoxes[level].indices)),	
-    ffB_starts((octree.m_farFieldBoxes[level].starts)),
-    nfB_indices((octree.m_nearFieldBoxes[level].indices)),
-    nfB_starts((octree.m_nearFieldBoxes[level].starts)),
-    leafCones((octree.m_leafCones[level])),
+    ffBi_vec(std::move(octree.m_farFieldBoxes[level].indices)),
+    ffB_indices(ffBi_vec),
+    ffBs_vec(std::move(octree.m_farFieldBoxes[level].starts)),
+    ffB_starts(ffBs_vec),
+    nfBi_vec(std::move(octree.m_nearFieldBoxes[level].indices)),
+    nfB_indices(nfBi_vec),
+    nfBs_vec(std::move(octree.m_nearFieldBoxes[level].starts)),
+    nfB_starts(nfBs_vec),
+    leafCones_vec((octree.m_leafCones[level])),
+    leafCones(leafCones_vec),
     ftAFlags(octree.numBoxes(level)),
     boxCenters(octree.numBoxes(level)*DIM),
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
     coneDomains1(octree.numBoxes(level)),
-    activeCones((octree.m_activeCones[level][1])),
+    activeCones_vec(std::move(octree.m_activeCones[level][1])),
+    activeCones(activeCones_vec),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
     {
-	//std::cout<<"creating ocdata"<<std::endl;
+	std::cout<<"creating ocdata"<<level<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
 	sycl::host_accessor ends(points_end,sycl::write_only);
 
@@ -1301,6 +1341,10 @@ public:
 
 	}
 
+	for(int i=0;i<N_STEPS;i++){
+	    m_numActiveCones[i]=octree.numActiveCones(level,i);
+	}
+
 	//std::cout<<"done"<<std::endl;
 
     }
@@ -1328,7 +1372,7 @@ public:
 	    childrenPerBox(data.childrenPerBox)
 	{
 	    coneDomains0=sycl::accessor(data.coneDomains0,h);
-	    coneDomains1=sycl::accessor(data.coneDomains1,h);  	    
+	    coneDomains1=sycl::accessor(data.coneDomains1,h);	    
 
 	}
 
@@ -1358,7 +1402,7 @@ public:
 
 
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
- 	}
+	}
 
     
 
@@ -1464,22 +1508,44 @@ public:
     {
 	return Accessor(*this,h);	
     }
-        
+
+
+    size_t numLeafCones() {
+	return leafCones.size();
+    }
+
+
+    size_t numActiveCones(int step) {
+	
+	return m_numActiveCones[step];
+    }
+
 
     
 private:
     //far field boxes
+    std::vector<size_t> ffBs_vec;
+    std::vector<size_t> ffBi_vec;
+
     sycl::buffer<size_t,1> ffB_indices;
     sycl::buffer<size_t,1> ffB_starts;
 
+    
+
     //near field boxes
+    
+    std::vector<size_t> nfBs_vec;
+    std::vector<size_t> nfBi_vec;
+
     sycl::buffer<size_t,1> nfB_indices;
     sycl::buffer<size_t,1> nfB_starts;
+
 
 
     sycl::buffer<size_t,1> points_start;
     sycl::buffer<size_t,1> points_end;
 
+    std::vector<ConeRef> leafCones_vec;
     sycl::buffer<ConeRef,1> leafCones;
     sycl::buffer<char,1> ftAFlags;
 
@@ -1487,6 +1553,7 @@ private:
     sycl::buffer<PointScalar,1> boxSizes;
     sycl::buffer<PointScalar,1> boxCenters;
 
+    std::vector<ConeRef> activeCones_vec;
     sycl::buffer<ConeRef> activeCones;
 
     sycl::buffer<SyclConeDomain<DIM>,1> coneDomains0;
@@ -1498,6 +1565,109 @@ private:
 
     sycl::buffer<size_t,1> childBoxes;
     size_t childrenPerBox;
+
+    std::array<size_t, N_STEPS> m_numActiveCones;
+
+};
+
+
+
+template <typename T, int DIM>
+class FlatOctree
+{
+    typedef Eigen::Array<PointScalar, DIM, Eigen::Dynamic> PointArray;
+    typedef Eigen::Vector<PointScalar, DIM> Point;
+
+public:
+    FlatOctree()
+    {
+
+    }
+    
+    FlatOctree(const Octree<T,DIM> src_octree,const Octree<T,DIM> target_octree):
+	m_srcPermutation(src_octree.permutation()),
+	m_srcPoints(src_octree.points()),
+	m_targetPermutation(target_octree.permutation()),
+	m_targetPoints(target_octree.points()),
+	m_diameter(src_octree.diameter()),
+	m_sideLength(src_octree.sideLength())
+    {
+	m_data.reserve(src_octree.levels());
+	for(int level=0;level<src_octree.levels();level++) {
+	    m_data.push_back(std::make_shared<OctreeLevelData<T,DIM> > (src_octree,level));
+	}
+		
+    }
+
+    std::shared_ptr<OctreeLevelData<T,DIM> >  data(int level) 
+    {
+	std::cout<<"accessing "<<level<<" vs "<<m_data.size()<<std::endl;
+	return m_data[level];
+    }
+
+    int levels() const
+    {
+	return m_data.size();
+    }
+
+
+    const std::vector<size_t>& targetPermutation() const
+    {
+	return m_targetPermutation;
+    }
+
+    const std::vector<size_t>& srcPermutation() const
+    {
+	return m_srcPermutation;
+    }
+
+    const PointArray& srcPoints() const
+    {
+	return m_srcPoints;
+    }    
+
+
+    const PointArray& targetPoints() const
+    {
+	return m_targetPoints;
+    }
+
+    
+
+    double diameter() const
+    {
+	return m_diameter;
+    }
+
+    double sideLength() const
+    {
+	return m_sideLength;
+    }
+
+
+    size_t numLeafCones(size_t level) {
+	return m_data[level]->numLeafCones();
+    }
+
+    size_t numActiveCones(size_t level,size_t step) {
+	return m_data[level]->numActiveCones(step);
+    }
+
+
+
+private:
+    std::vector<std::shared_ptr<OctreeLevelData<T,DIM> > > m_data;
+    std::vector<size_t> m_srcPermutation;
+    PointArray m_srcPoints;
+
+    //instead of storing the whole target octree with complicated data we just store points and permutation as that is all we really need
+    std::vector<size_t> m_targetPermutation;
+    PointArray m_targetPoints;
+
+    double m_diameter;
+    double m_sideLength;
+
+    
 };
 
 
@@ -1518,7 +1688,7 @@ public:
 
 
 
-    std::shared_ptr<Octree<T,DIM> > find(KeyType key) {
+    std::shared_ptr<FlatOctree<T,DIM> > find(KeyType key) {
 	for(int i=0;i<m_cache.size();i++) {
 	    if(m_cache[i].first==key){
 		return m_cache[i].second;
@@ -1527,9 +1697,10 @@ public:
 	return 0;
     }
 
-    void add(KeyType key,std::shared_ptr<Octree<T,DIM> > octree) {
+    void add(KeyType key,std::shared_ptr<FlatOctree<T,DIM> > octree) {
 	m_cache[m_idx]=std::make_pair(key, octree);
 	m_idx=(m_idx+1) % m_cache.size();
+        std::cout<<"cache size="<<m_cache.size()<<std::endl;
     }
 
 
@@ -1549,7 +1720,7 @@ private:
 
 private:
     int m_idx;
-    std::vector<std::pair<KeyType, std::shared_ptr<Octree<T,DIM> > > > m_cache;
+    std::vector<std::pair<KeyType, std::shared_ptr<FlatOctree<T,DIM> > > > m_cache;
     //ankerl::unordered_dense::map<KeyType, std::shared_ptr<Octree<T,DIM> > > m_cache;
 };
 

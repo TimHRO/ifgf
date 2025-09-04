@@ -76,6 +76,9 @@ class QueueSingleton
             std::cout<<"Building a new Queue"<<std::endl;
             Q=std::make_unique<sycl::queue>(sycl::default_selector_v);
             //const auto &device = Q.get_device();
+            std::cout << "Running on: "
+              << Q->get_device().get_info<sycl::info::device::name>()
+              << std::endl;
 
         }                    // Constructor? (the {} brackets) are needed here.
 

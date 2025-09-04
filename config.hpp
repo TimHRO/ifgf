@@ -16,7 +16,7 @@ typedef double  RealScalar;
 
 #define CACHE_OCTREE 
 
-#define KEEP_LEVEL_DATA
+//#define KEEP_LEVEL_DATA
 
 #ifdef USE_FAST_HASH
 #include "unordered_dense.h"

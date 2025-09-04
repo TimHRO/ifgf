@@ -13,6 +13,7 @@
 
 #include "config.hpp"
 #include "modified_helmholtz_ifgf.hpp"
+#include "helmholtz_ifgf.hpp"
 #include "ifgfoperator.hpp"
 #include "octree.hpp"
 
@@ -21,18 +22,23 @@
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-const std::complex<double>  kappa = Complex(0.1,-10);
+const Complex  kappa =Complex(32.35318922187804,12.6495537831048);//4.*Complex(5,-60);
+//const double kappa=7;
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
 {    
     double norm = (x-y).norm();
     double nxy = -normal.dot(x-y);
-    if(norm < 1e-12) return 0;
+    if(norm < 1e-14 ) return 0;
     /*auto kern = exp(Complex(0,kappa)*norm) / (4 * M_PI * norm*norm*norm)
 	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
 	// return kern;*/
 
-    auto kern = exp(-kappa*norm) / ((4.0 * M_PI * norm));
+
+    /*if(kappa.real()*norm>150) {
+        return 0.;
+    }*/
+    auto kern = exp(-std::complex<double>(kappa)*norm) / ((4.0 * M_PI * norm));
     //x	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
 	// return kern;*/
     
@@ -63,7 +69,7 @@ int main()
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-    const int N = 100000;
+    const int N = 1000000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -88,7 +94,7 @@ int main()
     //op.setDx(-1);
 
     PointArray srcs(3,N);
-    //PointArray srcs=load_csv_arma<PointArray>("srcs.csv");
+//    PointArray srcs=load_csv_arma<PointArray>("srcs.csv");
 
     //std::cout<<"s"<<srcs<<std::endl;
     //size_t  N=srcs.cols();
@@ -96,28 +102,23 @@ int main()
 
     //srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
     tbb::parallel_for(tbb::blocked_range<size_t>(0,srcs.cols()), [&](tbb::blocked_range<size_t> r) {
-	for(size_t i=r.begin();i<r.end();i++){
+        for(size_t i=r.begin();i<r.end();i++){
 	    srcs.col(i)=randomPointOnSphere();
 	}});
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = srcs;//(PointArray::Random(dim, N).array());
-    for(int i=0;i<targets.cols();i++){
-	targets.col(i)=randomPointOnSphere();
-    }
+//    for(int i=0;i<targets.cols();i++){
+//	targets.col(i)=srcs.col(i);//randomPointOnSphere();
+ //   }
 
 
-
-    tbb::parallel_for(tbb::blocked_range<size_t>(0,targets.cols()), [&](tbb::blocked_range<size_t> r) {
-	for(size_t i=r.begin();i<r.end();i++){
-	    targets.col(i)=randomPointOnSphere();
-	}});
- 
 
     normals.colwise().normalize();
 
 
     for(int j=0;j<2;j++) {
-    ModifiedHelmholtzIfgfOperator<dim> op(kappa,200,8,1,-1); //3
+    ModifiedHelmholtzIfgfOperator<dim> op(kappa,300,8,2,-1.,-1.,-1.); //3
+    //HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
 
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -147,9 +148,11 @@ int main()
     time_span = duration_cast<duration<PointScalar>>(t2 - t1);
     std::cout << time_span.count()/Nmult << " seconds" << std::endl;
 
+    fedisableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
+
     srand((unsigned) time(NULL));
     double maxE = 0;
-    for (int j = 0; j < 100; j++) {
+    for (int j = 0; j < 200; j++) {
         std::complex<double> val = 0;
         int index = rand() % targets.cols();
         //std::cout<<"idx"<<index<<std::endl;
@@ -158,8 +161,11 @@ int main()
         }
 
         double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
-        maxE = std::max(e, maxE);
-        //std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+        if(e>maxE) {
+            std::cout<<"maxe="<<e<<" at"<<targets.col(index)<<std::endl;
+        }
+	maxE = std::max(e, maxE);
+        std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
     }
 
     std::cout << "summary: e=" << maxE << std::endl;

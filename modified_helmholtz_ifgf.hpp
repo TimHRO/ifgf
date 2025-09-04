@@ -3,7 +3,7 @@
 
 #include "ifgfoperator.hpp"
 
-
+#define HIGH_EXP_CUTOFF 50  //constant where exp(-x) is considered zero  to avoid NaNs/denormalized numbers
 
 class ModifiedHelmholtzKernelFunctions
 {
@@ -22,7 +22,10 @@ public:
     inline T kernelFunction(const sycl::marray<PointScalar,3>& x) const
     {
         RealScalar d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-	return std::abs(d)==0.0 ? RealScalar(0) : RealScalar((1. / (4. * M_PI))) * T(exp(-k.real()*d))* T(cos(k.imag()*d),-sin(k.imag()*d)) / (d);
+       if(std::abs(d)<=1e-15  || d*k.real() > HIGH_EXP_CUTOFF) {
+            return RealScalar(0.0);
+        }
+	return RealScalar((1. / (4. * M_PI))) * T(exp(-k.real()*d))* T(cos(k.imag()*d),-sin(k.imag()*d)) / (d);
     }
 
 
@@ -62,7 +65,7 @@ public:
 
 	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
 
-	    result += (abs(d)<1e-12) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
+	    result += (abs(d)<1e-15 ) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
 	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
 	}
 	return result;
@@ -74,13 +77,20 @@ public:
     {
 	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 
-	if(abs(d2)<1e-12) {
+	if(abs(d2)<1e-14) {
 	    return 0;
 	}
+
+
 	const RealScalar id=1./(sqrt(d2));
 	const RealScalar d=d2*id;
 
-	
+        
+        /*if(d*k.real()>HIGH_EXP_CUTOFF)
+        {
+            return 0.0;
+        }*/
+
 	return T(sycl::exp(-k.real()*d))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
 
     }
@@ -94,9 +104,12 @@ public:
 	const RealScalar d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
 	const RealScalar dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
 
-	if(abs(d)<1e-12) {
+	if(abs(d)<1e-15 ) {
 	    return 0;
 	}
+        /*if((d-dp)*k.imag() <- HIGH_EXP_CUTOFF) { //truncate the transfer factor at around 10^16
+    	        return T(exp(HIGH_EXP_CUTOFF))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
+        }*/
 
 	return T(exp(-k.real()*(d-dp)))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
 	
@@ -117,22 +130,14 @@ class ModifiedHelmholtzIfgfOperator : public IfgfOperator<std::complex<RealScala
 							  1, ModifiedHelmholtzIfgfOperator<dim> >
 {
 private:
-    struct SrcOctreeKeyType {
-	double maxk;
+    struct OctreeKeyType {
+	RealScalar maxk;
+        RealScalar minSigma;
 	size_t Ndof;
-	auto operator==(const SrcOctreeKeyType& other) const
+	size_t Ndof2;
+	auto operator==(const OctreeKeyType& other) const
 	{
-	    return std::abs(maxk-other.maxk)<1e-12 && Ndof==other.Ndof;
-	}
-    };
-    struct TargetOctreeKeyType {
-	double maxk;
-	size_t Ndof;
-
-	
-	auto operator==(const TargetOctreeKeyType& other) const
-	{
-	    return std::abs(maxk-other.maxk)<1e-12 && Ndof==other.Ndof;
+	    return std::abs(maxk-other.maxk)<1e-12 && Ndof==other.Ndof && Ndof2==other.Ndof2 && std::abs(minSigma-other.minSigma)<1e-12; 
 	}
     };
 
@@ -142,47 +147,48 @@ public:
     ModifiedHelmholtzIfgfOperator(std::complex<RealScalar> waveNumber,
 				  size_t leafSize,
 				  size_t order,
-				  size_t n_elem=1,PointScalar tol=-1,double p_maxk=-1):
+				  size_t n_elem=1,PointScalar tol=-1,RealScalar p_maxk=-1,RealScalar p_minSigma=-1):
         IfgfOperator<std::complex<RealScalar>, dim, 1, ModifiedHelmholtzIfgfOperator<dim> >(leafSize,order, n_elem,tol),
         k(waveNumber),
-	maxk(p_maxk)
+	maxk(p_maxk),
+        minSigma(p_minSigma)
     {
-	if(maxk<0) {
-	    maxk=std::abs(k.imag())/(2*(2+k.real()));
+	if(minSigma<0) {
+            minSigma=k.real();
+        }
+
+        std::cout<<"minSigma="<<minSigma<<std::endl;
+        if(maxk<0) {
+	    maxk=std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
+            std::cout<<"maxk="<<maxk<<std::endl;
 	}
 
 
     }
 
-    typedef std::complex<PointScalar > T ;
+    typedef std::complex<RealScalar > T ;
     
     void init(const PointArray &srcs, const PointArray targets)
     {
 	std::cout<<"modinit"<<std::endl;
-	SrcOctreeKeyType src_key;
-	src_key.maxk=maxk;
-	src_key.Ndof=srcs.cols();
+	OctreeKeyType key;
+	key.maxk=maxk;
+	key.Ndof=srcs.cols();
+	key.Ndof2=targets.cols();
+        key.minSigma=minSigma;
 
-	TargetOctreeKeyType target_key;
-	target_key.maxk=maxk;
-	target_key.Ndof=targets.cols();
-
-
-	auto src=OctreeCache<T,dim, SrcOctreeKeyType>::getInstance().find(src_key);
-	if(src)
-	    this->m_src_octree=src;
+	auto oct=OctreeCache<T,dim, OctreeKeyType>::getInstance().find(key);
+	if(oct) {
+	    std::cout<<"using cached octree="<<oct<<std::endl;
+	    this->m_octree=oct;
+	}
 	    
-	std::cout<<"using cached octree="<<src<<std::endl;
 
-	auto target=OctreeCache<T,dim, TargetOctreeKeyType>::getInstance().find(target_key);
-	if(target)
-	    this->m_target_octree=target;
 
 	IfgfOperator<T,dim,1, ModifiedHelmholtzIfgfOperator<dim> >::init(srcs,targets);
 
 #ifdef CACHE_OCTREE
-	OctreeCache<T,dim, SrcOctreeKeyType>::getInstance().add(src_key,this->m_src_octree);
-	OctreeCache<T,dim, TargetOctreeKeyType>::getInstance().add(target_key,this->m_target_octree);
+	OctreeCache<T,dim, OctreeKeyType>::getInstance().add(key,this->m_octree);
 #endif
 	
     }
@@ -199,14 +205,29 @@ public:
         
     inline Eigen::Vector<int,dim> orderForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,int step=0) const
     {
-	
 	Eigen::Vector<int,dim> order=baseOrder;
+
+        if(false){//0.75*(sqrt(dim)/dim)*H*minSigma> HIGH_EXP_CUTOFF) {
+            std::cout<<"cutoff"<<H<<" "<<k.real()<<" "<<H*k.real()<<"\n";
+            order.fill(0);
+
+            return order;
+        }
+
+
 
 	if(step==0) {
 	    order=(baseOrder.array()-3).cwiseMax(2);//(baseOrder.array().template cast<PointScalar>()*Eigen::log(4./baseOrder.array().template cast<PointScalar>())).template cast<int>();
 	}
 	
         return order;
+    }
+
+    double cutoff_limit(double H) {
+        double rmax=3*HIGH_EXP_CUTOFF/std::max((RealScalar )1.,minSigma);
+        double smin=1e-4;//0.5*std::max(H/rmax,1e-4);
+        std::cout<<"smin="<<smin<<std::endl;
+        return std::min(smin,sqrt(dim)/dim);
     }
 
     inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
@@ -220,10 +241,7 @@ public:
 	}
 	    
 	for(int i=0;i<dim;i++) {
-	//int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded	    
-	PointScalar delta=std::max( maxk *H/4 ,1.0);
-	    
-
+            PointScalar delta=std::max( maxk*H, 1.0);
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
 	}
 	    
@@ -231,10 +249,16 @@ public:
     }
 
 
+    bool farfieldCanBeSkipped(PointScalar H) {
+        return false;//(sqrt(dim)/dim)*H*k.real()> HIGH_EXP_CUTOFF;
+    }
+
+
 
 private:
     std::complex<RealScalar> k;
-    double maxk;
+    RealScalar maxk;
+    RealScalar minSigma;
 
 };
 

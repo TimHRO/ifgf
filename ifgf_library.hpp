@@ -44,7 +44,7 @@ public:
     ModifiedHelmholtzIfgfOperator3d(std::complex<RealScalar> waveNumber,
 				    size_t leafSize,
 				    size_t order,
-				    size_t n_elem=1,PointScalar tol=-1, double maxk=-1);
+				    size_t n_elem=1,PointScalar tol=-1, double maxk=-1,double minSigma=-1);
     ~ModifiedHelmholtzIfgfOperator3d();
 
 
