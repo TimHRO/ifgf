@@ -10,6 +10,8 @@
 #include <tbb/parallel_sort.h>
 #include <execution>
 
+
+
 namespace Util
 {
     template <typename RandomIt, class Compare>
@@ -130,7 +132,7 @@ namespace Util
         if constexpr (DIM==2) {
 	    const PointScalar r = xp.norm();
 
-	    const long double theta = std::atan2( (long double) xp[1], (long double) xp[0]);
+	    const ExtendedScalar theta = std::atan2( (ExtendedScalar) xp[1], (ExtendedScalar) xp[0]);
 
             Eigen::Vector<PointScalar, DIM> res;
             res[0] = r;
@@ -143,9 +145,9 @@ namespace Util
 
         }else{
             static_assert(DIM==3);
-            const double phi = std::atan2(xp[1], xp[0]);
+            const double phi = std::atan2((ExtendedScalar)  xp[1],(ExtendedScalar)  xp[0]);
             const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const double theta= std::atan2(sqrt(a),xp[2]);
+            const double theta= std::atan2((ExtendedScalar)  sqrt(a),(ExtendedScalar)  xp[2]);
             const double r= sqrt(a+xp[2]*xp[2]);
 
             Eigen::Vector<PointScalar, DIM> res;
@@ -163,11 +165,11 @@ namespace Util
     inline typename PointVector::PlainObject cartToInterp2(const Eigen::ArrayBase<PointVector>& x, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H, PointVector2& rs)
     {
 
-	auto p=(x.colwise()-xc.array()).template cast<double>();
+	auto p=(x.colwise()-xc.array()).template cast<PointScalar>();
 	
 	const auto a = p.row(0)*p.row(0)+p.row(1)*p.row(1);
-	rs.row(2)= (p.row(0).binaryExpr(p.row(1), [](PointScalar a,PointScalar b) {return  std::atan2(b,a);})).template cast<PointScalar>();
-	rs.row(1)= p.row(2).binaryExpr(a, [](PointScalar b,PointScalar aj){return std::atan2(std::sqrt(aj),b);}).template cast<PointScalar>();
+	rs.row(2)= (p.row(0).binaryExpr(p.row(1), [](PointScalar a,PointScalar b) {return  std::atan2((ExtendedScalar)  b,(ExtendedScalar)  a);})).template cast<PointScalar>();
+	rs.row(1)= p.row(2).binaryExpr(a, [](PointScalar b,PointScalar aj){return std::atan2((ExtendedScalar)  std::sqrt(aj),(ExtendedScalar)  b);}).template cast<PointScalar>();
 	rs.row(0)=H/((a+p.row(2)*p.row(2)).sqrt()).template cast<PointScalar>();
 
 
@@ -194,14 +196,14 @@ namespace Util
         if constexpr (DIM==2) {
 	    const PointScalar r = sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
 
-	    const long double theta = atan2( (long double) xp[1], (long double) xp[0]);
+	    const ExtendedScalar theta = atan2( (ExtendedScalar) xp[1], (ExtendedScalar) xp[0]);
             
             res[0] = H/r;
             res[1] = theta ;
 
         }else{
             static_assert(DIM==3);
-            const double phi = atan2(xp[1], xp[0]);
+            const double phi = atan2((ExtendedScalar) xp[1],(ExtendedScalar)  xp[0]);
             const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
             const double theta= atan2(sqrt(a),xp[2]);
             const double r= sqrt(a+xp[2]*xp[2]);
@@ -261,6 +263,20 @@ namespace Util
 
 	return sqrt(v2)/std::max(1.,sqrt(v1));
     }
+
+
+    template <int DIM,typename VecType>
+    int calculateFingerprint(const VecType& xc,const VecType& pxc, PointScalar H) {	
+	int fingerprint=0;
+	auto diff=(xc-pxc)/(H);
+	for(int l=0;l<DIM;l++) {
+	    if( diff[l] > 0) {
+		fingerprint=fingerprint | (1 << l);
+	    }
+	}
+	return fingerprint;
+    }
+
 
 
 

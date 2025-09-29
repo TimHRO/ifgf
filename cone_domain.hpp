@@ -387,6 +387,23 @@ public:
     }
 
 
+    //transforms from (-1,1) to K_el
+    void transform(size_t el,const sycl::marray<PointScalar,DIM>& pnt,sycl::marray<PointScalar,DIM>& dest) const 
+    {	
+	for(int j=0;j<DIM;j++) {
+	    const size_t idx=el % m_numEls[j];
+	    el=el / m_numEls[j];
+
+
+	    
+	    PointScalar b=m_min[j]+(idx+0.5)*m_h[j];	
+	    
+	    dest[j]=(0.5*pnt[j]*m_h[j])+b;	    
+	}
+
+    }
+
+
 
     //transforms from K_el to (-1,1)
     void transformBackwards(size_t el,const sycl::marray<PointScalar,DIM>& pnt,sycl::marray<PointScalar,DIM>& dest) const 

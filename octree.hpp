@@ -10,6 +10,7 @@
 #include <iterator>
 #include <memory>
 #include <map>
+#include <oneapi/tbb/parallel_for.h>
 #include <sys/types.h>
 #include <vector>
 #include <execution>
@@ -397,17 +398,18 @@ public:
 	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain.
 
 
-
+	m_activeHoCones.resize(levels());
 
 	
 	for (size_t level=0;level<levels();level++) {
 	    typedef ankerl::unordered_dense::map<size_t,std::vector<size_t> > ConeToActivityMap;
 	    std::array<ConeToActivityMap, 1 << DIM > parentToChildActiveSets;
 
-	    std::cout<<"l= "<<level<<std::endl;
+	    std::cout<<"l= "<<level<<" "<<est_H<<std::endl;
 	    //update all nodes in this level
 
 	    std::array<std::vector<ConeRef>,N_STEPS> activeCones;
+
 
             //check if we are in the cutoff regime (only relevant for modified Helmholtz with large real part)
             {
@@ -599,14 +601,7 @@ public:
 
 		    if(parentHasFarTargets(level,n))
                     {
-			int fingerprint=0;
-			auto diff=(xc-pxc)/(H);
-			for(int l=0;l<DIM;l++) {
-			    if( diff[l] > 0) {
-				fingerprint=fingerprint | (1 << l);
-			    }
-			}
-
+			int fingerprint=Util::calculateFingerprint<DIM>(xc,pxc,H);
 			
 		       
 			//We use a coarse grid with high order and a fine grid of lower order
@@ -618,6 +613,11 @@ public:
 			IndexSet activity;
 			for(size_t el : p_hoGrid.activeCones() ) {
 			    bool is_cached=should_be_cached;
+			    {
+				tbb::spin_mutex::scoped_lock lock(ptCMutex);
+				m_activeHoCones[level].emplace(el); //mark that this is a type of HO element that exists.
+			    }
+
 
 			    if(should_be_cached)
 			    {				
@@ -689,7 +689,7 @@ public:
 		}
 		
 
-
+		
 
 		for (int step=0;step<N_STEPS;step++ ) {
 		    std::vector<size_t> local_active_cones;
@@ -776,6 +776,8 @@ public:
 
 	m_activeCones.shrink_to_fit();
 
+
+	buildChildToParentData(order_for_H,N_for_H,smin_for_H);
 	//std::cout<<"interp_domain:" <<global_box<<std::endl;
 
     }
@@ -1115,7 +1117,7 @@ public:
 
 	//m_coneMaps.clear();
 	//m_coneMaps.shrink_to_fit();
-
+	
     }
 
     const auto& points() const {
@@ -1230,6 +1232,226 @@ private:
 
 
 
+
+    void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+				std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				std::function<PointScalar(PointScalar)> smin_for_H)
+    {
+	std::cout<<"building CtP data"<<std::endl;
+	auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
+	double H=m_sideLength;
+
+	m_childToParent.resize(levels());
+
+
+	
+	for(int level=1;level<levels();level++) {
+	    H/=2.0;
+	    std::cout<<"CtP level"<<level<<std::endl;
+
+	    PointScalar smax=sqrt(DIM)/DIM;	    
+	    PointScalar smin= smin_for_H(H);
+
+	    BoundingBox<DIM> interp_box;
+	    interp_box.min()(0)=smin;
+	    interp_box.max()(0)=smax;
+	    
+	    if constexpr(DIM==2) {	    
+		interp_box.min()(1)=-M_PI;
+		interp_box.max()(1)=M_PI;
+	    }else{
+		interp_box.min()(1)=0;
+		interp_box.max()(1)=M_PI;
+		
+		interp_box.min()(2)=-M_PI;
+		interp_box.max()(2)=M_PI;
+	    }
+	    
+
+
+	    
+
+
+
+	    const auto pH=2.0*H;
+	    Eigen::Vector<size_t, DIM> numParentEls=N_for_H(pH,1); //parent is high order
+	    Eigen::Vector<size_t, DIM> numChildEls=N_for_H(H,0); //child is low order
+
+	    auto hoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
+	    size_t parentShift=0;
+
+	    ConeDomain<DIM> parentDomain(numParentEls, interp_box);
+	    const Point parent_center=Point::Zero();
+
+	    
+	    size_t  totalNumParentEls=numParentEls.prod();
+
+	    //std::vector<ChildToParentData> dataList;
+	    
+	    //For each parent cone, we precompute possible CtF transformations
+
+	    tbb::spin_mutex ptCMutex;
+
+
+	    ChildToParentData ex;
+	    ex.parentElementShifts.resize(2*totalNumParentEls);
+	    ex.directionShifts.resize(1);
+	    ex.directionShifts[0]=0;		
+	    std::fill(ex.parentElementShifts.begin(),ex.parentElementShifts.end(),SIZE_MAX);
+
+	    tbb::enumerable_thread_specific<ChildToParentData> partial_data(ex);
+
+
+	    std::cout<<"found "<<m_activeHoCones[level].values().size()<<" vs "<<totalNumParentEls<<" pH= "<<pH<<" "<<N_for_H(pH,1)<<std::endl;
+	    
+			
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0,m_activeHoCones[level].values().size()), [&](tbb::blocked_range<size_t> r) {
+	
+		PointArray cart_pnts(DIM,hoChebNodes.cols());
+		PointArray tmp(DIM,hoChebNodes.cols());
+		PointArray transformed(DIM,hoChebNodes.cols());
+	    
+		std::vector<size_t> coneIds(hoChebNodes.cols());
+		PointArray transformedPnts(DIM,hoChebNodes.cols());
+		Point tmp2;
+
+		auto& data=partial_data.local();
+
+
+		size_t dirIdx=data.directionShifts.size()-1;
+		size_t globalPntIdx=data.points.cols();
+		size_t totalPntCount=data.points.cols();
+
+
+		for(size_t iter=r.begin();iter<r.end();iter++) {
+		    size_t pEl=m_activeHoCones[level].values()[iter];
+
+		    data.directionShifts.resize(data.directionShifts.size()+N_Children);
+
+		    data.parentElementShifts[2*pEl]=dirIdx; //store where the direction for the current element begins
+		    data.parentElementShifts[2*pEl+1]=0;//cartPntIdx;
+
+		    data.points.conservativeResize(DIM,std::max((size_t) data.points.cols(),globalPntIdx+N_Children*hoChebNodes.cols()));
+		    data.cart_pnts.conservativeResize(DIM,std::max((size_t) data.cart_pnts.cols(),globalPntIdx+N_Children*hoChebNodes.cols()));
+		    data.point_ids.reserve(data.points.cols());
+		    data.directionForPoint.reserve(data.points.cols());
+
+		    tmp=parentDomain.transform(pEl,hoChebNodes);
+		    cart_pnts=Util::interpToCart<DIM>(tmp.array(),parent_center,pH);
+		
+		    size_t parentElShift=0;
+		    
+		    //Go through the different cases of parent/child boxes
+		    for(int parentId=0;parentId<N_Children;parentId++) { 
+			const int cube_corner=parentId;
+			Eigen::Vector<double,DIM> d;
+			for(int j=0;j<DIM;j++) {
+			    bool flag=cube_corner & (1<<j);
+			    d[j]= flag ? 0.5: -0.5;		    
+			}
+
+	       		
+			ConeDomain<DIM> childDomain(numChildEls, interp_box);
+
+			Point center=parent_center+d*H;
+
+			assert(Util::calculateFingerprint<DIM>(center,parent_center,H)==parentId);
+
+			size_t pnt_id=0;
+			coneIds.resize(hoChebNodes.cols());
+       
+			//Transfer to the interpolation domain relative to the child box
+			Util::cartToInterp2<DIM>(cart_pnts.array(),center,H,transformed);
+
+			for(size_t l=0;l<transformed.cols();l++)  {
+			    const size_t el=childDomain.elementForPoint(transformed.col(l));			    
+			    //std::cout<<"el="<<el<<std::endl;
+			    assert(el!=SIZE_MAX); //shoudln't happen for Helmholtz
+			    if(el<SIZE_MAX) {
+				coneIds[pnt_id]=el;
+				transformedPnts.col(pnt_id)=childDomain.transformBackwards(el,transformed.col(l));
+				pnt_id++;
+			    }	       
+				
+			}
+			size_t pointsInDirection=pnt_id;
+			size_t basePoint=totalPntCount;
+			totalPntCount+=pointsInDirection;
+			//std::cout<<"sizes="<<pointsInDirection<<" vs "<<coneIds.size()<<" vs "<<hoChebNodes.cols()<<std::endl;
+			
+			coneIds.resize(pointsInDirection);
+
+
+		
+			auto permutation=Util::sort_with_permutation(coneIds.begin(),coneIds.end(), std::less<size_t>());
+			
+			Util::copy_with_permutation_colwise<PointScalar,DIM>(transformedPnts.array().leftCols(pointsInDirection),
+									     permutation,tmp.leftCols(pointsInDirection));
+			data.points.middleCols(basePoint,pointsInDirection)=tmp;
+			Util::copy_with_permutation_colwise<PointScalar,DIM>(cart_pnts.array().leftCols(pointsInDirection),
+									     permutation,data.cart_pnts.middleCols(basePoint,pointsInDirection));
+
+
+			
+		
+			size_t idx=0;
+			size_t cone=0;
+			while(idx<pointsInDirection) {
+			    size_t real_id=permutation[idx];
+			    size_t oldCone=coneIds[real_id];			    
+
+			    //seek until the child cone changes
+			    for(;idx<pointsInDirection;idx++) {
+				if(coneIds[permutation[idx]]!=oldCone) {
+				    break;
+				}
+				data.point_ids.push_back(permutation[idx]);
+				data.directionForPoint.push_back(parentId);
+			    }
+
+			    //std::cout<<"pusing"<<oldCone<<" "<<basePoint<<" "<<idx<<std::endl;
+			    data.fineElementInfo.push_back(oldCone);
+			    data.fineElementInfo.push_back(basePoint+idx);
+
+
+
+			    cone++;
+			}
+			assert(data.point_ids.size()==totalPntCount);
+		    
+			    
+			globalPntIdx+=pointsInDirection;
+			
+			data.directionShifts[dirIdx+1]=data.directionShifts[dirIdx]+cone;
+			dirIdx++;
+
+		    }
+		    //dirIdx+=N_Children;
+		    data.points.resize(DIM,totalPntCount); 
+		    data.fineElementInfo.shrink_to_fit();
+
+
+		    data.is_valid=31415;
+		    //dataList.push_back(data);		    		    
+		}
+	    });
+
+
+	    std::cout<<"adding partial data ";
+	    for(auto& data : partial_data) {
+		std::cout<<m_childToParent[level].size()<<"..";
+		m_childToParent[level].push_back(data);
+	    }
+	    std::cout<<"\n";
+	    
+	}
+		
+
+    }
+
+
+
+
 private:
 
     template<typename T2,int DIM2>
@@ -1243,6 +1465,33 @@ private:
     std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield 
     std::vector<unsigned int> m_numBoxes;
     std::vector<unsigned int> m_numLeafCones;
+
+
+    struct ChildToParentData {
+	ChildToParentData() {
+
+	    is_valid=0;
+	}
+	std::vector<size_t > parentElementShifts; // even numbers: direction, odd numbers: cartesion pnts
+	std::vector<size_t> directionShifts;
+	std::vector<size_t > fineElementInfo;
+
+	std::vector<size_t> directionForPoint;
+	std::vector<size_t > point_ids;
+	PointArray points;
+
+	PointArray cart_pnts;
+	
+	int is_valid;
+    };
+    
+
+    std::vector< std::vector<ChildToParentData> > m_childToParent;
+
+
+
+    std::vector< IndexSet > m_activeHoCones;
+
 
     unsigned int m_levels;
 
@@ -1259,12 +1508,253 @@ private:
 };
 
 
+template<typename T,int DIM>
+class SyclChildToParentData {
+public:
+    SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data):
+	points(data.points),
+	parentElementShifts(data.parentElementShifts),
+	directionShifts((data.directionShifts)),
+	fineElementInfo((data.fineElementInfo)),
+	point_ids((data.point_ids)),
+	directionForPoint(data.directionForPoint),
+	cart_pnts(data.cart_pnts),
+	is_valid(data.is_valid)
+    {
+
+    }
+
+
+    struct ConeData {
+	size_t id;
+	IndexRange pnts;	    
+    };
+
+    class Accessor;
+    class CtpChildConeIterator
+    {
+	using iterator_category = std::forward_iterator_tag;
+	using difference_type   = std::ptrdiff_t;
+	using value_type        = ConeData;
+	using pointer           = ConeData*;  // or also value_type*
+	using reference         = ConeData&;  // or also value_type&
+    public:
+	CtpChildConeIterator( const SyclChildToParentData<T,DIM>::Accessor* acc,size_t cur) :
+	    m_acc(acc),
+	    m_cur(cur)
+	{
+
+	}
+
+
+	
+	value_type operator*() const {
+	    ConeData data;
+	    data.id=m_acc->fineElementInfo(m_cur,0);
+	    if(m_cur==0) {
+		data.pnts.first=0;
+	    }else {
+		data.pnts.first=m_acc->fineElementInfo(m_cur-1,1);
+	    }
+		
+	    data.pnts.second=m_acc->fineElementInfo(m_cur,1);
+		
+	    return data;
+	}
+
+	size_t cur() {
+	    return m_cur;
+	}
+
+	// Prefix increment
+	CtpChildConeIterator& operator++() { m_cur++; return *this; }  
+
+	// Postfix increment
+	CtpChildConeIterator operator++(int) { CtpChildConeIterator tmp = *this; ++(*this); return tmp; }
+
+	friend bool operator== (const CtpChildConeIterator& a, const CtpChildConeIterator& b) { return a.m_cur == b.m_cur; };
+	friend bool operator!= (const CtpChildConeIterator& a, const CtpChildConeIterator& b) { return a.m_cur != b.m_cur; };     
+
+
+
+    private:
+	size_t m_cur;
+	const SyclChildToParentData<T,DIM>::Accessor* m_acc;
+    };
+    
+    
+
+
+    class Accessor {
+    public:
+	Accessor(SyclChildToParentData& data,sycl::handler& h):
+	    m_points(data.points,h),
+	    m_parentElementShifts(data.parentElementShifts,h),
+	    m_directionShifts(data.directionShifts,h),
+	    m_fineElementInfo(data.fineElementInfo,h),
+	    m_point_ids(data.point_ids,h),
+	    m_directionForPoint(data.directionForPoint,h),
+	    m_cart_pnts(data.cart_pnts,h),
+	    m_is_valid(data.is_valid)
+	{
+
+	}
+
+	Accessor()
+	{
+
+	}
+
+	class ChildConeRange {
+	public:
+	    ChildConeRange(size_t elId,int direction,const Accessor* acc) :
+		m_elId(elId),
+		m_dir(direction),
+		m_acc(acc)
+	    {
+
+	    }
+
+	    auto begin() const {
+		size_t idx=m_acc->parentElementShift(m_elId,0)+m_dir;
+		return CtpChildConeIterator(m_acc,m_acc->directionShifts(idx));
+	    }
+
+	    auto end() const {
+		size_t idx=m_acc->parentElementShift(m_elId,0)+m_dir;
+		return CtpChildConeIterator(m_acc,m_acc->directionShifts(idx+1));
+	    }
+
+
+	private:
+	    size_t m_elId;
+	    int m_dir;
+	    const Accessor* m_acc;
+	};
+
+	ChildConeRange childCones(size_t elId,size_t direction) const{
+	    return ChildConeRange(elId, direction,this);
+	}
+
+	size_t directionShifts(size_t direction) const {
+	    return m_directionShifts[direction];
+	}
+
+
+	size_t parentElementShift(size_t pEl,int type) const {
+	    return m_parentElementShifts[2*pEl+type];
+	}
+
+	size_t fineElementInfo(size_t id, int type) const {
+	    return m_fineElementInfo[2*id+type];
+	}
+
+
+	inline sycl::marray<PointScalar, DIM> point(size_t idx) const {
+	    sycl::marray<PointScalar, DIM> pnt;
+	    for(int i=0;i<DIM;i++) {
+		pnt[i]=m_points[DIM*idx+i];
+	    }
+	    
+	    return pnt;
+	}
+
+	inline sycl::marray<PointScalar, DIM> cart_point(size_t idx) const {
+	    sycl::marray<PointScalar, DIM> pnt;
+	    for(int i=0;i<DIM;i++) {
+		pnt[i]=m_cart_pnts[DIM*idx+i];
+	    }
+	    
+	    return pnt;
+	}
+
+		inline sycl::marray<PointScalar, DIM> cart_point(size_t pEl,size_t idx) const {
+	    sycl::marray<PointScalar, DIM> pnt;
+	    for(int i=0;i<DIM;i++) {
+		pnt[i]=m_cart_pnts[DIM*parentElementShift(pEl,1)+DIM*idx+i];
+	    }
+	    
+	    return pnt;
+	}
+	
+	inline size_t directionForPoint(size_t pntId) const {
+	    return m_directionForPoint[pntId];
+	}
+
+
+
+	inline 	size_t realPointId (size_t pointId)  const {
+	    return m_point_ids[pointId];
+	}
+
+	inline 	size_t numPoints() const {
+	    return m_points.size()/DIM;
+	}
+
+	inline 	size_t numDirections() const {
+	    return  m_directionShifts.size();
+	}
+
+
+	inline const sycl::accessor< PointScalar,1,sycl::access_mode::read>& points() const {
+	    return m_points;
+	};
+
+    private:
+
+	sycl::accessor< PointScalar,1,sycl::access_mode::read> m_points;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_parentElementShifts;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_directionShifts;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_fineElementInfo;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_point_ids;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_directionForPoint;
+	sycl::accessor< PointScalar,1,sycl::access_mode::read> m_cart_pnts;
+	int m_is_valid;
+
+    };
+
+    
+
+
+
+
+    Accessor accessor(sycl::handler& h)
+    {
+	return Accessor(*this,h);	
+    }
+
+
+    size_t numPoints() const {
+	return points.size()/DIM;
+    }
+    
+    size_t numDirections() const {
+	return  directionShifts.size();
+    }
+
+
+    
+private:
+    sycl::buffer<size_t,1> parentElementShifts;
+    sycl::buffer<size_t,1> directionShifts;
+    sycl::buffer<size_t,1 > fineElementInfo;
+    
+
+    sycl::buffer<size_t,1 > point_ids;
+    sycl::buffer<size_t,1 > directionForPoint;
+    sycl::buffer<PointScalar,1> points;
+    sycl::buffer<PointScalar,1> cart_pnts;
+    int is_valid;
+};
+
+
+template <typename T, size_t DIM>
+struct sycl::is_device_copyable<SyclChildToParentData<T,DIM> > : std::true_type {};
 
 
 template<typename T,int DIM>
 class OctreeLevelData
 {
-
 public:
     OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
     points_start(octree.numBoxes(level)),
@@ -1288,7 +1778,8 @@ public:
     activeCones(activeCones_vec),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     childBoxes(octree.numChildBoxes(level)),
-    childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
+    childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level)),
+    m_ctpData_vec(std::move(octree.m_childToParent[level]))
     {
 	std::cout<<"creating ocdata"<<level<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
@@ -1345,7 +1836,13 @@ public:
 	    m_numActiveCones[i]=octree.numActiveCones(level,i);
 	}
 
+
 	//std::cout<<"done"<<std::endl;
+
+	m_ctpData.reserve(octree.m_childToParent[level].size());
+	for(const auto& data : m_ctpData_vec) {
+	    m_ctpData.push_back(std::make_unique<SyclChildToParentData<T,DIM> >(data));
+	}
 
     }
   
@@ -1372,7 +1869,8 @@ public:
 	    childrenPerBox(data.childrenPerBox)
 	{
 	    coneDomains0=sycl::accessor(data.coneDomains0,h);
-	    coneDomains1=sycl::accessor(data.coneDomains1,h);	    
+	    coneDomains1=sycl::accessor(data.coneDomains1,h);
+	    
 
 	}
 
@@ -1452,7 +1950,6 @@ public:
 	    return coneMap.find(box,el);
 	}
 
-	
 	const inline  auto children(size_t boxId) const
 	{
 	    const size_t start=boxId*childrenPerBox;
@@ -1460,7 +1957,6 @@ public:
 	    
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(childBoxes.cbegin()+start,childBoxes.cbegin()+end);
 	}
-
 
     private:
 	//far field boxes
@@ -1500,8 +1996,14 @@ public:
 
 	sycl::accessor< size_t ,1,sycl::access_mode::read> childBoxes;
 	size_t childrenPerBox;
+
 	
     };
+
+
+    ConeRef activeCone(size_t index) {
+	return activeCones_vec[index];
+    }
 
 
     Accessor accessor(sycl::handler& h)
@@ -1510,10 +2012,21 @@ public:
     }
 
 
+    typename SyclChildToParentData<T,DIM>::Accessor  childToParent(size_t idx,sycl::handler& h) {
+	return m_ctpData[idx]->accessor(h);
+    }
+
+    size_t numCtpSlices() {
+	return m_ctpData_vec.size();
+    }
+
     size_t numLeafCones() {
 	return leafCones.size();
     }
 
+    size_t numPointsInSlice(size_t idx) {
+	return m_ctpData[idx]->numPoints();
+    }
 
     size_t numActiveCones(int step) {
 	
@@ -1567,6 +2080,10 @@ private:
     size_t childrenPerBox;
 
     std::array<size_t, N_STEPS> m_numActiveCones;
+
+
+    std::vector<typename Octree<T,DIM>::ChildToParentData > m_ctpData_vec;
+    std::vector<std::unique_ptr<SyclChildToParentData<T,DIM> > > m_ctpData;
 
 };
 
@@ -1653,6 +2170,9 @@ public:
 	return m_data[level]->numActiveCones(step);
     }
 
+
+
+    
 
 
 private:

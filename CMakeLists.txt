@@ -17,8 +17,9 @@ project(ifgf CXX)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE "-march=native  -O3 -funroll-loops  -UUSE_NGSOLVE -flto=auto -fsycl -fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
-string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O2  -flto=auto -O  -fsycl -fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
+#set(SYCL_PARAMS "-fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE "-march=native  -O3 -funroll-loops  -UUSE_NGSOLVE -flto=auto -fsycl ${SYCL_PARAMS}")
+string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O2  -flto=auto -O  -fsycl ${SYCL_PARAMS}")
 string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0  -flto=auto")
 #add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE   )
 

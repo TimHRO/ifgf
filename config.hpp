@@ -1,15 +1,13 @@
 #ifndef __IFGF_CONFIG_HPP
 #define __IFGF_CONFIG_HPP
 
-#define MIN_RECURSIVE_BOXES 32
 
-
-#define PointScalar double
+typedef  double PointScalar ;
 typedef double  RealScalar;
-//#define  RECURSIVE_MULT
-//#define CHECK_CONNECTIVITY
-//#define BE_FAST
+typedef double ExtendedScalar;
 
+#define FAST_CTP
+//#define DEBUG_CTP
 #define USE_FAST_HASH
 
 // #define INITIALIZE_BY_ZERO

@@ -287,7 +287,7 @@ namespace SyclChebychevInterpolation
 	const int DIMOUT=1;
 	const unsigned int packageSize = 1 << package;
 	const size_t np = n_points / packageSize;
-	n_points = n_points % packageSize;
+	n_points = n_points -np*packageSize;
 	
 	SyclRowMatrix<PointScalar,DIM,packageSize> tmp;
 
@@ -340,7 +340,7 @@ namespace SyclChebychevInterpolation
 	const int DIMOUT=1;
 	const unsigned int packageSize = 1 << package;
 	const size_t np = n_points / packageSize;
-	n_points = n_points % packageSize;
+	n_points = n_points - np*packageSize;
 	
 	SyclRowMatrix<PointScalar,DIM,packageSize> tmp;
 
