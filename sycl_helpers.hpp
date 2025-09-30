@@ -7,16 +7,68 @@
 #include <sycl/sycl.hpp>
 
 
+// template <typename T, int ROWS, int COLS>
+// class SyclRowMatrix : public std::array<sycl::marray<T, COLS>, ROWS>
+// {
+// public:
+//     SyclRowMatrix()
+//     {
+// #ifdef INITIALIZE_BY_ZERO	
+// 	for(int i=0;i<ROWS;i++) {
+// 	    for(int j=0;j<COLS;j++){
+// 		row(i)[j]=0;
+// 	    }
+// 	}
+// #endif
+
+//     }
+
+
+//     SyclRowMatrix(const sycl::marray<T,ROWS>& data)
+//     {
+// 	static_assert(COLS==1);
+// 	for(int i=0;i<ROWS;i++) {
+// 	    (*this)[i][0]=data[i];
+// 	}
+//     }
+
+//     SyclRowMatrix(std::array<sycl::marray<T,COLS>,ROWS> & data)
+//     {
+// 	for(int i=0;i<ROWS;i++) {
+// 	    row(i)=data[i];
+// 	}
+//     }
+
+//     const T& operator()(int i,int j)  const {
+// 	return (*this)[i][j];
+//     }
+
+//     T& operator()(int i,int j) {
+// 	return (*this)[i][j];
+//     }
+
+
+//     const sycl::marray<T,COLS>& row(int i) const {
+// 	return (*this)[i];
+//     }
+
+//     sycl::marray<T,COLS>& row(int i) {
+// 	return (*this)[i];
+//     }
+// };
+
+
+
 template <typename T, int ROWS, int COLS>
-class SyclRowMatrix : public std::array<sycl::marray<T, COLS>, ROWS>
+class SyclRowMatrix : public sycl::marray<T, ROWS*COLS>
 {
 public:
     SyclRowMatrix()
     {
-#ifdef INITIALIZE_BY_ZERO	
-	for(int i=0;i<ROWS;i++) {
-	    for(int j=0;j<COLS;j++){
-		row(i)[j]=0;
+#ifdef INITIALIZE_BY_ZERO
+	for(int j=0;j<COLS;j++){
+	    for(int i=0;i<ROWS;i++) {		
+		(*this)[j*ROWS+i]=0;
 	    }
 	}
 #endif
@@ -28,35 +80,46 @@ public:
     {
 	static_assert(COLS==1);
 	for(int i=0;i<ROWS;i++) {
-	    (*this)[i][0]=data[i];
+	    (*this)[i]=data[i];
 	}
     }
 
     SyclRowMatrix(std::array<sycl::marray<T,COLS>,ROWS> & data)
     {
-	for(int i=0;i<ROWS;i++) {
-	    row(i)=data[i];
+	for(int j=0;j<COLS;j++) {
+	    for(int i=0;i<ROWS;i++) {
+		(*this)[j*ROWS+i]=data[i][j];
+	    }
 	}
     }
 
-    const T& operator()(int i,int j)  const {
-	return (*this)[i][j];
+    inline const T& operator()(int i,int j)  const {
+	return (*this)[j*ROWS+i];
     }
 
-    T& operator()(int i,int j) {
-	return (*this)[i][j];
+    inline T& operator()(int i,int j) {
+	return (*this)[j*ROWS+i];
     }
 
 
-    const sycl::marray<T,COLS>& row(int i) const {
-	return (*this)[i];
+    inline const sycl::marray<T,COLS> row(int i) const {
+	if constexpr(COLS==1) {
+	    return (*this)[i];
+	}
+	
+	sycl::marray<T,COLS> row;
+	for(int j=0;j<COLS;j++) {
+	    row[j]=(*this)(i,j);
+	}
+	return row;
     }
 
+    
     sycl::marray<T,COLS>& row(int i) {
-	return (*this)[i];
+	static_assert(false);
     }
-};
 
+};
 
 
 

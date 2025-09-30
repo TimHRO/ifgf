@@ -266,7 +266,7 @@ namespace Util
 
 
     template <int DIM,typename VecType>
-    int calculateFingerprint(const VecType& xc,const VecType& pxc, PointScalar H) {	
+    inline int calculateFingerprint(const VecType& xc,const VecType& pxc, PointScalar H) {	
 	int fingerprint=0;
 	auto diff=(xc-pxc)/(H);
 	for(int l=0;l<DIM;l++) {

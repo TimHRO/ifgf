@@ -150,6 +150,7 @@ public:
  	case 6:  return mult_impl<6>(weights);
 	case 7:  
 	case 8:  return mult_impl<8>(weights);
+	case 10:  return mult_impl<10>(weights);
 	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
 	}
 	
@@ -600,6 +601,7 @@ public:
 		const size_t nT=m_octree->targetPoints().cols();
 		h.parallel_for(sycl::range<1>{nT}, [=](auto it)
 		{
+		    
 		    for( size_t boxId : srcDataAcc.farfieldBoxes(it) ){
 			auto grid=srcDataAcc.coneDomain(boxId,0);
 			auto center = srcDataAcc.boxCenter(boxId);
@@ -675,7 +677,7 @@ public:
 	    parentData = m_octree->data(level-1);//std::make_unique< OctreeLevelData<T,DIM> >(*m_octree,level-1);
 
 #ifdef  FAST_CTP
-	    const bool use_fast_ctp=level>2;//level>3;
+	    const bool use_fast_ctp=level>3;//level>3;
 #else
 	    const bool use_fast_ctp=false;
 #endif
@@ -699,21 +701,21 @@ public:
 
 		    sycl::buffer<T,1> b_transfer_factors(numPoints);
 
-		    sycl::buffer<size_t,1> b_used_pnts(numPoints);
+		    /*		    sycl::buffer<size_t,1> b_used_pnts(numPoints);
 		    {
 			sycl::host_accessor acc(b_used_pnts);
 			std::fill(acc.begin(),acc.end(),0);
-		    }
+			}*/
 		
 
 		    for(int slice=0;slice<srcData->numCtpSlices();slice++) {		    
 			Q.submit([&](sycl::handler& h) {
-
+			    
 			    sycl::accessor transfer_factors(b_transfer_factors, h, sycl::read_write);
 			    sycl::accessor shifts(b_tf_shifts, h, sycl::read_only);
 
 
-			    sycl::accessor up(b_used_pnts, h, sycl::read_write);
+			    //			    sycl::accessor up(b_used_pnts, h, sycl::read_write);
 
 			
 			    auto ctpData=srcData->childToParent(slice,h);
@@ -756,13 +758,6 @@ public:
 		    }
 
 		    Q.wait();
-		    {
-			sycl::host_accessor acc(b_used_pnts);
-			for(int i=0;i<b_used_pnts.size();i++) {
-			    //assert(acc[i]==1);
-			}
-		    }
-
 
 		    Q.submit([&](sycl::handler& h){
 			sycl::accessor a_parentIntData(*parentInterpolationDataBuffer, h, sycl::read_write);		    
@@ -840,23 +835,11 @@ public:
 			    if( ! parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)){ //we dont need the interpolation info for those levels.
 				return;
 			    }
-
-
-
-			    sycl::marray<PointScalar,DIM> pnt;
-			    sycl::marray<PointScalar,DIM> cart_pnt;
-			    sycl::marray<PointScalar,DIM> pnt2;
-		    
 		
 			    for(size_t childBox : parentDataAcc.children(parentBoxId)) {
 				if(childBox==SIZE_MAX) {
 				    continue;
 				}
-#ifdef DEBUG_CTP
-				sycl::marray<int,500> pointsUsed;
-				std::fill(pointsUsed.begin(),pointsUsed.end(),0);
-
-#endif
 				auto center = srcDataAcc.boxCenter(childBox);
 				PointScalar H = srcDataAcc.boxSize(childBox);
 				const auto grid=srcDataAcc.coneDomain(childBox,0);
@@ -865,106 +848,31 @@ public:
 
 
 				for(const auto& data : ctpData[ctpIdx].childCones(elId,direction) ) {			
-
-#ifdef DEBUG_CTP
-				    for(size_t pntId=data.pnts.first;pntId<data.pnts.second;pntId++) {
-					pnt=ctpData[ctpIdx].point(pntId);
-					cart_pnt=ctpData[ctpIdx].cart_point(elId,ctpData[ctpIdx].realPointId(pntId));
-					//compare to actual values.....
-					{
-					    sycl::marray<PointScalar,DIM> pnt2;
-					    sycl::marray<PointScalar,DIM> cart_pnt2;
-					    sycl::marray<PointScalar,DIM> pnt3;
-					    pGrid.transform(parentCone.id(),a_hoChebNodes,pnt2,ctpData[ctpIdx].realPointId(pntId));
-					    Util::interpToCart(pnt2,cart_pnt2,parent_center,pH);
-					    Util::cartToInterp(cart_pnt2,pnt3,center,H);
-					    const size_t el2=grid.elementForPoint(pnt3);
-					    grid.transformBackwards(el2,pnt3,pnt2);
-
-				    
-					    PointScalar len=sycl::length(pnt-pnt2);
-					    PointScalar len2=sycl::length(cart_pnt-cart_pnt2);
-
-
-
-
-					    assert(el2<SIZE_MAX); //we used to cutoff targets like that
-
-
-				    
-
-				    
-					    //assert(len<1e-3 );
-					    //assert(len2<1e-5 );
-					    assert(el2==data.id);
-
-				    
-				    
-
-					}
-				    }
-#endif
-
-
-
 				    const size_t memId=srcDataAcc.memId(childBox,data.id);
 				    assert(memId < SIZE_MAX);
-#ifdef DEBUG_CTP
-				    for(size_t pntId=data.pnts.first;pntId<data.pnts.second;pntId++) {
-
-					SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
-					const size_t offset=lo_stride*memId;
-				
-
-					pnt=ctpData[ctpIdx].point(pntId);
-					//TODO: remove me
-					sycl::marray<PointScalar,DIM> pnt2;
-					sycl::marray<PointScalar,DIM> cart_pnt2;
-					sycl::marray<PointScalar,DIM> pnt3;
-					pGrid.transform(parentCone.id(),a_hoChebNodes,pnt2,ctpData[ctpIdx].realPointId(pntId));
-					Util::interpToCart(pnt2,cart_pnt2,parent_center,pH);
-					Util::cartToInterp(cart_pnt2,pnt3,center,H);
-					const size_t el2=grid.elementForPoint(pnt3);
-					grid.transformBackwards(el2,pnt3,pnt2);
-					pnt=pnt2;
-					//end of remove me
-
-					T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH); //a_transfer_factors[a_tf_shifts[ctpIdx]+pntId];//
-
-					//sycl::marray<PointScalar,DIM> pnt3;
-					grid.transform(data.id,pnt,pnt3);
-					Util::interpToCart(pnt3,cart_pnt,center,H);
-					//cart_pnt=ctpData[ctpIdx].cart_point(elId,ctpData[ctpIdx].realPointId(pntId));
-					T TF2=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
-					//assert(abs(TF-TF2)<1e-5);
-
-
-					T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
-				
-					pointsUsed[ctpData[ctpIdx].realPointId(pntId)]++;
-					//a_parentIntData[i*stride+j]+=res*TF;
-					a_parentIntData[it*stride+ctpData[ctpIdx].realPointId(pntId)]+=res*TF;
-			    
-				    }
-#else
-				    //TODO optimize to get rid of this loop?
+				    
 				    const size_t offset=lo_stride*memId;
 
-				    const int packageSize=8;
+				    constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-2,1);
+				    sycl::marray<T, (MAX_LOW_ORDER*MAX_LOW_ORDER*MAX_LOW_ORDER)> val_cache;
+				    for(int i=0;i<lo_stride;i++) {
+					val_cache[i]=a_intData[i+offset];
+				    }
+
+
+				    const int packageSize=4;
 				    SyclChebychevInterpolation::ClenshawEvaluator<T, packageSize,  DIM,DIM, DIMOUT> clenshaw;
 				    size_t pnt=data.pnts.first;
 				    SyclRowMatrix<PointScalar,DIM,packageSize> tmp;
 				    while(pnt<data.pnts.second) {
-					const size_t  next=pnt+packageSize;
-					if(next<data.pnts.second){					    
-					    break;
-					}
 					for(int l=0;l<packageSize && pnt+l<data.pnts.second;l++) { //TODO:more efficient way?
 					    for(int k=0;k<DIM;k++) {
 						tmp(k,l)=ctpData[ctpIdx].points()[(pnt+l)*DIM+k];
 					    }
 					}
-					const auto& result=clenshaw(tmp,a_intData,ns,offset);
+					//std::copy(tmp.begin(),ctpData[ctpIdx].points().begin()+pnt,ctpData[ctpIdx].points().begin()+pnt+std::min(packageSize,(int) (data.pnts.second-pnt)));
+					//const SyclRowMatrix<PointScalar,DIM,packageSize>& tmp=*(reinterpret_cast<SyclRowMatrix<PointScalar,DIM,packageSize>  *>(ctpData[ctpIdx].points().template get_multi_ptr<sycl::access::decorated::no>()));
+					const auto& result=clenshaw(tmp,val_cache,ns,0); //a_intData, offset
 				
 					for(size_t l=0;l<packageSize && pnt+l<data.pnts.second;l++) {
 					    size_t pntId=pnt+l;
@@ -973,24 +881,9 @@ public:
 					
 					}
 
-					pnt=next;
-
-					
+					pnt+=packageSize;
 				    }
-				    for(size_t pntId=pnt;pntId<data.pnts.second;pntId++) {
-				      SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
-				      const size_t offset=lo_stride*memId;
-				      sycl::marray<PointScalar,DIM> pnt=ctpData[ctpIdx].point(pntId);
-				      T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
-				
-				      T TF=a_transfer_factors[a_tf_shifts[ctpIdx]+pntId];//functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
-
 				    
-				      //a_parentIntData[i*stride+j]+=res*TF;
-				      a_parentIntData[it*stride+ctpData[ctpIdx].realPointId(pntId)]+=res*TF;
-			    
-				    }
-
 				    
 				
 				    /*for(size_t pntId=data.pnts.first;pntId<data.pnts.second;pntId++) {
@@ -1008,17 +901,9 @@ public:
 			    
 				      }*/
 
-#endif				
 
 				
 				}
-#ifdef DEBUG_CTP
-				//out<<"checking\n";
-				for(int l=0;l<stride;l++) {
-				    assert(pointsUsed[l]==1);
-				}
-#endif
-
 			    }
 
 

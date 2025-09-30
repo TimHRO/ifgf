@@ -418,7 +418,7 @@ namespace SyclChebychevInterpolation
 	    std::array<int,1> mn;
 	    mn[0]=ns[0];
 	    for(int i=0;i<nps[0];i++) {
-		mp[0][0]=points[pnt_offset+i];
+		mp(0,0)=points[pnt_offset+i];
 
 		 // T val=0;
 		 // for(int sigma=0;sigma<ns[0];sigma++) {
