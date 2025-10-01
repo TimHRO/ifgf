@@ -1303,7 +1303,10 @@ private:
 
 
 	    std::cout<<"found "<<m_activeHoCones[level].values().size()<<" vs "<<totalNumParentEls<<" pH= "<<pH<<" "<<N_for_H(pH,1)<<std::endl;
-	    
+
+	    int max_cones=0;
+	    int min_cones=10000;
+	    int avg_cones=0;
 			
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0,m_activeHoCones[level].values().size()), [&](tbb::blocked_range<size_t> r) {
 	
@@ -1395,7 +1398,7 @@ private:
 			
 		
 			size_t idx=0;
-			size_t cone=0;
+			size_t cone=0;			
 			while(idx<pointsInDirection) {
 			    size_t real_id=permutation[idx];
 			    size_t oldCone=coneIds[real_id];			    
@@ -1417,6 +1420,14 @@ private:
 
 			    cone++;
 			}
+			max_cones=std::max(max_cones,(int) cone);
+			min_cones=std::min(min_cones,(int) cone);
+			avg_cones+=cone;
+
+			 
+			 
+
+
 			assert(data.point_ids.size()==totalPntCount);
 		    
 			    
@@ -1435,6 +1446,8 @@ private:
 		    //dataList.push_back(data);		    		    
 		}
 	    });
+
+	    std::cout<<"maxC="<<max_cones<<" min "<<min_cones<<" "<<avg_cones/(std::max((int) m_activeHoCones[level].values().size()*N_Children,1))<<std::endl;
 
 
 	    std::cout<<"adding partial data ";

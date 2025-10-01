@@ -137,7 +137,7 @@ class QueueSingleton
     private:
         QueueSingleton() {
             std::cout<<"Building a new Queue"<<std::endl;
-            Q=std::make_unique<sycl::queue>(sycl::default_selector_v);
+            Q=std::make_unique<sycl::queue>(sycl::default_selector_v,sycl::property::queue::enable_profiling{});
             //const auto &device = Q.get_device();
             std::cout << "Running on: "
               << Q->get_device().get_info<sycl::info::device::name>()

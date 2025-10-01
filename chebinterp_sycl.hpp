@@ -225,6 +225,7 @@ namespace SyclChebychevInterpolation
 		stride*=ns[i];
 		
 
+	    const auto& xr=x.row(DIM-1);
 	    ClenshawEvaluator<T, POINTS_AT_COMPILE_TIME, std::max(DIM-1,1), DIM_X,DIMOUT,Ns...> clenshaw;
 	    if(Nd<=2) {
 		const sycl::marray<T,POINTS_AT_COMPILE_TIME>& c0=clenshaw(x,
@@ -238,7 +239,7 @@ namespace SyclChebychevInterpolation
 				vals,
 				ns,offset+stride); //offset=stride i.e., shifted by 1 package
 
-		    result=b1*(x.row(DIM-1));
+		    result=b1*(xr);
 		    result+=c0;
 		    return result;
 		}
@@ -254,7 +255,7 @@ namespace SyclChebychevInterpolation
                                     ns,(Nd-2)*stride+offset); //second to last package
 
 
-	    b1=2.*b2*x.row(DIM-1)+cn2;
+	    b1=2.*b2*xr+cn2;
 
 	    const auto& c0=clenshaw(x,
 			     vals,
@@ -263,13 +264,13 @@ namespace SyclChebychevInterpolation
 		tmp= clenshaw(x,
 			      vals,
 			      ns,j*stride+offset); //offset=j*stride
-		tmp+=(2.*(b1*x.row(DIM-1))-b2);
+		tmp+=(2.*(b1*xr)-b2);
 		b2=b1;
 		b1=tmp;
 		
 	    }
 
-	    return (b1*x.row(DIM-1)-b2) + c0;
+	    return (b1*xr-b2) + c0;
 
 	}
     }

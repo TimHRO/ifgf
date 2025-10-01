@@ -116,7 +116,7 @@ int main()
     normals.colwise().normalize();
 
 
-    for(int j=0;j<2;j++) {
+    for(int j=0;j<1;j++) {
 	//ModifiedHelmholtzIfgfOperator<dim> op(kappa,300,8,2,-1.,-1.,-1.); //3
 	HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
 
@@ -137,7 +137,7 @@ int main()
     std::cout <<"init"<< time_span.count() << " seconds" << std::endl;
     //first one is not timed!
     result = op.mult(weights);
-    const int Nmult=1;
+    const int Nmult=3;
     for(int i=0;i<Nmult;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
@@ -145,7 +145,7 @@ int main()
     }
     high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
-    time_span = duration_cast<duration<PointScalar>>(t2 - t1);
+    time_span = duration_cast<duration<PointScalar>>(t2 - t12);
     std::cout << "mult time="<<time_span.count()/Nmult << " seconds" << std::endl;
 
     fedisableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
