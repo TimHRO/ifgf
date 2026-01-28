@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <memory>
+#include "Eigen/src/Core/util/Meta.h"
 #include "config.hpp"
 
 
@@ -15,6 +16,16 @@
 class ConeRef
 {
 public:
+    ConeRef():
+	m_level(0),
+	m_id(0),
+	m_memId(SIZE_MAX),
+	m_boxId(SIZE_MAX),
+	m_globalId(SIZE_MAX)
+    {
+	
+    }
+    
     ConeRef(size_t level, size_t id,size_t memId, size_t boxId,size_t globalId):
 	m_level(level),
 	m_id(id),
@@ -217,9 +228,9 @@ public:
 	return tmp;	    
     }
 
-    inline Eigen::Vector<size_t,DIM> indicesFromId(size_t j) const {
+    inline Eigen::Vector<size_t,DIM> indicesFromId(size_t j) const {	
 	Eigen::Vector<size_t,DIM> indices;	
-	for(int i=0;i<DIM;i++) {
+	for(int i=0;i<DIM;i++) {	    
 	    const size_t idx=j % m_numEls[i];
 	    j=j / m_numEls[i];
 	    
@@ -229,9 +240,11 @@ public:
 	return indices;
     }
 
-    inline size_t idFromIndices(const Eigen::Vector<size_t,DIM>& indices) const {
+
+        inline size_t idFromIndices(const Eigen::Vector<size_t,DIM>& indices) const {
 	size_t id;
 	size_t stride=1;
+
 	for(int i=0;i<DIM;i++) {
 	    id+=indices[i]*stride;
 	    stride*=m_numEls[i];
@@ -241,7 +254,33 @@ public:
 	return id;
     }
 
+    /*
+    inline size_t idFromIndices(const Eigen::Vector<size_t,DIM>& indices) const {
+	size_t id;
+	size_t stride=1;
 
+	level_diff0=DEEPEST_LEVEL-m_level[0];
+	level_diff1=DEEPEST_LEVEL-m_level[1];
+	level_diff2=DEEPEST_LEVEL-m_level[2];
+	
+
+	static_assert(DIM==3);
+	unsigned int x=indices[0] << level_diff0;
+	unsigned int y=indices[1] << level_diff1;
+	unsigned int z=indices[2] << level_diff2;
+	    
+
+	id=
+	for(int i=0;i<DIM;i++) {
+	    id+=indices[i]*stride;
+	    stride*=m_numEls[i];
+
+	}
+
+	return id;
+    }
+*/
+    
 
     BoundingBox<DIM> region(size_t j) const
     {
@@ -473,6 +512,7 @@ public:
 	return idx;
 
     }
+
 
 
 private:

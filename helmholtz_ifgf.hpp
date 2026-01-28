@@ -70,6 +70,8 @@ public:
     }
 
 
+
+
     template<typename TX>
     inline T CF(TX x) const
     {
@@ -78,7 +80,7 @@ public:
 	if(abs(d2)<1e-12) {
 	    return 0;
 	}
-	const RealScalar id=1./(sqrt(d2));
+	const RealScalar id=(sycl::rsqrt(d2));
 	const RealScalar d=d2*id;
 
 	
@@ -185,7 +187,7 @@ public:
 	    
 	    const auto d2 = x.squaredNorm();
 
-	    const auto id=1.0/(sqrt(d2));
+	    const auto id=rsqrt(d2);
 	    const auto d=d2*id;
 
 
@@ -280,7 +282,15 @@ public:
 	Eigen::Vector<int,dim> order=baseOrder;
 
 	if(step==0) {
-	    order=(baseOrder.array()-3).cwiseMax(1);
+	    //order=(order.array()-3).cwiseMax(1);//baseOrder;
+	    //order[1]/=2.0;
+	    //order[2]/=2.0;
+	    order=(order.array()-3).cwiseMax(1);//rder.fill(4);
+	    //order[0]=4;
+	    // order[1]=4;
+	    //order[2]=4;
+	    
+	    
 	}
 	
         return order;
@@ -291,8 +301,13 @@ public:
 	const auto orders=orderForBox(H,baseOrder,step);
 	Eigen::Vector<size_t,dim> els;
 
+	const double sizes[]={1., 2,4};
 	if(step==0){
 	    base*=4;
+	    //base[1]*=2;
+	    //base[2]*=4;
+	    
+	    
 	    //base[2]*=2;
 	}
 	    
@@ -301,7 +316,10 @@ public:
 	    PointScalar delta=std::max( k*H/2.,1.);
 	    
 
-	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
+	    
+	    els[i]=base[i]*delta;//std::max((size_t) ceil((k*H*sizes[i])*(2.0/baseOrder[i])),(size_t ) round(2*H));//std::max(base[i]*((int) ceil(delta)),(size_t) 1);
+
+	    //std::cout<<"els"<<i<<" "<<els[i]<<" "<<orders[i]<<std::endl;
 	}
 	    
 	return els;	    

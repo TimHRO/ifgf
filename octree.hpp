@@ -51,8 +51,18 @@ public:
 
     struct FieldInfo {
 	std::vector<size_t> indices;
+	std::vector<size_t> boxIndices;
 	std::vector<size_t> starts;
+	PointArray points;
     };
+
+    struct FarFieldInfo {
+	std::vector<size_t> memIds; //Which memIf of the fine cone am I looking at
+	std::vector<size_t> pointIds; //target point Ids which are in the far field of the current (fine) cone
+	std::vector<size_t> starts;  //at what index does a new cone start
+	
+    };
+
 
     class OctreeNode
     { 
@@ -767,9 +777,9 @@ public:
 
 
 	    //compute the farFieldBoxes
-	    m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
+	    m_farFieldBoxes[level]=computeFarFieldInfo(level,target, true);
 	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);			
-
+	    
 	    est_H/=2;
 	}
 
@@ -780,6 +790,90 @@ public:
 	buildChildToParentData(order_for_H,N_for_H,smin_for_H);
 	//std::cout<<"interp_domain:" <<global_box<<std::endl;
 
+    }
+
+
+    FieldInfo computeFarFieldInfo(int level, const Octree& target, bool isFarField=true) const
+    {
+	FieldInfo info;
+
+	//we start out by computing how much storage we might need
+	size_t cnt=0;
+	Eigen::Vector<size_t, Eigen::Dynamic> nBoxPerTarget(target.points().size());
+	nBoxPerTarget.fill(0);
+
+	for(size_t n=0;n<numBoxes(level);++n) {
+	    std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+	    const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
+	    for( const auto tRange : targets) {
+		cnt+=tRange.second-tRange.first;
+		for(size_t trg=tRange.first;trg<tRange.second;++trg) {
+		    nBoxPerTarget[trg]++;
+		}
+	    }
+	}
+	if(cnt>0)
+	{
+	    //now we populate	
+	    info.indices.resize(cnt);
+	    info.points.resize(DIM,cnt);
+	    info.boxIndices.resize(cnt);
+	    
+	    info.starts.resize(target.points().size()+1);
+
+	    //now fill the starts vector
+	    info.starts[0]=0;
+	    for(size_t trg=1;trg<info.starts.size();trg++) {
+		info.starts[trg]=info.starts[trg-1]+nBoxPerTarget[trg-1];
+
+	    }
+
+	    assert(info.starts[target.points().size()]==cnt);
+
+	    nBoxPerTarget.fill(0);
+
+
+	    for(size_t n=0;n<numBoxes(level);++n) {		
+		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+		const PointScalar H=node->boundingBox().sideLength();
+		const Point& center=node->boundingBox().center();
+		
+		
+		const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
+		for( const auto tRange : targets) {		
+		    for(size_t trg=tRange.first;trg<tRange.second;++trg) {
+			const Point target_pnt=target.points().col(trg).matrix();
+			const auto& transformed=Util::cartToInterp<DIM>(target_pnt,center,H);
+			const size_t el=node->coneDomain().elementForPoint(transformed);
+			if(el==SIZE_MAX) 
+			{
+			    std::cout<<"this shouldn't happen"<<target_pnt.transpose()<<"/"<<transformed.transpose()<<std::endl;
+			    
+			    continue;			    
+			}
+			
+			size_t memId=m_coneMaps[level][n].at(el);
+			//std::cout<<"memId="<<memId<<" vs "<<m_activeCones[level][0].size()<<std::endl;
+			assert(memId<m_activeCones[level][0].size());
+			
+			
+			info.indices[info.starts[trg]+nBoxPerTarget[trg]]=memId;
+			info.boxIndices[info.starts[trg]+nBoxPerTarget[trg]]=n;
+			info.points.col(info.starts[trg]+nBoxPerTarget[trg])=node->coneDomain().transformBackwards(el,transformed);
+			nBoxPerTarget[trg]++;
+		    }
+		}
+	    }
+
+
+	}else{
+	    info.indices.resize(0);
+	    info.starts.resize(target.points().size()+1);
+	    std::fill(info.starts.begin(),info.starts.end(),0);
+		    
+	}
+	return info;
+		
     }
 
 
@@ -806,6 +900,7 @@ public:
 	{
 	    //now we populate	
 	    info.indices.resize(cnt);
+	    
 	    info.starts.resize(target.points().size()+1);
 
 	    //now fill the starts vector
@@ -818,13 +913,14 @@ public:
 	    assert(info.starts[target.points().size()]==cnt);
 
 	    nBoxPerTarget.fill(0);
-			    
+
+
 	    for(size_t n=0;n<numBoxes(level);++n) {		
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
 		const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();		    
 		for( const auto tRange : targets) {		
 		    for(size_t trg=tRange.first;trg<tRange.second;++trg) {
-			info.indices[info.starts[trg]+nBoxPerTarget[trg]]=n;
+			info.indices[info.starts[trg]+nBoxPerTarget[trg]]=n;			
 			nBoxPerTarget[trg]++;
 		    }
 		}
@@ -840,8 +936,70 @@ public:
 	return info;
 		
     }
+#if 0
+
+    FieldInfo computeFarFieldInfo(int level, const Octree& target, bool isFarField=true) const
+    {
+	/*    struct FarFieldInfo {
+	      std::vector<size_t> memIds; //Which memIf of the fine cone am I looking at
+	      std::vector<IndexRange> pointIds; //target point Ids which are in the far field of the current (fine) cone (range for slight compression)
+	      std::vector<size_t> starts;  //at what index does a new cone start	
+	      };
+	*/
+	FarFieldInfo info;
+	
+	IndexMap coneMap;
+	std::vector<std::vector<size_t> > targetsPerCone;
+	for(size_t n=0;n<numBoxes(level);++n) {		
+	    std::shared_ptr<OctreeNode> node=m_nodes[level][n];
+	    const std::vector<IndexRange>& targets=isFarField ? node->farTargets() : node->nearTargets();
+	    
+	    const PointScalar H=node->boundingBox().sizeLength();
+	    const Point& xc=node->boundingBox().center();
+	    const ConeDomain<DIM>& cd=node->coneDomain();
+	    for( const auto tRange : targets) {		
+		for(size_t trg=tRange.first;trg<tRange.second;++trg) {
+		    const auto pnt=target->point(trg);
+		    const auto int_pnt=Util::cartToInterp<DIM>(pnt, xc,H);
+		    size_t coneId=cd.elementForPoint(pnt);
+		    
+		    if(!coneMap.find(coneId) ) {			   
+			targetsPerCone.push_back(std::vector<size_t>());
+			    coneMap[coneId]=targetsPerCone.size()-1;
+		    }
+		    
+		    targetsPerCone[id].push_back[trg];
+		}
+	    }
+	}
+
+	for( int i=0;i<targetsPerCone;i++) {
+	    std::sort(targetsPerCone[i].begin(),targetsPerCone[i].end());
+	}
+
+	info.memIds.resize(coneMap.values().size());
+	size_t coneId=0;
+	size_t pointNr=0;
+	for( autor iter=coneMap.begin();iter!=coneMap.end();++iter) {
+	    info.memIds[coneId]=iter.first();
+	    const auto& list=targetsPerCone[iter.second];
+	    size_t nT=list.size();
+	    size_t n=0;
+	    size_t nextCons=list.first();
+	    while(n < NT) {
+		for(; tl[n]==nextCons;n++){
+		    nextCons=tl[n]+1;
+		}
+		
+	    }
+	}
+	    
+	return info;
+	
+    }
 
 
+#endif
 	
     
     inline PointScalar diameter () const
@@ -1231,8 +1389,164 @@ private:
     }
 
 
+    void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+				std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				std::function<PointScalar(PointScalar)> smin_for_H)
+    {
+	std::cout<<"building CtP data"<<std::endl;
+	double estpH=2*m_sideLength;
+
+	tbb::spin_mutex mutex;
+
+	m_childToParent.resize(m_levels);
+	tbb::enumerable_thread_specific<PointArray > transformedNodes;
+	tbb::enumerable_thread_specific<PointArray > childNodes;
+
+	for(int level=1;level<levels();level++) {
+	    estpH/=2.0;
+	    const auto order =  order_for_H(estpH/2.0,0);	
+	    const auto high_order = order_for_H(estpH,1);
+	    
+	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(high_order);
 
 
+	    m_childToParent[level].pntRanges.resize(this->numActiveCones(level,0));
+
+	    Eigen::VectorXi tmp2(numActiveCones(level-1,1));
+	    tmp2.fill(0);
+
+
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, this->numActiveCones(level - 1, 1)),
+                [&](tbb::blocked_range<size_t> r) {
+                  transformedNodes.local().resize(3, ho_chebNodes.cols());
+		  childNodes.local().resize(3,ho_chebNodes.cols());
+
+                  for (size_t i = r.begin(); i < r.end(); i++) {
+		    //parent node
+		    ConeRef parentCone=this->activeCone(level-1,i,1);
+                    size_t parentBox = parentCone.boxId();
+		    auto pGrid= this->coneDomain(level-1,parentBox,1);				    
+                    BoundingBox parent_bbox = this->bbox(level - 1, parentBox);
+                    auto parent_center = parent_bbox.center();
+                    double pH = parent_bbox.sideLength();
+
+
+		    if (!this->hasPoints(level-1, parentBox)) {
+                      continue;
+		    }
+		    
+		    
+		    if( ! this->hasFarTargetsIncludingAncestors(level-1, parentBox)){ //we dont need the interpolation info for those levels.
+                      continue;
+		    }
+
+
+                    transformedNodes.local() = Util::interpToCart<DIM>(
+                        pGrid.transform(parentCone.id(), ho_chebNodes).array(),
+                        parent_center, pH);
+                    const size_t stride = ho_chebNodes.cols();
+		    const size_t lo_stride = order.prod();
+
+                    // std::cout<<"pc"<<parentCone.id()<<"
+                    // "<<parentCone.memId()<<"
+                    // "<<nterpolationData[parentId].values.size()<<std::endl;
+                    for (size_t childBox : this->childBoxes(level - 1, parentBox)) {
+                      // current node
+                      BoundingBox bbox = this->bbox(level, childBox);
+                      auto center = bbox.center();
+                      double H = bbox.sideLength();
+
+                      const auto &childGrid = coneDomain(level, childBox, 0);
+
+                      Util::cartToInterp2<DIM>(transformedNodes.local(), center,
+                                               H, childNodes.local());
+
+                      const size_t N = ho_chebNodes.cols();
+                      std::vector<size_t> elIds(N);
+                      for (size_t idx = 0; idx < N; idx++) {
+                        elIds[idx] = childGrid.elementForPoint(
+                            childNodes.local().col(idx));
+                      }
+
+		      std::vector<size_t> perm=Util::sort_with_permutation(elIds.begin(),elIds.end(), std::less<size_t>());
+
+		     		      
+                      size_t idx = 0;
+                      while (idx < N) {
+                        size_t nb = 1;
+                        const size_t el = elIds[perm[idx]];
+
+                        // look if any of the following points are also in this
+                        // element. that way we can process them together
+                        while (idx + nb < childNodes.local().cols() && elIds[perm[idx + nb]] == el) {
+			    nb++;
+			}
+
+			std::vector<size_t> ids(nb);
+			std::copy_n(perm.begin()+idx,nb,ids.begin());
+
+			idx+=nb;
+
+			if(el == SIZE_MAX) {
+			    continue;
+			}
+			
+                        size_t memId = m_coneMaps[level][childBox].at(el);//lo_stride+childGrid.memId(el);
+			if(memId==75) {
+			    std::cout<<"el="<<el<<parent_center.transpose()<<"/"<<center.transpose()<<std::endl;
+			}
+
+
+			{
+			    tbb::spin_mutex::scoped_lock lock(mutex);
+			    //std::cout<<"asd"<<parentCone.globalId()<<std::endl;
+			    assert(i==parentCone.globalId());			    
+			    m_childToParent[level].pntRanges[memId].push_back(std::make_pair(parentCone,ids));
+			}
+                      }
+		      
+		      tmp2[parentCone.globalId()]=1;
+		      
+                    }
+
+
+                  }
+                });
+
+	    m_childToParent[level].pntRangeSize=0;
+	    m_childToParent[level].numChunks=0;
+	    for(const auto& coneData : m_childToParent[level].pntRanges) {		
+		m_childToParent[level].numChunks+=coneData.size();
+		for( auto chunk: coneData) {
+		    m_childToParent[level].pntRangeSize+=chunk.second.size();
+		}
+	    }
+	    std::cout<<"ctp"<<m_childToParent[level].pntRangeSize<<std::endl;
+	    std::cout<<"done with level"<<level<<std::endl;
+
+
+	    {
+		Eigen::VectorXi tmp(numActiveCones(level-1,1));
+		tmp.fill(0);
+		ChildToParentData& data=m_childToParent[level];
+		for(size_t childCone=0;childCone<data.pntRanges.size();childCone++) {
+		    for(const auto& chunk : data.pntRanges[childCone]) {
+			tmp[chunk.first.globalId()]=1;
+		    }
+		}
+
+		for(int i=0;i<tmp.size();i++) {
+		    assert(tmp[i]==tmp2[i]);
+		}
+		
+	    }
+
+        }
+
+    }
+
+#if 0
     void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
 				std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
 				std::function<PointScalar(PointScalar)> smin_for_H)
@@ -1293,13 +1607,6 @@ private:
 	    tbb::spin_mutex ptCMutex;
 
 
-	    ChildToParentData ex;
-	    ex.parentElementShifts.resize(2*totalNumParentEls);
-	    ex.directionShifts.resize(1);
-	    ex.directionShifts[0]=0;		
-	    std::fill(ex.parentElementShifts.begin(),ex.parentElementShifts.end(),SIZE_MAX);
-
-	    tbb::enumerable_thread_specific<ChildToParentData> partial_data(ex);
 
 
 	    std::cout<<"found "<<m_activeHoCones[level].values().size()<<" vs "<<totalNumParentEls<<" pH= "<<pH<<" "<<N_for_H(pH,1)<<std::endl;
@@ -1316,9 +1623,7 @@ private:
 	    
 		std::vector<size_t> coneIds(hoChebNodes.cols());
 		PointArray transformedPnts(DIM,hoChebNodes.cols());
-		Point tmp2;
-
-		auto& data=partial_data.local();
+		Point tmp2;		
 
 
 		size_t dirIdx=data.directionShifts.size()-1;
@@ -1461,7 +1766,7 @@ private:
 		
 
     }
-
+#endif
 
 
 
@@ -1475,31 +1780,19 @@ private:
     std::vector<std::array<std::vector<ConeRef>,N_STEPS> > m_activeCones;
     std::vector<std::vector<ConeRef> > m_leafCones;
     std::vector< FieldInfo > m_farFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield
-    std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield 
+    std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the nearfield 
     std::vector<unsigned int> m_numBoxes;
     std::vector<unsigned int> m_numLeafCones;
 
 
     struct ChildToParentData {
-	ChildToParentData() {
-
-	    is_valid=0;
-	}
-	std::vector<size_t > parentElementShifts; // even numbers: direction, odd numbers: cartesion pnts
-	std::vector<size_t> directionShifts;
-	std::vector<size_t > fineElementInfo;
-
-	std::vector<size_t> directionForPoint;
-	std::vector<size_t > point_ids;
-	PointArray points;
-
-	PointArray cart_pnts;
-	
-	int is_valid;
+	std::vector<std::vector<std::pair<ConeRef,std::vector<size_t> > > > pntRanges;
+	size_t pntRangeSize;
+	size_t numChunks;
     };
     
 
-    std::vector< std::vector<ChildToParentData> > m_childToParent;
+    std::vector< ChildToParentData > m_childToParent;
 
 
 
@@ -1524,91 +1817,54 @@ private:
 template<typename T,int DIM>
 class SyclChildToParentData {
 public:
-    SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data):
-	points(data.points),
-	parentElementShifts(data.parentElementShifts),
-	directionShifts((data.directionShifts)),
-	fineElementInfo((data.fineElementInfo)),
-	point_ids((data.point_ids)),
-	directionForPoint(data.directionForPoint),
-	cart_pnts(data.cart_pnts),
-	is_valid(data.is_valid)
+    SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data): 
+	fineConeShifts(data.pntRanges.size()+1),
+	chunkShifts(data.numChunks+1),
+	parentConeIds(data.numChunks),
+	pntIds(data.pntRangeSize)
     {
 
+	std::cout<<"size:"<<data.pntRanges.size()+1<<" "<<data.numChunks+1<<std::endl;
+	auto shifts=fineConeShifts.get_host_access();
+	auto cShifts=chunkShifts.get_host_access();
+	auto coneIds=parentConeIds.get_host_access();
+	auto pnts=pntIds.get_host_access();
+
+
+	size_t maxStep=0;
+	size_t pntIdx=0;
+	size_t chunkIdx=0;
+	shifts[0]=0;
+	cShifts[0]=0;
+	
+	for(size_t childCone=0;childCone<data.pntRanges.size();childCone++) {
+	    for(const auto& chunk : data.pntRanges[childCone]) {
+		coneIds[chunkIdx]=chunk.first;
+		for( size_t pntId: chunk.second ){
+		    pnts[pntIdx]=pntId;
+		    pntIdx++;
+		}
+		chunkIdx++;
+		cShifts[chunkIdx]=pntIdx;
+	    }	    	    
+	    shifts[childCone+1]=chunkIdx;
+	}
+	assert(chunkIdx==data.numChunks);
+	assert(pntIdx==data.pntRangeSize);
+	std::cout<<"done"<<chunkIdx<<std::endl;
     }
 
-
-    struct ConeData {
-	size_t id;
-	IndexRange pnts;	    
-    };
-
-    class Accessor;
-    class CtpChildConeIterator
-    {
-	using iterator_category = std::forward_iterator_tag;
-	using difference_type   = std::ptrdiff_t;
-	using value_type        = ConeData;
-	using pointer           = ConeData*;  // or also value_type*
-	using reference         = ConeData&;  // or also value_type&
-    public:
-	CtpChildConeIterator( const SyclChildToParentData<T,DIM>::Accessor* acc,size_t cur) :
-	    m_acc(acc),
-	    m_cur(cur)
-	{
-
-	}
-
-
-	
-	value_type operator*() const {
-	    ConeData data;
-	    data.id=m_acc->fineElementInfo(m_cur,0);
-	    if(m_cur==0) {
-		data.pnts.first=0;
-	    }else {
-		data.pnts.first=m_acc->fineElementInfo(m_cur-1,1);
-	    }
-		
-	    data.pnts.second=m_acc->fineElementInfo(m_cur,1);
-		
-	    return data;
-	}
-
-	size_t cur() {
-	    return m_cur;
-	}
-
-	// Prefix increment
-	CtpChildConeIterator& operator++() { m_cur++; return *this; }  
-
-	// Postfix increment
-	CtpChildConeIterator operator++(int) { CtpChildConeIterator tmp = *this; ++(*this); return tmp; }
-
-	friend bool operator== (const CtpChildConeIterator& a, const CtpChildConeIterator& b) { return a.m_cur == b.m_cur; };
-	friend bool operator!= (const CtpChildConeIterator& a, const CtpChildConeIterator& b) { return a.m_cur != b.m_cur; };     
-
-
-
-    private:
-	size_t m_cur;
-	const SyclChildToParentData<T,DIM>::Accessor* m_acc;
-    };
-    
+  
     
 
 
     class Accessor {
     public:
 	Accessor(SyclChildToParentData& data,sycl::handler& h):
-	    m_points(data.points,h),
-	    m_parentElementShifts(data.parentElementShifts,h),
-	    m_directionShifts(data.directionShifts,h),
-	    m_fineElementInfo(data.fineElementInfo,h),
-	    m_point_ids(data.point_ids,h),
-	    m_directionForPoint(data.directionForPoint,h),
-	    m_cart_pnts(data.cart_pnts,h),
-	    m_is_valid(data.is_valid)
+	    m_fineConeShifts(data.fineConeShifts,h),
+	    m_parentConeIds(data.parentConeIds,h),
+	    m_chunkShifts(data.chunkShifts,h),
+	    m_pntIds(data.pntIds,h)
 	{
 
 	}
@@ -1618,111 +1874,31 @@ public:
 
 	}
 
-	class ChildConeRange {
-	public:
-	    ChildConeRange(size_t elId,int direction,const Accessor* acc) :
-		m_elId(elId),
-		m_dir(direction),
-		m_acc(acc)
-	    {
-
-	    }
-
-	    auto begin() const {
-		size_t idx=m_acc->parentElementShift(m_elId,0)+m_dir;
-		return CtpChildConeIterator(m_acc,m_acc->directionShifts(idx));
-	    }
-
-	    auto end() const {
-		size_t idx=m_acc->parentElementShift(m_elId,0)+m_dir;
-		return CtpChildConeIterator(m_acc,m_acc->directionShifts(idx+1));
-	    }
-
-
-	private:
-	    size_t m_elId;
-	    int m_dir;
-	    const Accessor* m_acc;
-	};
-
-	ChildConeRange childCones(size_t elId,size_t direction) const{
-	    return ChildConeRange(elId, direction,this);
+	ConeRef parentConeId(size_t id) const {
+	    return m_parentConeIds[id];
 	}
 
-	size_t directionShifts(size_t direction) const {
-	    return m_directionShifts[direction];
+	size_t chunkShift(size_t idx) const {
+	    return m_chunkShifts[idx];
 	}
 
-
-	size_t parentElementShift(size_t pEl,int type) const {
-	    return m_parentElementShifts[2*pEl+type];
+	size_t fineConeShift(size_t coneId) const {
+	    return m_fineConeShifts[coneId];
 	}
 
-	size_t fineElementInfo(size_t id, int type) const {
-	    return m_fineElementInfo[2*id+type];
+	size_t pntId(size_t idx) const {
+	    return m_pntIds[idx];
 	}
 
-
-	inline sycl::marray<PointScalar, DIM> point(size_t idx) const {
-	    sycl::marray<PointScalar, DIM> pnt;
-	    for(int i=0;i<DIM;i++) {
-		pnt[i]=m_points[DIM*idx+i];
-	    }
-	    
-	    return pnt;
-	}
-
-	inline sycl::marray<PointScalar, DIM> cart_point(size_t idx) const {
-	    sycl::marray<PointScalar, DIM> pnt;
-	    for(int i=0;i<DIM;i++) {
-		pnt[i]=m_cart_pnts[DIM*idx+i];
-	    }
-	    
-	    return pnt;
-	}
-
-		inline sycl::marray<PointScalar, DIM> cart_point(size_t pEl,size_t idx) const {
-	    sycl::marray<PointScalar, DIM> pnt;
-	    for(int i=0;i<DIM;i++) {
-		pnt[i]=m_cart_pnts[DIM*parentElementShift(pEl,1)+DIM*idx+i];
-	    }
-	    
-	    return pnt;
-	}
 	
-	inline size_t directionForPoint(size_t pntId) const {
-	    return m_directionForPoint[pntId];
-	}
-
-
-
-	inline 	size_t realPointId (size_t pointId)  const {
-	    return m_point_ids[pointId];
-	}
-
-	inline 	size_t numPoints() const {
-	    return m_points.size()/DIM;
-	}
-
-	inline 	size_t numDirections() const {
-	    return  m_directionShifts.size();
-	}
-
-
-	inline const sycl::accessor< PointScalar,1,sycl::access_mode::read>& points() const {
-	    return m_points;
-	};
 
     private:
 
-	sycl::accessor< PointScalar,1,sycl::access_mode::read> m_points;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_parentElementShifts;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_directionShifts;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_fineElementInfo;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_point_ids;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_directionForPoint;
-	sycl::accessor< PointScalar,1,sycl::access_mode::read> m_cart_pnts;
-	int m_is_valid;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_fineConeShifts;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_chunkShifts;
+	sycl::accessor< ConeRef,1,sycl::access_mode::read> m_parentConeIds;
+	sycl::accessor< size_t,1,sycl::access_mode::read> m_pntIds;
+	
 
     };
 
@@ -1737,27 +1913,15 @@ public:
     }
 
 
-    size_t numPoints() const {
-	return points.size()/DIM;
-    }
-    
-    size_t numDirections() const {
-	return  directionShifts.size();
-    }
-
 
     
 private:
-    sycl::buffer<size_t,1> parentElementShifts;
-    sycl::buffer<size_t,1> directionShifts;
-    sycl::buffer<size_t,1 > fineElementInfo;
+    sycl::buffer<size_t,1> fineConeShifts;
+    sycl::buffer<size_t,1> chunkShifts;
+    sycl::buffer<ConeRef,1> parentConeIds;
+    sycl::buffer<size_t,1 > pntIds;
     
 
-    sycl::buffer<size_t,1 > point_ids;
-    sycl::buffer<size_t,1 > directionForPoint;
-    sycl::buffer<PointScalar,1> points;
-    sycl::buffer<PointScalar,1> cart_pnts;
-    int is_valid;
 };
 
 
@@ -1774,8 +1938,12 @@ public:
     points_end(octree.numBoxes(level)),
     ffBi_vec(std::move(octree.m_farFieldBoxes[level].indices)),
     ffB_indices(ffBi_vec),
+    ffBb_vec(std::move(octree.m_farFieldBoxes[level].boxIndices)),
+    ffB_boxIds(ffBb_vec),
     ffBs_vec(std::move(octree.m_farFieldBoxes[level].starts)),
     ffB_starts(ffBs_vec),
+    ffBp_vec((octree.m_farFieldBoxes[level].points)),
+    ffB_points(ffBp_vec),
     nfBi_vec(std::move(octree.m_nearFieldBoxes[level].indices)),
     nfB_indices(nfBi_vec),
     nfBs_vec(std::move(octree.m_nearFieldBoxes[level].starts)),
@@ -1789,10 +1957,12 @@ public:
     coneDomains1(octree.numBoxes(level)),
     activeCones_vec(std::move(octree.m_activeCones[level][1])),
     activeCones(activeCones_vec),
+    activeCones2_vec(std::move(octree.m_activeCones[level][0])),
+    activeCones2(activeCones2_vec),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level)),
-    m_ctpData_vec(std::move(octree.m_childToParent[level]))
+    m_ctpData(octree.m_childToParent[level])
     {
 	std::cout<<"creating ocdata"<<level<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
@@ -1850,12 +2020,14 @@ public:
 	}
 
 
+	assert(octree.m_childToParent[level].pntRanges.size()==m_numActiveCones[0]);
+
 	//std::cout<<"done"<<std::endl;
 
-	m_ctpData.reserve(octree.m_childToParent[level].size());
+	/*m_ctpData.reserve(octree.m_childToParent[level]);
 	for(const auto& data : m_ctpData_vec) {
 	    m_ctpData.push_back(std::make_unique<SyclChildToParentData<T,DIM> >(data));
-	}
+	    }*/
 
     }
   
@@ -1868,6 +2040,8 @@ public:
 	Accessor(OctreeLevelData& data,sycl::handler& h) :
 	    ffB_indices(data.ffB_indices,h),
 	    ffB_starts(data.ffB_starts,h),
+	    ffB_boxIds(data.ffB_boxIds,h),
+	    ffB_points(data.ffB_points,h),
 	    nfB_indices(data.nfB_indices,h),
 	    nfB_starts(data.nfB_starts,h),
 	    points_start(data.points_start,h),
@@ -1877,13 +2051,17 @@ public:
 	    boxCenters(data.boxCenters,h),
 	    boxSizes(data.boxSizes,h),
 	    activeCones(data.activeCones,h),
+	    activeCones2(data.activeCones2,h),
 	    coneMap(data.coneMap.accessor(h)),
 	    childBoxes(data.childBoxes,h),
-	    childrenPerBox(data.childrenPerBox)
+	    childrenPerBox(data.childrenPerBox),
+	    m_ctpData(data.m_ctpData.accessor(h))
 	{
 	    coneDomains0=sycl::accessor(data.coneDomains0,h);
 	    coneDomains1=sycl::accessor(data.coneDomains1,h);
-	    
+
+
+
 
 	}
 
@@ -1895,6 +2073,11 @@ public:
 	}
 
 
+	size_t ffBIndex(size_t id) const
+	{
+	    return ffB_indices[id];	    
+	}
+	
 
 	const inline  auto farfieldBoxes(size_t targetPoint) const
 	{
@@ -1905,6 +2088,36 @@ public:
 	    
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(ffB_indices.cbegin()+start,ffB_indices.cbegin()+end);
 	}
+
+	const inline  auto farfieldRange(size_t targetPoint) const
+	{
+	    const size_t start=ffB_starts[targetPoint];
+	    const size_t end=ffB_starts[targetPoint+1];
+
+
+	    
+	    return IndexRange{start,end};
+	}
+
+
+	size_t farfieldBoxId(size_t idx) const
+	{
+	    return ffB_boxIds[idx];			      
+	}
+	
+
+	const inline  auto farfieldPoint(size_t idx) const
+	{
+	    sycl::marray<PointScalar,DIM> pnt;
+	    for(int i=0;i<DIM;i++) 
+	    {		
+		pnt[i]=ffB_points[DIM*idx+i];
+	    }
+	    
+	    return pnt;
+	    
+	}
+
 
 	const inline  auto nearFieldBoxes(size_t targetPoint) const
 	{	    
@@ -1934,6 +2147,8 @@ public:
 	    return boxSizes[boxId];
 	}
 
+
+
 	sycl::marray<PointScalar,DIM> boxCenter(size_t boxId) const
 	{
 	    sycl::marray<PointScalar,DIM> c;
@@ -1957,6 +2172,11 @@ public:
 	    return activeCones[index];
 	}
 
+	ConeRef fineActiveCone(size_t index) const
+	{
+	    return activeCones2[index];
+	}
+
 	
 
 	size_t memId(size_t box, size_t el) const {
@@ -1971,10 +2191,16 @@ public:
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(childBoxes.cbegin()+start,childBoxes.cbegin()+end);
 	}
 
+	const SyclChildToParentData<T,DIM>::Accessor& ctpData() const {
+	    return m_ctpData;
+	}
+
     private:
 	//far field boxes
 	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_indices;
 	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_starts;
+	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_boxIds;
+	sycl::accessor< PointScalar,1,sycl::access_mode::read> ffB_points;
 
 	//near field boxes
 	sycl::accessor< size_t,1,sycl::access_mode::read> nfB_indices;
@@ -1989,6 +2215,8 @@ public:
 	sycl::accessor< ConeRef,1,sycl::access_mode::read> leafCones;
 
 	sycl::accessor< ConeRef,1,sycl::access_mode::read> activeCones;
+	sycl::accessor< ConeRef,1,sycl::access_mode::read> activeCones2;
+	
 
 	sycl::accessor< char,1,sycl::access_mode::read> ftAFlags;
 
@@ -2010,6 +2238,8 @@ public:
 	sycl::accessor< size_t ,1,sycl::access_mode::read> childBoxes;
 	size_t childrenPerBox;
 
+	SyclChildToParentData<T,DIM>::Accessor m_ctpData;
+
 	
     };
 
@@ -2029,9 +2259,6 @@ public:
 	return m_ctpData[idx]->accessor(h);
     }
 
-    size_t numCtpSlices() {
-	return m_ctpData_vec.size();
-    }
 
     size_t numLeafCones() {
 	return leafCones.size();
@@ -2052,9 +2279,13 @@ private:
     //far field boxes
     std::vector<size_t> ffBs_vec;
     std::vector<size_t> ffBi_vec;
+    std::vector<size_t> ffBb_vec;
+    Octree<T,DIM>::PointArray ffBp_vec;
 
     sycl::buffer<size_t,1> ffB_indices;
+    sycl::buffer<size_t,1> ffB_boxIds;
     sycl::buffer<size_t,1> ffB_starts;
+    sycl::buffer<PointScalar,1> ffB_points;
 
     
 
@@ -2082,6 +2313,10 @@ private:
     std::vector<ConeRef> activeCones_vec;
     sycl::buffer<ConeRef> activeCones;
 
+    std::vector<ConeRef> activeCones2_vec;
+    sycl::buffer<ConeRef> activeCones2;
+
+
     sycl::buffer<SyclConeDomain<DIM>,1> coneDomains0;
     sycl::buffer<SyclConeDomain<DIM>,1> coneDomains1;
     
@@ -2095,8 +2330,7 @@ private:
     std::array<size_t, N_STEPS> m_numActiveCones;
 
 
-    std::vector<typename Octree<T,DIM>::ChildToParentData > m_ctpData_vec;
-    std::vector<std::unique_ptr<SyclChildToParentData<T,DIM> > > m_ctpData;
+    SyclChildToParentData<T,DIM> m_ctpData;
 
 };
 

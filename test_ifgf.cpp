@@ -69,7 +69,7 @@ int main()
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-    const int N = 100000;
+    const int N = 10000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -86,6 +86,7 @@ int main()
     }
 
 
+    auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      32);
     //Eigen::initParallel();
     //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      6);
     //oneapi::tbb::task_arena arena(1);
@@ -162,10 +163,10 @@ int main()
 
         double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
         if(e>maxE) {
-            std::cout<<"maxe="<<e<<" at"<<targets.col(index)<<std::endl;
+            //std::cout<<"maxe="<<e<<" at"<<targets.col(index)<<std::endl;
         }
 	maxE = std::max(e, maxE);
-        std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+        //std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
     }
 
     std::cout << "summary: e=" << maxE << std::endl;

@@ -90,16 +90,19 @@ namespace Util
     inline typename PointVector::PlainObject interpToCart(const Eigen::ArrayBase<PointVector>& p, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H)
     {
 	typename PointVector::PlainObject res(p.rows(),p.cols());
-
+	
         if constexpr(DIM==2) {
 	    res.row(0)= xc[0]+(H/p.row(0))*Eigen::cos(p.row(1));
 	    res.row(1)= xc[1]+(H/p.row(0))*Eigen::sin(p.row(1));
         }else {
-            static_assert(DIM==3);
-	    res.row(0)=xc[0]+(H/p.row(0))*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
+	static_assert(DIM==3);
+	res.row(0)=xc[0]+(H/p.row(0))*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(1)=xc[1]+(H/p.row(0))*Eigen::sin(p.row(2))*Eigen::sin(p.row(1));
 	    res.row(2)=xc[2]+(H/p.row(0))*Eigen::cos(p.row(1));	    
         }
+	
+
+	//res.array()=xc.array()+(H/p.array().rowwise());
 
         return  res;
     }
@@ -117,7 +120,7 @@ namespace Util
 	    res[0]=xc[0]+(H/p[0])*cos(p[2])*sin(p[1]);
 	    res[1]=xc[1]+(H/p[0])*sin(p[2])*sin(p[1]);
 	    res[2]=xc[2]+(H/p[0])*cos(p[1]);	    
-        }
+	}
     }
 
 
