@@ -6,7 +6,7 @@ typedef  double PointScalar ;
 typedef double  RealScalar;
 typedef double ExtendedScalar;
 
-//#define FAST_CTP
+#define FAST_CTP
 //#define DEBUG_CTP
 #define USE_FAST_HASH
 

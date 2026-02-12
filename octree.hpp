@@ -1902,9 +1902,6 @@ public:
 
     };
 
-    
-
-
 
 
     Accessor accessor(sycl::handler& h)

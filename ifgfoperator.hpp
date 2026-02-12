@@ -684,7 +684,7 @@ public:
 	    if(use_fast_ctp) {
 
 		Q.fill(parentInterpolationDataBuffer->get_access(), T(0.0));
-		
+		Q.wait();
 
 		auto e=Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
@@ -762,8 +762,25 @@ public:
 				    T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
 				
 				    T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
+
+
+				    //
+				    double & dest_real=*reinterpret_cast<double*>(& a_parentIntData[parentCone.globalId()*stride+pntIdx]);
+				    double & dest_imag=*(reinterpret_cast<double*>(& a_parentIntData[parentCone.globalId()*stride+pntIdx])+1);
+				    //double & dest_imag=reinterpret_cast<double&>a_parentIntData[parentCone.globalId()*stride+pntIdx].imag();
 				    
-				    a_parentIntData[parentCone.globalId()*stride+pntIdx]+=res*TF;			    
+					
+				    sycl::atomic_ref<double,sycl::memory_order_relaxed,
+						     sycl::memory_scope_device>    atomic_op(dest_real);
+
+				    sycl::atomic_ref<double,sycl::memory_order_relaxed,
+				    		     sycl::memory_scope_device>    atomic_op2(dest_imag);						
+
+
+				    atomic_op+=(res*TF).real();
+				    atomic_op2+=(res*TF).imag();
+				    ///
+				    //a_parentIntData[parentCone.globalId()*stride+pntIdx]+=res*TF;			    
 				}
 			
 			}
