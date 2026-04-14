@@ -22,8 +22,8 @@
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-//const Complex  kappa =Complex(32.35318922187804,12.6495537831048);//4.*Complex(5,-60);
-const double kappa=7;
+const Complex  kappa =((RealScalar) 1)*Complex(2.35318922187804,43.6495537831048);//4.*Complex(5,-60);
+//const double kappa=7;
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
 {    
@@ -38,7 +38,8 @@ std::complex<double> my_kernel(const Point& x, const Point& y, const Point& norm
     /*if(kappa.real()*norm>150) {
         return 0.;
     }*/
-    auto kern = exp(std::complex<double>(0,kappa)*norm) / ((4.0 * M_PI * norm));
+    auto kern = exp(-((std::complex<double>) kappa)*norm) /  ((4.0 * M_PI * norm));
+    //auto kern = exp(std::complex<double>(0,kappa)*norm) / ((4.0 * M_PI * norm));
     //x	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
 	// return kern;*/
     
@@ -118,8 +119,8 @@ int main()
 
 
     for(int j=0;j<1;j++) {
-	//ModifiedHelmholtzIfgfOperator<dim> op(kappa,300,8,2,-1.,-1.,-1.); //3
-	HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
+	ModifiedHelmholtzIfgfOperator<dim> op(kappa,300,8,1,-1.,-1.,-1.); //3
+	//HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
 
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();

@@ -129,7 +129,7 @@ namespace Util
     template<size_t DIM>
     inline Eigen::Vector<PointScalar, DIM> cartToSpherical(const Eigen::Ref<const Eigen::Vector<PointScalar, DIM> >& p) 
     {
-	Eigen::Vector<double,DIM> xp = p.template cast<double>() ;
+	Eigen::Vector<ExtendedScalar,DIM> xp = p.template cast<ExtendedScalar>() ;
 
 
         if constexpr (DIM==2) {
@@ -148,10 +148,10 @@ namespace Util
 
         }else{
             static_assert(DIM==3);
-            const double phi = std::atan2((ExtendedScalar)  xp[1],(ExtendedScalar)  xp[0]);
-            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const double theta= std::atan2((ExtendedScalar)  sqrt(a),(ExtendedScalar)  xp[2]);
-            const double r= sqrt(a+xp[2]*xp[2]);
+            const ExtendedScalar phi = std::atan2((ExtendedScalar)  xp[1],(ExtendedScalar)  xp[0]);
+            const ExtendedScalar a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const ExtendedScalar theta= std::atan2((ExtendedScalar)  sqrt(a),(ExtendedScalar)  xp[2]);
+            const ExtendedScalar r= sqrt(a+xp[2]*xp[2]);
 
             Eigen::Vector<PointScalar, DIM> res;
             res[0] = r;
@@ -194,8 +194,8 @@ namespace Util
     template<size_t DIM>
     inline void cartToInterp(const sycl::marray<PointScalar,DIM>& p, sycl::marray<PointScalar,DIM>& res, const sycl::marray<PointScalar,DIM>& xc, PointScalar H)
     {
-	//This part we do in double precision.
-	sycl::marray<double, DIM> xp=p-xc;
+	//This part we do in extended precision.
+	sycl::marray<ExtendedScalar, DIM> xp=p-xc;
         if constexpr (DIM==2) {
 	    const PointScalar r = sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
 
@@ -206,10 +206,10 @@ namespace Util
 
         }else{
             static_assert(DIM==3);
-            const double phi = atan2((ExtendedScalar) xp[1],(ExtendedScalar)  xp[0]);
-            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const double theta= atan2(sqrt(a),xp[2]);
-            const double r= sqrt(a+xp[2]*xp[2]);
+            const ExtendedScalar phi = atan2((ExtendedScalar) xp[1],(ExtendedScalar)  xp[0]);
+            const ExtendedScalar a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const ExtendedScalar theta= atan2(sqrt(a),xp[2]);
+            const ExtendedScalar r= sqrt(a+xp[2]*xp[2]);
 
 
             res[0] = H/r;

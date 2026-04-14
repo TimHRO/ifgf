@@ -378,7 +378,7 @@ public:
     }
 
     void calculateInterpolationRange(  std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
-				       std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				       std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
 				       std::function<PointScalar(PointScalar)> smin_for_H,
 				       const Octree& target)
     {
@@ -405,7 +405,7 @@ public:
 
 	Eigen::Vector<size_t,DIM> oldPN;
 	oldN.fill(0);
-	double est_H=m_root->boundingBox().sideLength(); //size of the whole domain.
+	PointScalar est_H=m_root->boundingBox().sideLength(); //size of the whole domain.
 
 
 	m_activeHoCones.resize(levels());
@@ -458,17 +458,19 @@ public:
             } 
 
 	    //make some heuristic about the number of cones
-	    for(int step=0;step<N_STEPS;step++) {
-		auto N=N_for_H(est_H,step);
-		const size_t na=numBoxes(level)*std::pow((double) N.prod(),2.0/3.0);
-		//std::cout<<"reserving "<<na<<std::endl;	
-		activeCones[step].reserve(na);
-	    }
+	    auto N=N_for_H(est_H);
+	    const size_t na_coarse=numBoxes(level)*std::pow((PointScalar) N.prod(),2.0/3.0);
+	    const size_t na_fine=numBoxes(level)*std::pow((PointScalar) N.prod()*std::pow(REFINEMENT_FACTOR,DIM),2.0/3.0);
+	    activeCones[1].reserve(na_coarse);
+	    activeCones[0].reserve(na_fine);
+	    
+
 
 	    //We use a coarse grid with high order and a fine grid of lower order
 	    BoundingBox<DIM> interp_box;
 	    PointScalar smax=sqrt(DIM)/DIM;	    
 	    PointScalar smin= smin_for_H(est_H);
+	    std::cout<<"smin="<<smin<<std::endl;
 
 	    interp_box.min()(0)=smin;
 	    interp_box.max()(0)=smax;
@@ -490,14 +492,14 @@ public:
 
 
 	    const PointScalar pH=bbox(level > 0 ? (level-1): 0,0).sideLength();
-	    const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), p_interp_box );
-
+	    const ConeDomain<DIM> p_hoGrid(N_for_H(pH), p_interp_box );
+	    
 	    const size_t numBoxesOnLevel=numBoxes(level);
 	    const size_t numParentCones=p_hoGrid.n_elements();
 	    
 	    const bool should_be_cached= false; //level > 2 && ((1 << DIM) * numParentCones < 1024 ); //keep the cache small, for larger ones it wont really pay off
 
-	    std::cout<<"caching level "<<level<<" "<<should_be_cached<<" "<<N_for_H(pH,1)<<std::endl;
+	    std::cout<<"caching level "<<level<<" "<<should_be_cached<<" "<<N_for_H(pH)<<std::endl;
 
 
 	    tbb::enumerable_thread_specific<Eigen::Array<PointScalar, DIM, Eigen::Dynamic> > local_pnts;
@@ -510,15 +512,17 @@ public:
 
 
 		auto HoChebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar, DIM>(order_for_H(pH,1));
-		const ConeDomain<DIM> p_hoGrid(N_for_H(pH,1), interp_box );
-		const ConeDomain<DIM> loGrid(N_for_H(HH,0), interp_box );
+		Eigen::Vector<size_t,DIM> N =N_for_H(pH);
+		Eigen::Vector<size_t,DIM> refined_N=N_for_H(HH)*REFINEMENT_FACTOR;
+		const ConeDomain<DIM> p_hoGrid(N, p_interp_box );
+		const ConeDomain<DIM> loGrid(refined_N, interp_box );
 		
 
 		local_pnts.local().resize(DIM, HoChebNodes.cols());
 		local_interp_pnts.local().resize(DIM, HoChebNodes.cols());
 		
 			      
-		Eigen::Vector<double,DIM> d;
+		Eigen::Vector<PointScalar,DIM> d;
 		for(int j=0;j<DIM;j++) {
 		    bool flag=cube_corner & (1<<j);
 		    d[j]= flag ? 0.5: -0.5;		    
@@ -527,7 +531,7 @@ public:
 				
 		IndexSet is_active;
 		is_active.reserve(1 << DIM);
-		local_pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
+		local_pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector<PointScalar,DIM>::Zero(),pH);
 		Util::cartToInterp2<DIM>(local_pnts.local().array(),d*HH,HH,local_interp_pnts.local().array());  //xc-pxc
 		for (size_t i=0;i<HoChebNodes.cols();i++) {
 		    auto coneId=loGrid.elementForPoint(local_interp_pnts.local().col(i));
@@ -551,7 +555,7 @@ public:
 	    std::vector<ConeRef> leafCones;
 	    m_coneMaps[level].resize(numBoxes(level));
 	    tbb::parallel_for(tbb::blocked_range<size_t>(0,numBoxes(level)), [&](tbb::blocked_range<size_t> r) {
-            for(size_t n=r.begin();n<r.end();++n) {
+	    for(size_t n=r.begin();n<r.end();++n) {
 		std::shared_ptr<OctreeNode> node=m_nodes[level][n];
 		BoundingBox<DIM> box;
 
@@ -577,10 +581,10 @@ public:
 
 		
 		box=interp_box;
-		ConeDomain<DIM> domain(N_for_H(H,0),box);
 
-		auto hoN=N_for_H(H,1);
 
+		auto hoN=N_for_H(H);
+		ConeDomain<DIM> domain(REFINEMENT_FACTOR*hoN,box);
 		ConeDomain<DIM> coarseDomain(hoN,box);
 
 		    
@@ -592,8 +596,7 @@ public:
 		//now we need to do the whole thing again to figure out which cones are active...
 		// 0 = fine grid low order (used for evaluating FF and propagating upwards
 		// 1 = coarse grid high order (used as target for interplating leaves and for propagation from below)
-		std::array<IndexSet,N_STEPS> is_cone_active;
-		auto N=N_for_H(est_H,0);
+		std::array<IndexSet,N_STEPS> is_cone_active;		
 		//is_cone_active[0].reserve(std::pow((double) N.prod(),(DIM-1.0)/DIM));
 		
 		std::array<size_t,N_STEPS> numActiveCones;
@@ -606,7 +609,7 @@ public:
 		{
 		    const Point pxc=parent->boundingBox().center();
                     const PointScalar pH=parent->boundingBox().sideLength();
-
+		    
                     const ConeDomain<DIM>& p_grid=parent->coneDomain(1);
 
 		    if(parentHasFarTargets(level,n))
@@ -685,10 +688,11 @@ public:
 		//We now activate all of the elements in the coarse(high order grid) that are needed to
 		//create the fine grid later on.
 		{
-		    auto factor=9;//(N_for_H(est_H,0).array()/N_for_H(est_H,1).array()).prod();
+		    auto factor=4;//std::pow(REFINEMENT_FACTOR,DIM);//(N_for_H(est_H,0).array()/N_for_H(est_H,1).array()).prod();
 		    is_cone_active[1].reserve(is_cone_active.size()/factor);
 		    for( size_t el : is_cone_active[0])
 		    {
+			assert(el<SIZE_MAX);
 			const auto pnt=domain.transform(el, Eigen::Vector<PointScalar,DIM>::Zero());
 			auto coneId=coarseDomain.elementForPoint(pnt);
 			if(coneId<SIZE_MAX) {
@@ -786,7 +790,7 @@ public:
 
 	m_activeCones.shrink_to_fit();
 
-
+	
 	buildChildToParentData(order_for_H,N_for_H,smin_for_H);
 	//std::cout<<"interp_domain:" <<global_box<<std::endl;
 
@@ -847,8 +851,12 @@ public:
 			const size_t el=node->coneDomain().elementForPoint(transformed);
 			if(el==SIZE_MAX) 
 			{
-			    std::cout<<"this shouldn't happen"<<target_pnt.transpose()<<"/"<<transformed.transpose()<<std::endl;
-			    
+			    //std::cout<<"this shouldn't happen"<<target_pnt.transpose()<<"/"<<transformed.transpose()<<std::endl;
+
+			    //Store some dummy info to make sure stuff fits
+			    info.indices[info.starts[trg]+nBoxPerTarget[trg]]=SIZE_MAX;
+			    info.boxIndices[info.starts[trg]+nBoxPerTarget[trg]]=n;			    
+			    nBoxPerTarget[trg]++;
 			    continue;			    
 			}
 			
@@ -1390,11 +1398,11 @@ private:
 
 
     void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
-				std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
 				std::function<PointScalar(PointScalar)> smin_for_H)
     {
 	std::cout<<"building CtP data"<<std::endl;
-	double estpH=2*m_sideLength;
+	PointScalar estpH=2*m_sideLength;
 
 	tbb::spin_mutex mutex;
 
@@ -1402,12 +1410,14 @@ private:
 	tbb::enumerable_thread_specific<PointArray > transformedNodes;
 	tbb::enumerable_thread_specific<PointArray > childNodes;
 
+	return;
+
 	for(int level=1;level<levels();level++) {
 	    estpH/=2.0;
 	    const auto order =  order_for_H(estpH/2.0,0);	
 	    const auto high_order = order_for_H(estpH,1);
 	    
-	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<double,DIM>(high_order);
+	    const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
 
 
 	    m_childToParent[level].pntRanges.resize(this->numActiveCones(level,0));
@@ -1429,7 +1439,7 @@ private:
 		    auto pGrid= this->coneDomain(level-1,parentBox,1);				    
                     BoundingBox parent_bbox = this->bbox(level - 1, parentBox);
                     auto parent_center = parent_bbox.center();
-                    double pH = parent_bbox.sideLength();
+                    PointScalar pH = parent_bbox.sideLength();
 
 
 		    if (!this->hasPoints(level-1, parentBox)) {
@@ -1455,7 +1465,7 @@ private:
                       // current node
                       BoundingBox bbox = this->bbox(level, childBox);
                       auto center = bbox.center();
-                      double H = bbox.sideLength();
+                      PointScalar H = bbox.sideLength();
 
                       const auto &childGrid = coneDomain(level, childBox, 0);
 
@@ -1493,11 +1503,7 @@ private:
 			}
 			
                         size_t memId = m_coneMaps[level][childBox].at(el);//lo_stride+childGrid.memId(el);
-			if(memId==75) {
-			    std::cout<<"el="<<el<<parent_center.transpose()<<"/"<<center.transpose()<<std::endl;
-			}
-
-
+		
 			{
 			    tbb::spin_mutex::scoped_lock lock(mutex);
 			    //std::cout<<"asd"<<parentCone.globalId()<<std::endl;
@@ -1510,7 +1516,7 @@ private:
 		      
                     }
 
-
+		    
                   }
                 });
 
@@ -1526,7 +1532,7 @@ private:
 	    std::cout<<"done with level"<<level<<std::endl;
 
 
-	    {
+	    /*{
 		Eigen::VectorXi tmp(numActiveCones(level-1,1));
 		tmp.fill(0);
 		ChildToParentData& data=m_childToParent[level];
@@ -1540,7 +1546,7 @@ private:
 		    assert(tmp[i]==tmp2[i]);
 		}
 		
-	    }
+		}*/
 
         }
 
@@ -1548,12 +1554,12 @@ private:
 
 #if 0
     void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
-				std::function<Eigen::Vector<size_t,DIM>(PointScalar,int )> N_for_H,
+				std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
 				std::function<PointScalar(PointScalar)> smin_for_H)
     {
 	std::cout<<"building CtP data"<<std::endl;
 	auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
-	double H=m_sideLength;
+	PointScalar H=m_sideLength;
 
 	m_childToParent.resize(levels());
 
@@ -1652,7 +1658,7 @@ private:
 		    //Go through the different cases of parent/child boxes
 		    for(int parentId=0;parentId<N_Children;parentId++) { 
 			const int cube_corner=parentId;
-			Eigen::Vector<double,DIM> d;
+			Eigen::Vector<PointScalar,DIM> d;
 			for(int j=0;j<DIM;j++) {
 			    bool flag=cube_corner & (1<<j);
 			    d[j]= flag ? 0.5: -0.5;		    
@@ -1790,9 +1796,19 @@ private:
 	size_t pntRangeSize;
 	size_t numChunks;
     };
+
+
+    struct FarfieldData {
+	std::vector<size_t> pointIds;
+	std::vector<size_t> coneShifts;
+    };
+
     
 
     std::vector< ChildToParentData > m_childToParent;
+    std::vector<FarfieldData> m_farfieldData;
+    
+    
 
 
 
@@ -1817,7 +1833,7 @@ private:
 template<typename T,int DIM>
 class SyclChildToParentData {
 public:
-    SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data): 
+    SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data) :
 	fineConeShifts(data.pntRanges.size()+1),
 	chunkShifts(data.numChunks+1),
 	parentConeIds(data.numChunks),
@@ -2017,7 +2033,7 @@ public:
 	}
 
 
-	assert(octree.m_childToParent[level].pntRanges.size()==m_numActiveCones[0]);
+	//assert(octree.m_childToParent[level].pntRanges.size()==m_numActiveCones[0]);
 
 	//std::cout<<"done"<<std::endl;
 
@@ -2395,12 +2411,12 @@ public:
 
     
 
-    double diameter() const
+    PointScalar diameter() const
     {
 	return m_diameter;
     }
 
-    double sideLength() const
+    PointScalar sideLength() const
     {
 	return m_sideLength;
     }
@@ -2428,8 +2444,8 @@ private:
     std::vector<size_t> m_targetPermutation;
     PointArray m_targetPoints;
 
-    double m_diameter;
-    double m_sideLength;
+    PointScalar m_diameter;
+    PointScalar m_sideLength;
 
     
 };

@@ -1,6 +1,7 @@
 #ifndef __MOD_HELMHOLTZ_IFGF_HPP__
 #define __MOD_HELMHOLTZ_IFGF_HPP__
 
+#include "config.hpp"
 #include "ifgfoperator.hpp"
 
 #define HIGH_EXP_CUTOFF 50  //constant where exp(-x) is considered zero  to avoid NaNs/denormalized numbers
@@ -64,8 +65,10 @@ public:
 	    RealScalar d = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
 
 	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
+	    //-dc
 
-	    result += (abs(d)<1e-15 ) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
+	    assert((d-dc+sqrt(dim)*H)>=0);
+	    result += (abs(d)<1e-15 ) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc+sqrt(dim)*H)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
 	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
 	}
 	return result;
@@ -73,7 +76,7 @@ public:
 
 
     template<typename TX>
-    inline T CF(TX x) const
+    inline T CF(TX x,PointScalar H) const
     {
 	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 
@@ -91,7 +94,9 @@ public:
             return 0.0;
         }*/
 
-	return T(sycl::exp(-k.real()*d))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
+	//T(sycl::exp(-k.real()*d))*
+	assert((d-sqrt(dim)*H)>=0);
+	return T(sycl::exp(-k.real()*(d-sqrt(dim)*H)))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
 
     }
 
@@ -111,7 +116,10 @@ public:
     	        return T(exp(HIGH_EXP_CUTOFF))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
         }*/
 
-	return T(exp(-k.real()*(d-dp)))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
+	assert((d-dp-sqrt(dim)*(H-pH))>=0);
+	
+	//T(exp(-k.real()*(d-dp)))*	
+	return T(exp(-k.real()*(d-dp-sqrt(dim)*(H-pH))))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
 	
     }
 
@@ -159,7 +167,7 @@ public:
 
         std::cout<<"minSigma="<<minSigma<<std::endl;
         if(maxk<0) {
-	    maxk=std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
+	    maxk=std::abs(k.imag()/std::max(1.0,0.75*k.real()));///(1+k.real())///std::max((RealScalar) 1.0,k.real());
             std::cout<<"maxk="<<maxk<<std::endl;
 	}
 
@@ -223,10 +231,10 @@ public:
         return order;
     }
 
-    double cutoff_limit(double H) {
-        double rmax=3*HIGH_EXP_CUTOFF/std::max((RealScalar )1.,minSigma);
-        double smin=1e-4;//0.5*std::max(H/rmax,1e-4);
-        std::cout<<"smin="<<smin<<std::endl;
+    inline PointScalar cutoff_limit(PointScalar H,Eigen::Vector<int,dim> baseOrder) const {
+        double rmax=6*baseOrder.minCoeff()/minSigma;
+        double smin=std::max(H/rmax,1e-4);
+        //std::cout<<"smin="<<smin<<std::endl;
         return std::min(smin,sqrt(dim)/dim);
     }
 
@@ -239,9 +247,11 @@ public:
 	    base*=3;
 	    //base[2]*=2;
 	}
-	    
-	for(int i=0;i<dim;i++) {
-            PointScalar delta=std::max( maxk*H, 1.0);
+
+	PointScalar delta=std::max( maxk*H, (PointScalar) 1.0);
+	PointScalar delta0=delta*(sqrt(dim)/dim-cutoff_limit(H,baseOrder));
+	els[0]=std::max(base[0]*((int) ceil(delta0)),(size_t) 1);	    //the first element might already be small
+	for(int i=1;i<dim;i++) {
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
 	}
 	    

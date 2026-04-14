@@ -73,7 +73,7 @@ public:
 
 
     template<typename TX>
-    inline T CF(TX x) const
+    inline T CF(TX x,PointScalar H) const
     {
 	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 
@@ -172,7 +172,7 @@ public:
     }
 
     template<typename TX>
-    inline T CF(TX x) const
+    inline T CF(TX x,PointScalar H) const
     {
 	if constexpr(x.ColsAtCompileTime>1) {
 	    const auto d2 = x.squaredNorm();
@@ -296,26 +296,16 @@ public:
         return order;
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base) const
     {
-	const auto orders=orderForBox(H,baseOrder,step);
+	const auto orders=orderForBox(H,baseOrder);
 	Eigen::Vector<size_t,dim> els;
 
 	const double sizes[]={1., 2,4};
-	if(step==0){
-	    base*=4;
-	    //base[1]*=2;
-	    //base[2]*=4;
-	    
-	    
-	    //base[2]*=2;
-	}
 	    
 	for(int i=0;i<dim;i++) {
 	    //int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make sure that k H is bounded
 	    PointScalar delta=std::max( k*H/2.,1.);
-	    
-
 	    
 	    els[i]=base[i]*delta;//std::max((size_t) ceil((k*H*sizes[i])*(2.0/baseOrder[i])),(size_t ) round(2*H));//std::max(base[i]*((int) ceil(delta)),(size_t) 1);
 

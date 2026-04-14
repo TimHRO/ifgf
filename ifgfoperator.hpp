@@ -127,8 +127,8 @@ public:
 	if(!is_ready) {
 	    std::cout<<"calculating interp range"<<std::endl;
 	    tmp_src_octree->calculateInterpolationRange([this](PointScalar H,int step){return static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);},
-						      [this](PointScalar H, int step){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,step);},
-						      [this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H);},
+							[this](PointScalar H){return static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements);},
+							[this](PointScalar H){return static_cast<Derived *>(this)->cutoff_limit(H,this->m_baseOrder);},
 						      *tmp_target_octree);
 
 
@@ -489,11 +489,9 @@ public:
 			
 
 			const double H=H0*pow(2,-level);//m_octree->bbox(level,0).sideLength();//H0*pow(2,-level);
-			auto fine_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,0);
-			auto coarse_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements,1);
-		    
-			Eigen::Vector<size_t,DIM> factor=fine_N.array()/coarse_N.array();
-			std::array<int, DIM> factors=SyclHelpers::EigenVectorToCPPArray<int,DIM>(factor.template cast<int>());
+			Eigen::Vector<size_t,DIM> coarse_N=static_cast<Derived *>(this)->elementsForBox(H, this->m_baseOrder,this->m_base_n_elements);
+			Eigen::Vector<size_t,DIM> fine_N=(size_t) (std::pow((unsigned int) REFINEMENT_FACTOR, (unsigned int) ( REFINEMENT_LEVELS)))*coarse_N;//
+		    					
 			std::array<int, DIM> n_elements=SyclHelpers::EigenVectorToCPPArray<int,DIM>(fine_N.template cast<int>());
 
 
@@ -502,7 +500,7 @@ public:
 
 			sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
 
-			const int nF=factor.prod();
+			const int nF=std::pow(REFINEMENT_FACTOR,DIM);
 			//std::cout<<"doing it"<<std::endl;
 			h.parallel_for(sycl::range( {numActiveCones*nF}), [=](auto it)			
 			{		
@@ -514,11 +512,14 @@ public:
 			    if( srcDataAcc.hasFarTargetsIncludingAncestors(hoCone.boxId())){ // we dont need the interpolation info for those levels.
 				auto ho_id=SyclConeDomain<DIM>::indicesFromId(hoCone.id(),n_el);
 
+				std::array<size_t, DIM> factors;
+				factors.fill(REFINEMENT_FACTOR);
+
 				auto lid=SyclConeDomain<DIM>::indicesFromId(it%nF,factors);
 				const size_t fine_el=
-				    (ho_id[2]*factors[2]+(lid[2]))*n_elements[1]*n_elements[0]+
-				    (ho_id[1]*factors[1]+(lid[1]))*n_elements[0]+
-				    (ho_id[0]*factors[0]+(lid[0]));
+				    (ho_id[2]*REFINEMENT_FACTOR+(lid[2]))*n_elements[1]*n_elements[0]+
+				    (ho_id[1]*REFINEMENT_FACTOR+(lid[1]))*n_elements[0]+
+				    (ho_id[0]*REFINEMENT_FACTOR+(lid[0]));
 		       
 				const size_t fineMemId=srcDataAcc.memId(hoCone.boxId(),fine_el);
 						
@@ -545,8 +546,8 @@ public:
 					const PointScalar h=2;
 					assert(lo_ns[d]<=MAX_LOW_ORDER);
 				    
-					const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
-					const PointScalar mmax=(mmin+(h/((PointScalar) factors[d])));
+					const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) REFINEMENT_FACTOR)));
+					const PointScalar mmax=(mmin+(h/((PointScalar) REFINEMENT_FACTOR)));
 					const PointScalar a=0.5*(mmax-mmin);
 					const PointScalar b=0.5*(mmax+mmin);
 
@@ -566,7 +567,6 @@ public:
 										     fineMemId*fine_stride, 0);
 
 
-				    //and chebtrafo all in one go
 				    SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( a_parentIntData,  lo_ns, a_chebvals,fineMemId*fine_stride);
 				    
 				
@@ -597,6 +597,7 @@ public:
             }
 	    //Q.wait();
 	    {
+	                       
 		auto e=Q.submit([&](sycl::handler &h) {
 		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
 		    sycl::accessor a_targets(b_targets,h, sycl::read_only);
@@ -606,6 +607,7 @@ public:
 
 		    std::array<int, DIM> ns=SyclHelpers::EigenVectorToCPPArray<int, DIM>(order);
 
+		    const double H=m_octree->sideLength()*pow(2,-level);
 
 		    const auto &srcDataAcc = srcData->accessor(h);
 		    const auto functions =
@@ -622,13 +624,17 @@ public:
 			for( size_t l=rng.first;l<rng.second;l++){
 			    size_t memId=srcDataAcc.ffBIndex(l);
 
+			    if(memId==SIZE_MAX) {
+				continue;
+			    }
+
 			    size_t boxId=srcDataAcc.farfieldBoxId(l);
 			    auto center = srcDataAcc.boxCenter(boxId);
 			    sycl::marray<PointScalar,DIM> target_pnt;
 			    for(int j=0;j<DIM;j++)
 				target_pnt[j]=a_targets[it*DIM+j];
 			    sycl::marray<PointScalar,DIM> transformed;
-			    const auto cf = functions.CF(target_pnt - center);
+			    const auto cf = functions.CF(target_pnt - center,H);
 
 			    transformed=srcDataAcc.farfieldPoint(l);
 						
@@ -686,6 +692,20 @@ public:
 		Q.fill(parentInterpolationDataBuffer->get_access(), T(0.0));
 		Q.wait();
 
+		std::cout << "Local Memory Size: "
+			  << Q.get_device().get_info<sycl::info::device::local_mem_size>()
+			  << std::endl;
+
+		size_t local_mem_size=Q.get_device().get_info<sycl::info::device::local_mem_size>();
+
+		size_t storage_per_cone=ho_chebNodes.cols()*sizeof(T)+_CtFBufferSize<DIM>(order.maxCoeff(),high_order.maxCoeff());
+
+
+		size_t conesPerGroup=local_mem_size/storage_per_cone;
+
+		std::cout<<"using "<<conesPerGroup<<" as at the same time"<<std::endl;
+
+
 		auto e=Q.submit([&](sycl::handler &h) {
 		    // start by pushing  some data to the GPU (octree stuff)
 		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
@@ -694,7 +714,8 @@ public:
 		    std::array<int,DIM> ns=SyclHelpers::EigenVectorToCPPArray<int,DIM>(order);
 		    std::array<int,DIM> ns_ho=SyclHelpers::EigenVectorToCPPArray<int,DIM>(high_order);
 
-		
+
+		    //sycl::local_accessor<T> coarseData(high_order.prod());
 
 		    sycl::accessor a_hoChebNodes(b_hoChebNodes,h,sycl::read_only);
 		
@@ -944,7 +965,7 @@ public:
     }
 
 
-    inline  PointScalar  cutoff_limit(PointScalar H) const
+    inline  PointScalar  cutoff_limit(PointScalar H, Eigen::Vector<int,DIM> baseOrder) const
     {
 	return 2e-3;
     }

@@ -2,19 +2,28 @@
 #define __IFGF_CONFIG_HPP
 
 
-typedef  double PointScalar ;
-typedef double  RealScalar;
-typedef double ExtendedScalar;
 
-#define FAST_CTP
-//#define DEBUG_CTP
+//default float type used
+typedef  float DefaultScalarType;
+
+//change specific instances of float if needed
+typedef DefaultScalarType PointScalar ;
+typedef DefaultScalarType RealScalar;
+typedef DefaultScalarType ExtendedScalar;
+
+//#define FAST_CTP
 #define USE_FAST_HASH
 
 // #define INITIALIZE_BY_ZERO
 
-#define CACHE_OCTREE 
+#define CACHE_OCTREE
 
-//#define KEEP_LEVEL_DATA
+// #define KEEP_LEVEL_DATA
+
+#define REFINEMENT_FACTOR (unsigned int) 2
+#define REFINEMENT_LEVELS (unsigned int) 1
+
+
 
 #ifdef USE_FAST_HASH
 #include "unordered_dense.h"
