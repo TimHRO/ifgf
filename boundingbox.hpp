@@ -5,66 +5,53 @@
 
 #include <Eigen/Geometry>
 
-template <size_t DIM>
-class BoundingBox : public Eigen::AlignedBox<double, DIM>
+template <size_t DIM> class BoundingBox : public Eigen::AlignedBox<double, DIM>
 {
-public:
-    BoundingBox()
+  public:
+    BoundingBox() {}
+
+    BoundingBox(Eigen::Vector<double, DIM> min, Eigen::Vector<double, DIM> max)
+        : Eigen::AlignedBox<double, DIM>(min, max)
     {
 
-    }
+        m_center = (max + min) / 2.0;
 
-    BoundingBox(Eigen::Vector<double, DIM> min, Eigen::Vector<double, DIM> max):
-        Eigen::AlignedBox<double, DIM>(min, max)
-    {
-
-	m_center=(max + min)/2.0;
-
-	auto diag = this->diagonal();
+        auto diag = this->diagonal();
         double m = 0;
-        for (unsigned int i = 0; i < DIM; i++) {
+        for (unsigned int i = 0; i < DIM; i++)
+        {
             m = std::max(m, std::abs(diag[i]));
         }
-        m_sideLength=m;
-	
+        m_sideLength = m;
     }
 
-    ~BoundingBox()
+    ~BoundingBox() {}
+
+    inline const Eigen::Vector<double, DIM>& center() const { return m_center; }
+
+    inline double sideLength() const { return m_sideLength; }
+
+    inline double distanceToBoundary(Eigen::Vector<double, DIM> p) const
     {
-
+        double mD = 0;
+        unsigned int n_corners = 1 << DIM;
+        for (int j = 0; j < n_corners; j++)
+        {
+            Eigen::Vector<double, DIM> vertex;
+            for (int l = 0; l < DIM; l++)
+            {
+                vertex[l] = (j & 1 << l) == 0 ? this->min()[l] : this->max()[l];
+            }
+            double d = (p - vertex).norm();
+            mD = std::max(mD, d);
+        }
+        return mD;
     }
 
-    inline const Eigen::Vector<double, DIM>& center() const
-    {
-        return  m_center;
-    }
-
-    inline double sideLength() const
-    {
-	return m_sideLength;
-    }
-
-    inline double distanceToBoundary( Eigen::Vector<double,DIM> p) const
-    {
-	double mD=0;
-	unsigned int n_corners=1 << DIM;
-	for (int j=0;j<n_corners;j++)
-	{
-	    Eigen::Vector<double,DIM> vertex;
-	    for(int l=0;l<DIM;l++){
-		vertex[l]= (j & 1 << l) == 0 ?  this->min()[l] : this->max()[l];
-	    }
-	    double d=(p-vertex).norm();
-	    mD=std::max(mD,d);
-	}
-	return mD;
-    }
-
-
-private:
-    Eigen::Vector<double,DIM> m_center;
+  private:
+    Eigen::Vector<double, DIM> m_center;
     double m_sideLength;
-    
+
     /*
 
     inline void absorb(const BoundingBox& other)
@@ -112,10 +99,9 @@ private:
     */
 };
 
-template<size_t DIM>
-std::ostream & operator<<(std::ostream &os, const BoundingBox<DIM>& p)
+template <size_t DIM> std::ostream& operator<<(std::ostream& os, const BoundingBox<DIM>& p)
 {
-    return os << p.min().transpose()<<" "<<p.max().transpose();
+    return os << p.min().transpose() << " " << p.max().transpose();
 }
 
 #endif

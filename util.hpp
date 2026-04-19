@@ -10,211 +10,229 @@
 
 namespace Util
 {
-    template <typename RandomIt, class Compare>
-    auto sort_with_permutation( RandomIt cbegin, RandomIt cend, Compare comp)
+template <typename RandomIt, class Compare>
+auto sort_with_permutation(RandomIt cbegin, RandomIt cend, Compare comp)
+{
+    auto len = std::distance(cbegin, cend);
+    std::vector<size_t> perm(len);
+    std::iota(perm.begin(), perm.end(), 0U);
+    std::sort(perm.begin(), perm.end(),
+              [&](const size_t& a, const size_t& b) { return comp(*(cbegin + a), *(cbegin + b)); });
+    return perm;
+}
+
+template <typename T, int DIMOUT>
+void copy_with_permutation_rowwise(
+    const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT>>& v,
+    const std::vector<size_t>& permutation,
+    Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT>> target)
+{
+    for (size_t i = 0; i < v.rows(); i++)
     {
-	auto len = std::distance(cbegin, cend);
-	std::vector<size_t> perm(len);
-	std::iota(perm.begin(), perm.end(), 0U);
-	std::sort (perm.begin(), perm.end(),
-			    [&](const size_t &a, const size_t &b) {
-				return comp(*(cbegin + a), *(cbegin + b));
-			    });
-	return perm;
+        target.row(i) = v.row(permutation[i]);
+    }
+}
+
+template <typename T, int DIMOUT>
+void copy_with_permutation_colwise(
+    const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic>>& v,
+    const std::vector<size_t>& permutation,
+    Eigen::Ref<Eigen::Array<T, DIMOUT, Eigen::Dynamic>> target)
+{
+    for (size_t i = 0; i < v.cols(); i++)
+    {
+        target.col(i) = v.col(permutation[i]);
+    }
+}
+
+template <typename T, int DIMOUT>
+void copy_with_inverse_permutation_colwise(
+    const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic>>& v,
+    const std::vector<size_t>& permutation,
+    Eigen::Ref<Eigen::Array<T, DIMOUT, Eigen::Dynamic>> target)
+{
+    for (size_t i = 0; i < v.cols(); i++)
+    {
+        target.col(permutation[i]) = v.col(i);
+    }
+}
+
+template <typename T, int DIMOUT>
+void copy_with_inverse_permutation_rowwise(
+    const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT>>& v,
+    const std::vector<size_t>& permutation,
+    Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT>> target)
+{
+    for (size_t i = 0; i < v.rows(); i++)
+    {
+        // std::cout<<"permutation"<<permutation[i]<<" "<<target.rows()<<" "<<std::endl;
+        target.row(permutation[i]) = v.row(i);
+    }
+}
+
+// assumes: p[0] in (0,1) and p[1] in (-pi,pi)
+template <size_t DIM, long int POINTS>
+inline Eigen::Vector<double, DIM>
+sphericalToCart(const Eigen::Ref<const Eigen::Array<double, DIM, POINTS>>& p)
+{
+    Eigen::Array<double, DIM, POINTS> res(POINTS, p.cols());
+
+    if constexpr (DIM == 2)
+    {
+        res.row(0) = p.row(0) * Eigen::cos(p.row(1));
+        res.row(1) = p.row(0) * Eigen::sin(p.row(1));
+    }
+    else
+    {
+        static_assert(DIM == 3);
+        res.row(0) = p.row(0) * Eigen::cos(p.row(2)) * Eigen::sin(p.row(1));
+        res.row(1) = p.row(0) * Eigen::sin(p.row(2)) * Eigen::sin(p.row(1));
+        res.row(2) = p.row(0) * Eigen::cos(p.row(1));
     }
 
-    template <typename T, int DIMOUT>
-    void copy_with_permutation_rowwise(const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> > &v, const std::vector<size_t> &permutation,
-				       Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > target)
+    return res;
+}
+
+template <size_t DIM, typename PointVector>
+inline typename PointVector::PlainObject
+interpToCart(const Eigen::ArrayBase<PointVector>& p, const Eigen::Vector<double, DIM>& xc, double H)
+{
+    typename PointVector::PlainObject res(p.rows(), p.cols());
+
+    if constexpr (DIM == 2)
     {
-	for (size_t i = 0; i < v.rows(); i++) {	
-	    target.row(i) = v.row(permutation[i]);
-	}
+        res.row(0) = xc[0] + (H / p.row(0)) * Eigen::cos(p.row(1));
+        res.row(1) = xc[1] + (H / p.row(0)) * Eigen::sin(p.row(1));
+    }
+    else
+    {
+        static_assert(DIM == 3);
+        res.row(0) = xc[0] + (H / p.row(0)) * Eigen::cos(p.row(2)) * Eigen::sin(p.row(1));
+        res.row(1) = xc[1] + (H / p.row(0)) * Eigen::sin(p.row(2)) * Eigen::sin(p.row(1));
+        res.row(2) = xc[2] + (H / p.row(0)) * Eigen::cos(p.row(1));
     }
 
-    template <typename T, int DIMOUT>
-    void copy_with_permutation_colwise(const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic> > &v, const std::vector<size_t> &permutation,
-				       Eigen::Ref<Eigen::Array<T, DIMOUT, Eigen::Dynamic> > target)
+    return res;
+}
+
+template <size_t DIM>
+inline Eigen::Vector<double, DIM>
+cartToSpherical(const Eigen::Ref<const Eigen::Vector<double, DIM>>& p)
+{
+    Eigen::Vector<double, DIM> xp = p;
+
+    if constexpr (DIM == 2)
     {
-	for (size_t i = 0; i < v.cols(); i++) {	
-	    target.col(i) = v.col(permutation[i]);
-	}    
+        const double r = xp.norm();
+
+        const long double theta = std::atan2((long double)xp[1], (long double)xp[0]);
+
+        Eigen::Vector<double, DIM> res;
+        res[0] = r;
+        res[1] = theta;
+
+        // assert(-1.0001 <= res[0] && res[0] <= 1.0001);
+        // assert(-1 <= res[1] && res[1] <= 1);
+
+        return res;
+    }
+    else
+    {
+        static_assert(DIM == 3);
+        const double phi = std::atan2(xp[1], xp[0]);
+        const double a = (xp[0] * xp[0] + xp[1] * xp[1]);
+        const double theta = std::atan2(sqrt(a), xp[2]);
+        const double r = sqrt(a + xp[2] * xp[2]);
+
+        Eigen::Vector<double, DIM> res;
+        res[0] = r;
+        res[1] = theta;
+        res[2] = phi;
+
+        return res;
+    }
+}
+
+template <size_t DIM, typename PointVector, typename PointVector2>
+inline typename PointVector::PlainObject cartToInterp2(const Eigen::ArrayBase<PointVector>& x,
+                                                       const Eigen::Vector<double, DIM>& xc,
+                                                       double H, PointVector2& rs)
+{
+
+    auto p = x.colwise() - xc.array();
+
+    const auto a = p.row(0) * p.row(0) + p.row(1) * p.row(1);
+    rs.row(2) = p.row(0).binaryExpr(p.row(1), [](double a, double b) { return std::atan2(b, a); });
+    rs.row(1) =
+        p.row(2).binaryExpr(a, [](double b, double aj) { return std::atan2(std::sqrt(aj), b); });
+    rs.row(0) = H / ((a + p.row(2) * p.row(2)).sqrt());
+
+    return rs;
+}
+
+template <size_t DIM>
+inline Eigen::Vector<double, DIM> cartToInterp(Eigen::Vector<double, DIM> p,
+                                               const Eigen::Vector<double, DIM>& xc, double H)
+{
+    auto ps = cartToSpherical<DIM>(p - xc);
+    ps[0] = H / ps[0];
+
+    return ps;
+}
+
+template <int DIM>
+inline Eigen::Vector<size_t, DIM>
+indicesFromId(size_t j, const Eigen::Ref<const Eigen::Vector<size_t, DIM>>& ns)
+{
+    Eigen::Vector<size_t, DIM> indices;
+    for (int i = 0; i < DIM; i++)
+    {
+        const size_t idx = j % ns[i];
+        j = j / ns[i];
+
+        indices[i] = idx;
     }
 
+    return indices;
+}
 
-    template <typename T, int DIMOUT>
-    void copy_with_inverse_permutation_colwise(const Eigen::Ref<const Eigen::Array<T, DIMOUT, Eigen::Dynamic> > &v, const std::vector<size_t> &permutation,
-					       Eigen::Ref<Eigen::Array<T, DIMOUT,Eigen::Dynamic> > target)
+template <int DIM>
+inline size_t indicesToId(const Eigen::Ref<const Eigen::Vector<size_t, DIM>>& idcs,
+                          const Eigen::Ref<const Eigen::Vector<size_t, DIM>>& ns)
+{
+    size_t id = 0;
+    size_t stride = 1;
+    for (int i = 0; i < DIM; i++)
     {
-	for (size_t i = 0; i < v.cols(); i++) {	
-	    target.col(permutation[i]) = v.col(i);	    
-	}
+        id += idcs[i] * stride;
+        stride *= ns[i];
     }
 
-    template <typename T, int DIMOUT>
-    void copy_with_inverse_permutation_rowwise(const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT> > &v, const std::vector<size_t> &permutation,
-					       Eigen::Ref<Eigen::Array<T, Eigen::Dynamic, DIMOUT> > target)
-    {
-	for (size_t i = 0; i < v.rows(); i++) {
-	    //std::cout<<"permutation"<<permutation[i]<<" "<<target.rows()<<" "<<std::endl;
-	    target.row(permutation[i]) = v.row(i);
-	}       
-    }
+    return id;
+}
 
-    //assumes: p[0] in (0,1) and p[1] in (-pi,pi)
-    template<size_t DIM,long int POINTS>
-    inline Eigen::Vector<double, DIM> sphericalToCart(const Eigen::Ref<const Eigen::Array<double, DIM, POINTS> >& p) 
-    {
-        Eigen::Array<double, DIM,POINTS> res(POINTS,p.cols());
+template <typename T, int DIM, int DIMOUT>
+double compute_slice_norm(const Eigen::Ref<const Eigen::Array<T, Eigen::Dynamic, DIMOUT>>& data,
+                          const Eigen::Vector<size_t, DIM>& ns, int axis, int layers = 1)
+{
+    double v1 = 0;
+    double v2 = 0;
 
-        if constexpr(DIM==2) {
-	    res.row(0)= p.row(0)*Eigen::cos(p.row(1));
-	    res.row(1)= p.row(0)*Eigen::sin(p.row(1));
-        }else {
-            static_assert(DIM==3);
-	    res.row(0)=p.row(0)*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
-	    res.row(1)=p.row(0)*Eigen::sin(p.row(2))*Eigen::sin(p.row(1));
-	    res.row(2)=p.row(0)*Eigen::cos(p.row(1));	    
+    for (size_t idx = 0; idx < data.rows(); idx++)
+    {
+        Eigen::Vector<size_t, DIM> split = indicesFromId<DIM>(idx, ns);
+        double n = data.row(idx).matrix().squaredNorm();
+
+        v1 += n;
+        if (split[axis] == ns[axis] - layers)
+        {
+            v2 += n;
         }
-
-        return  res;
     }
 
-    
+    return sqrt(v2) / std::max(1., sqrt(v1));
+}
 
-    template<size_t DIM,typename PointVector>
-    inline typename PointVector::PlainObject interpToCart(const Eigen::ArrayBase<PointVector>& p, const Eigen::Vector<double, DIM> &xc, double H)
-    {
-	typename PointVector::PlainObject res(p.rows(),p.cols());
-
-        if constexpr(DIM==2) {
-	    res.row(0)= xc[0]+(H/p.row(0))*Eigen::cos(p.row(1));
-	    res.row(1)= xc[1]+(H/p.row(0))*Eigen::sin(p.row(1));
-        }else {
-            static_assert(DIM==3);
-	    res.row(0)=xc[0]+(H/p.row(0))*Eigen::cos(p.row(2))*Eigen::sin(p.row(1));
-	    res.row(1)=xc[1]+(H/p.row(0))*Eigen::sin(p.row(2))*Eigen::sin(p.row(1));
-	    res.row(2)=xc[2]+(H/p.row(0))*Eigen::cos(p.row(1));	    
-        }
-
-        return  res;
-    }
-
-
-
-    template<size_t DIM>
-    inline Eigen::Vector<double, DIM> cartToSpherical(const Eigen::Ref<const Eigen::Vector<double, DIM> >& p) 
-    {
-	Eigen::Vector<double,DIM> xp = p ;
-
-
-        if constexpr (DIM==2) {
-	    const double r = xp.norm();
-
-	    const long double theta = std::atan2( (long double) xp[1], (long double) xp[0]);
-
-            Eigen::Vector<double, DIM> res;
-            res[0] = r;
-            res[1] = theta ;
-
-            //assert(-1.0001 <= res[0] && res[0] <= 1.0001);
-            //assert(-1 <= res[1] && res[1] <= 1);
-
-            return  res;
-
-        }else{
-            static_assert(DIM==3);
-            const double phi = std::atan2(xp[1], xp[0]);
-            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const double theta= std::atan2(sqrt(a),xp[2]);
-            const double r= sqrt(a+xp[2]*xp[2]);
-
-            Eigen::Vector<double, DIM> res;
-            res[0] = r;
-            res[1] = theta;
-            res[2] = phi;
-
-            return  res;
-
-        }
-    }
-
-
-    template<size_t DIM,typename PointVector, typename PointVector2>
-    inline typename PointVector::PlainObject cartToInterp2(const Eigen::ArrayBase<PointVector>& x, const Eigen::Vector<double, DIM> &xc, double H, PointVector2& rs)
-    {
-
-	auto p=x.colwise()-xc.array();
-	
-	const auto a = p.row(0)*p.row(0)+p.row(1)*p.row(1);
-	rs.row(2)= p.row(0).binaryExpr(p.row(1), [](double a,double b) {return  std::atan2(b,a);});
-	rs.row(1)= p.row(2).binaryExpr(a, [](double b,double aj){return std::atan2(std::sqrt(aj),b);});
-	rs.row(0)=H/((a+p.row(2)*p.row(2)).sqrt());
-
-
-	return rs;
-    }
-    
-        template<size_t DIM>
-    inline Eigen::Vector<double, DIM> cartToInterp(Eigen::Vector<double, DIM> p, const Eigen::Vector<double, DIM> &xc, double H) 
-    {
-	auto ps=cartToSpherical<DIM>(p-xc);
-	ps[0]=H/ps[0];
-
-
-	return ps;
-    }
-
-    template<int DIM>
-    inline Eigen::Vector<size_t,DIM> indicesFromId(size_t j, const Eigen::Ref<const Eigen::Vector<size_t,DIM> > &ns)  {
-	Eigen::Vector<size_t,DIM> indices;	
-	for(int i=0;i<DIM;i++) {
-	    const size_t idx=j % ns[i];
-	    j=j / ns[i];
-	    
-	    indices[i]=idx;
-	}
-
-	return indices;
-    }
-
-
-    template<int DIM>
-    inline size_t indicesToId(const Eigen::Ref<const Eigen::Vector<size_t,DIM> >& idcs, const Eigen::Ref<const Eigen::Vector<size_t,DIM> > &ns)  {
-	size_t id=0;
-	size_t stride=1;
-	for(int i=0;i<DIM;i++) {
-	    id+=idcs[i]*stride;
-	    stride*=ns[i];
-	}
-
-	return id;
-    }
-
-
-
-    template <typename T,int DIM,int DIMOUT>
-    double compute_slice_norm(const Eigen::Ref<const Eigen::Array<T,Eigen::Dynamic, DIMOUT> >& data, const Eigen::Vector<size_t, DIM>& ns,int axis, int layers=1)
-    {
-	double v1=0;
-	double v2=0;
-	
-	for(size_t idx=0;idx<data.rows();idx++) {
-	    Eigen::Vector<size_t,DIM> split=indicesFromId<DIM>(idx,ns);
-	    double n=data.row(idx).matrix().squaredNorm();
-	    
-	    v1+=n;
-	    if(split[axis]==ns[axis]-layers) {
-		v2+=n;
-	    }
-	}
-
-	return sqrt(v2)/std::max(1.,sqrt(v1));
-    }
-
-
-
-    
-};
+}; // namespace Util
 
 #endif

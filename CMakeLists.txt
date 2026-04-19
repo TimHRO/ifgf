@@ -12,12 +12,13 @@ find_package(unordered_dense CONFIG )
 
 
 
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package (Eigen3 5.0.1 REQUIRED NO_MODULE)
 find_package (TBB REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR} ${TBB_INCLUDE_DIR})
 
 find_package(pybind11 REQUIRED)
 pybind11_add_module(pyifgf SHARED py_ifgf.cpp )
+target_link_libraries(pyifgf PRIVATE Eigen3::Eigen)
 target_link_libraries (pyifgf PRIVATE tbb)
 set_property(TARGET pyifgf PROPERTY CXX_STANDARD 20)
 
