@@ -1,7 +1,7 @@
 #ifndef _OCTREE_HPP_
 #define _OCTREE_HPP_
 
-#include "Eigen/src/Core/VectorBlock.h"
+#include "Eigen/Core"
 #include "config.hpp"
 
 #include <Eigen/Dense>
@@ -51,6 +51,13 @@ template <typename T, size_t DIM> class Octree
     {
         Eigen::Vector<size_t, Eigen::Dynamic> indices;
         Eigen::Vector<size_t, Eigen::Dynamic> starts;
+    };
+
+    struct InteractionCounter
+    {
+        size_t near{};
+        size_t far{};
+        size_t toFar{};
     };
 
     class OctreeNode
@@ -184,7 +191,10 @@ template <typename T, size_t DIM> class Octree
 
         double eta = (double)sqrt((double)DIM);
         m_isAdmissible = [eta](const BoundingBox<DIM>& src, const BoundingBox<DIM>& target)
-        { return target.exteriorDistance(src.center()) >= eta * src.sideLength(); };
+        {
+            auto exteriorDistance = target.exteriorDistance(src.center());
+            return std::tuple(exteriorDistance >= eta * src.sideLength(), exteriorDistance);
+        };
     }
 
     ~Octree() {}
@@ -232,28 +242,34 @@ template <typename T, size_t DIM> class Octree
         std::cout << "interactions for " << src->id() << " " << src->level() << std::endl;
         for (auto near : src->nearTargets())
         {
-            std::cout << near.first << " " << near.second << std::endl;
+            std::cout << near.first << " " << near.second << ": near" << std::endl;
         }
-        std::cout << "far" << std::endl;
+        // std::cout << "far" << std::endl;
 
         for (auto far : src->farTargets())
         {
-            std::cout << far.first << " " << far.second << std::endl;
+            std::cout << far.first << " " << far.second << ": far" << std::endl;
         }
     }
 
-    void buildInteractionList(const Octree& target_tree)
+    void buildInteractionList(const Octree& target_tree, std::function<bool(double)> cutOff)
     {
-        buildInteractionList(m_root, target_tree.m_root);
+        buildInteractionList(m_root, target_tree.m_root, cutOff);
 
-        /*printInteractionList(m_root);
-        for(int i=0;i<N_Children;i++){
-            printInteractionList(m_root->child(i));
-            }*/
+        // printInteractionList(m_root);
+        // for (int i = 0; i < N_Children; i++)
+        //{
+        //     printInteractionList(m_root->child(i)->child(i));
+        // }
+        std::cout << "Interaction Counter:" << "\n";
+        std::cout << "to far: " << intCounter.toFar << "\n";
+        std::cout << "far: " << intCounter.far << "\n";
+        std::cout << "near: " << intCounter.near << "\n";
     }
 
     void buildInteractionList(std::shared_ptr<OctreeNode> src,
-                              std::shared_ptr<const OctreeNode> target)
+                              std::shared_ptr<const OctreeNode> target,
+                              std::function<bool(double)> cutOff)
     {
         if (!src || !target || !src->hasPoints() || !target->hasPoints())
         {
@@ -261,10 +277,23 @@ template <typename T, size_t DIM> class Octree
         }
 
         // Ideally, this interaction is admissible, so we can interpolate it at this level
-        if (m_isAdmissible(src->boundingBox(), target->boundingBox()))
+        auto [isAdmissible, dist] = m_isAdmissible(src->boundingBox(), target->boundingBox());
+        auto toFar = cutOff(dist);
+
+        if (isAdmissible)
         {
-            src->addFarInteraction(*target);
-            return;
+            if (toFar)
+            {
+                // std::cout << "source and targets are to far - ignore them" << "\n";
+                intCounter.toFar++;
+                return;
+            }
+            else
+            {
+                src->addFarInteraction(*target);
+                intCounter.far++;
+                return;
+            }
         }
 
         // If both of them are leaves, we can't proceed by recursion. So let's just stop and
@@ -272,6 +301,7 @@ template <typename T, size_t DIM> class Octree
         if (src->isLeaf() && target->isLeaf())
         {
             src->addNearInteraction(*target);
+            intCounter.near++;
             return;
         }
 
@@ -280,7 +310,7 @@ template <typename T, size_t DIM> class Octree
         {
             for (int j = 0; j < N_Children; j++)
             {
-                buildInteractionList(src, target->child(j));
+                buildInteractionList(src, target->child(j), cutOff);
             }
             return;
         }
@@ -289,7 +319,7 @@ template <typename T, size_t DIM> class Octree
         {
             for (int j = 0; j < N_Children; j++)
             {
-                buildInteractionList(src->child(j), target);
+                buildInteractionList(src->child(j), target, cutOff);
             }
             return;
         }
@@ -299,7 +329,7 @@ template <typename T, size_t DIM> class Octree
         {
             for (int j = 0; j < N_Children; j++)
             {
-                buildInteractionList(src->child(j), target);
+                buildInteractionList(src->child(j), target, cutOff);
             }
             return;
         }
@@ -307,7 +337,7 @@ template <typename T, size_t DIM> class Octree
         {
             for (int j = 0; j < N_Children; j++)
             {
-                buildInteractionList(src, target->child(j));
+                buildInteractionList(src, target->child(j), cutOff);
             }
             return;
         }
@@ -1187,7 +1217,9 @@ template <typename T, size_t DIM> class Octree
     std::vector<size_t> m_permutation;
     double m_diameter;
 
-    std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&)> m_isAdmissible;
+    std::function<std::tuple<bool, double>(const BoundingBox<DIM>&, const BoundingBox<DIM>&)>
+        m_isAdmissible;
+    InteractionCounter intCounter;
 };
 
 #endif

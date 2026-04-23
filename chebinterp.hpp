@@ -1,7 +1,7 @@
 #ifndef _CHEBINTERP_HPP_
 #define _CHEBINTERP_HPP_
 
-#include "Eigen/src/Core/util/Constants.h"
+#include "Eigen/Core"
 #include "boundingbox.hpp"
 #include <cstddef>
 #include <tuple>

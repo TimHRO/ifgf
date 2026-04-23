@@ -1,7 +1,7 @@
 #ifndef __IFGFOPERATOR_HPP_
 #define __IFGFOPERATOR_HPP_
 
-#include "Eigen/src/Core/util/Constants.h"
+#include "Eigen/Core"
 #include "config.hpp"
 
 #include <Eigen/Dense>
@@ -60,14 +60,14 @@ template <typename T, unsigned int DIM, unsigned int DIMOUT, typename Derived> c
 
     ~IfgfOperator() {}
 
-    const Octree<T, DIM>& src_octree() const { return *m_src_octree; }
+    const Octree<T, DIM>& src_octree() const { return *m_src_octree; } // not used anywhere
 
-    void init(const PointArray& srcs, const PointArray targets)
+    void init(const PointArray& srcs, const PointArray& targets, std::function<bool(double)> cutOff)
     {
         m_src_octree->build(srcs);
         m_target_octree->build(targets);
 
-        m_src_octree->buildInteractionList(*m_target_octree);
+        m_src_octree->buildInteractionList(*m_target_octree, cutOff);
 
         static_cast<Derived*>(this)->onOctreeReady();
         // m_src_octree->sanitize();
