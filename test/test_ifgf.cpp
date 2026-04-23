@@ -66,6 +66,7 @@ int main(int argc, char** argv)
     std::complex<double> kappa(atof(argv[1]), atof(argv[2]));
     int o = atoi(argv[3]);
     int base_n = atoi(argv[4]);
+    double threshold = atof(argv[7]);
 
     // Eigen::initParallel();
     // auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism, 1);
@@ -96,7 +97,11 @@ int main(int argc, char** argv)
     normals.colwise().normalize();
 
     // feenableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
-    op.init(srcs, targets); //,normals);
+    // double threshold = 1e-10;
+    std::function<bool(double dist)> cutOff = [kappa, threshold](const double dist)
+    { return (exp(-kappa.real() * dist) / dist) < threshold; };
+
+    op.init(srcs, targets, cutOff); //,normals);
 
     Eigen::Vector<std::complex<double>, Eigen::Dynamic> weights(srcs.cols());
     weights = Eigen::VectorXd::Random(srcs.cols());
@@ -112,7 +117,7 @@ int main(int argc, char** argv)
     srand((unsigned)time(NULL));
     double maxE_rel = 0;
     double maxE_abs = 0;
-    for (int j = 0; j < 1000; j++)
+    for (int j = 0; j < N; j++)
     {
         std::complex<double> val = 0;
         // int index = rand() % targets.cols();
