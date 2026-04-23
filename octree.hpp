@@ -252,9 +252,7 @@ template <typename T, size_t DIM> class Octree
         }
     }
 
-    void buildInteractionList(
-        const Octree& target_tree,
-        std::function<bool(double)> cutOff = [](double x) { return false; })
+    void buildInteractionList(const Octree& target_tree, std::function<bool(double)> cutOff)
     {
         buildInteractionList(m_root, target_tree.m_root, cutOff);
 
