@@ -28,7 +28,10 @@ class CombinedFieldHelmholtzIfgfOperator
     // once the octree is ready, we can reorder it such that the morton-order is observed
     void onOctreeReady()
     {
-        m_normals = Util::copy_with_permutation(m_normals, this->src_octree().permutation());
+        PointArray sorted(dim, m_normals.cols());
+        Util::copy_with_permutation_colwise<double, dim>(m_normals,
+                                                         this->src_octree().permutation(), sorted);
+        m_normals = sorted;
     }
 
     typedef std::complex<double> T;
@@ -186,9 +189,10 @@ class CombinedFieldHelmholtzIfgfOperator
 
         if (step == 0)
         {
-            order = baseOrder.array() - 3; //(baseOrder.array().template
-                                           //cast<double>()*Eigen::log(4./baseOrder.array().template
-                                           //cast<double>())).template cast<int>();
+            order =
+                baseOrder.array() - 3; //(baseOrder.array().template
+                                       // cast<double>()*Eigen::log(4./baseOrder.array().template
+                                       // cast<double>())).template cast<int>();
         }
 
         return order;

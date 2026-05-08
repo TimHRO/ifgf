@@ -1,0 +1,13 @@
+{
+    "makefile.configureOnOpen": true,
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    "editor.formatOnSave": true,
+    "[cpp]": {
+        "editor.wordBasedSuggestions": "off",
+        "editor.semanticHighlighting.enabled": true,
+        "editor.stickyScroll.defaultModel": "foldingProviderModel",
+        "editor.suggest.insertMode": "replace",
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    },
+    "C_Cpp.clang_format_style": "file"
+}

@@ -53,7 +53,7 @@ Eigen::Vector3d randomPointOnSphere()
     double y = sin(phi) * sin(theta);
     double z = cos(phi);
 
-    return Eigen::Vector3d(x, y, z);
+    return 5 * Eigen::Vector3d(x, y, z);
 }
 
 int main(int argc, char** argv)

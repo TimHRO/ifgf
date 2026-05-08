@@ -143,9 +143,10 @@ class ModifiedHelmholtzIfgfOperator
 
         if (step == 0)
         {
-            order = baseOrder.array() - 3; //(baseOrder.array().template
-                                           //cast<double>()*Eigen::log(4./baseOrder.array().template
-                                           //cast<double>())).template cast<int>();
+            order =
+                baseOrder.array() - 3; //(baseOrder.array().template
+                                       // cast<double>()*Eigen::log(4./baseOrder.array().template
+                                       // cast<double>())).template cast<int>();
         }
 
         return order;
@@ -160,16 +161,22 @@ class ModifiedHelmholtzIfgfOperator
 
         if (step == 0)
         {
-            base *= 3;
+            base *= 1;
             // base[2]*=2;
         }
 
         for (int i = 0; i < dim; i++)
         {
-            // int delta=std::ceil(std::max( std::abs(k.imag())*H/(2*(2+k.real())) , 1.0)); //make
-            // sure that k H is bounded
-            double delta = std::max(std::abs(k.imag()) * H / 4., 1.0) *
-                           exp(-0.2 * (dim / sqrt(dim)) * H * k.real());
+
+            int delta =
+                std::ceil(std::max(std::abs(k.imag()) * H / (2 * (2 + k.real())), 1.0)); // make
+            // std::ceil(std::max(1.496 * H, 1.0)); // make
+            //   sure that k H is bounded
+            // std::max(std::abs(k) * H / 1., 1.0) * exp(-0.8 * (dim / sqrt(dim)) * H * k.real());
+            //  double alpha = 0.2;
+            //  int delta =
+            //     std::ceil(std::max(1.0, (H / std::sqrt(alpha * (2 + alpha))))) * std::exp(-H *
+            //     20);
 
             els[i] = std::max(base[i] * ((int)ceil(delta)), (size_t)1);
         }

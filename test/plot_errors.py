@@ -22,7 +22,7 @@ s_min = 1e-15
 #s_min = h/r_max
 print(f"r_max {h/s_min}, s_min{s_min}")
 
-executable = "./test/test_fact_osz"
+executable = "./test/test_fact_std"
 csv_filename = "./test/kappa_results.csv"
 
 results = []

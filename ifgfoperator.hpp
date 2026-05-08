@@ -62,7 +62,9 @@ template <typename T, unsigned int DIM, unsigned int DIMOUT, typename Derived> c
 
     const Octree<T, DIM>& src_octree() const { return *m_src_octree; } // not used anywhere
 
-    void init(const PointArray& srcs, const PointArray& targets, std::function<bool(double)> cutOff)
+    void init(
+        const PointArray& srcs, const PointArray& targets,
+        std::function<bool(double)> cutOff = [](double dist) { return false; })
     {
         m_src_octree->build(srcs);
         m_target_octree->build(targets);

@@ -1,4 +1,5 @@
-CPPFLAGS=-O2 -g    -DEIGEN_FAST_MATH=1  -DEIGEN_DONT_PARALLELIZE   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
+#CPPFLAGS=-O3 -g    -DEIGEN_FAST_MATH=1  -DEIGEN_DONT_PARALLELIZE   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
+CPPFLAGS=-O3 -g    -DEIGEN_FAST_MATH=1  -ffast-math -funroll-loops   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
 
 all: 
 	g++ $(CPPFLAGS) -o ./test/test_ifgf  ./test/test_ifgf.cpp  -ltbb
@@ -16,3 +17,9 @@ test_fact_std:
 
 test_fact_osz:
 	g++  -O3 -g -march=native -std=c++20 -o ./test/test_fact_osz ./test/test_fact_osz.cpp -I. -I/usr/include/eigen3/ -ltbb
+
+test_CQWeights:
+	g++  -O3 -g -march=native -std=c++20 -o ./test/test_CQWeights ./test/test_CQWeights.cpp -I. -I/usr/include/eigen3/ -ltbb
+
+test_CQIFGF:
+	g++  -O3 -g -march=native -std=c++20 -o ./test/test_CQIFGF ./test/test_CQIFGF.cpp -I. -I/usr/include/eigen3/ -ltbb

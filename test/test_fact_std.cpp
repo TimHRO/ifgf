@@ -60,8 +60,13 @@ int main(const int argc, char** argv)
     const int N_src = 1000;
     const int N_tgt = 2000;
     Eigen::Vector3d xc = Eigen::Vector3d::Zero();
-    Eigen::Vector<int, 3> order;
-    order << o, o + 2, o + 2;
+
+    Eigen::Array<int, 3, Eigen::Dynamic> order;
+    order.resize(3, num_splits);
+    for (int i = 0; i < num_splits; i++)
+    {
+        order.col(i) << o, o + 2, o + 2;
+    }
 
     double s_max_range = std::sqrt(3.0) / 3.0;
     double delta_s_total = s_max_range; //* std::min(1.0, 1.0/ std::abs(kappa * H));
@@ -76,7 +81,7 @@ int main(const int argc, char** argv)
     double delta_r = (r_max - r_min) / num_splits;
     std::cout << "Delta r: " << delta_r << "\n";
 
-    for (int i = 0; i <= num_splits; ++i)
+    for (int i = num_splits; i >= 0; --i)
     {
         double x_l = std::pow(sigma, num_splits - i);
         // double x_l_transformed = r_min + (r_max - r_min) * x_l;
@@ -128,7 +133,7 @@ int main(const int argc, char** argv)
         BoundingBox<3> box(Eigen::Vector3d(s0, t_min, p_min), Eigen::Vector3d(s1, t_max, p_max));
         ConeDomain<DIM> grid({1, 1, 1}, box);
 
-        PointArray nodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order);
+        PointArray nodes = ChebychevInterpolation::chebnodesNdd<double, DIM>(order.col(s));
         PointArray physNodes(DIM, nodes.cols());
         transformInterpToCart(grid.transform(0, nodes), physNodes, xc, H);
 
@@ -148,7 +153,7 @@ int main(const int argc, char** argv)
                   << "\n";
 
         split_coeffs[s].resize(nodes.cols());
-        ChebychevInterpolation::chebtransform<T, DIM>(node_data, split_coeffs[s], order);
+        ChebychevInterpolation::chebtransform<T, DIM>(node_data, split_coeffs[s], order.col(s));
     }
 
     // --- Compute Interpolated and Exact Vals at Target Points ---
@@ -250,7 +255,8 @@ int main(const int argc, char** argv)
         subdomain_error.setZero();
         if (s_cut <= s)
         {
-            ChebychevInterpolation::parallel_evaluate<T, DIM, 1>(ref, split_coeffs[s], res, order);
+            ChebychevInterpolation::parallel_evaluate<T, DIM, 1>(ref, split_coeffs[s], res,
+                                                                 order.col(s));
         }
 
         for (int k = 0; k < n_pts; ++k)
