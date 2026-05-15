@@ -1,0 +1,4340 @@
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_UNAME"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uname"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/dal/2025.0/bin/"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/"
+      - "/opt/intel/oneapi/dal/2025.0/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/"
+      - "/opt/intel/oneapi/compiler/2025.0/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+      - "/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/uname"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/uname"
+      - "/opt/intel/oneapi/tbb/2022.0/uname"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/uname"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/uname"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/uname"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/uname"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/uname"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/uname"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/uname"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/uname"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/uname"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/uname"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/uname"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/uname"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/uname"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/uname"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/uname"
+      - "/opt/intel/oneapi/dal/2025.0/bin/uname"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/uname"
+      - "/opt/intel/oneapi/dal/2025.0/uname"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/uname"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/uname"
+      - "/opt/intel/oneapi/compiler/2025.0/uname"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/uname"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/uname"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/uname"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/uname"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/uname"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/uname"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/uname"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/uname"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/uname"
+      - "/home/tim/miniconda3/bin/uname"
+      - "/home/tim/.local/bin/uname"
+      - "/usr/local/sbin/uname"
+      - "/usr/local/bin/uname"
+    found: "/usr/bin/uname"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "CMakeLists.txt:15 (project)"
+    message: |
+      The system is: Linux - 6.19.13-arch1-1 - x86_64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_MAKE_PROGRAM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gmake"
+      - "make"
+      - "smake"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/dal/2025.0/bin/"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/"
+      - "/opt/intel/oneapi/dal/2025.0/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/"
+      - "/opt/intel/oneapi/compiler/2025.0/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/gmake"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/gmake"
+      - "/opt/intel/oneapi/tbb/2022.0/gmake"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/gmake"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/gmake"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/gmake"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/gmake"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/gmake"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/gmake"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/gmake"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/gmake"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/gmake"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/gmake"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/gmake"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/gmake"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/gmake"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/gmake"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/gmake"
+      - "/opt/intel/oneapi/dal/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/gmake"
+      - "/opt/intel/oneapi/dal/2025.0/gmake"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/gmake"
+      - "/opt/intel/oneapi/compiler/2025.0/gmake"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/gmake"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/gmake"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/gmake"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/gmake"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/gmake"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/gmake"
+      - "/home/tim/miniconda3/bin/gmake"
+      - "/home/tim/.local/bin/gmake"
+      - "/usr/local/sbin/gmake"
+      - "/usr/local/bin/gmake"
+      - "/usr/bin/gmake"
+      - "/opt/cuda/bin/gmake"
+      - "/usr/lib/jvm/default/bin/gmake"
+      - "/usr/bin/site_perl/gmake"
+      - "/usr/bin/vendor_perl/gmake"
+      - "/usr/bin/core_perl/gmake"
+      - "/opt/rocm/bin/gmake"
+      - "/opt/intel/oneapi/tbb/2022.0/bin/make"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/make"
+      - "/opt/intel/oneapi/tbb/2022.0/make"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/make"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/make"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/make"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/make"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/make"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/make"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/make"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/make"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/make"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/make"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/make"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/make"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/make"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/make"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/make"
+      - "/opt/intel/oneapi/dal/2025.0/bin/make"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/make"
+      - "/opt/intel/oneapi/dal/2025.0/make"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/make"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/make"
+      - "/opt/intel/oneapi/compiler/2025.0/make"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/make"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/make"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/make"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/make"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/make"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/make"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/make"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/make"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/make"
+      - "/home/tim/miniconda3/bin/make"
+      - "/home/tim/.local/bin/make"
+      - "/usr/local/sbin/make"
+      - "/usr/local/bin/make"
+    found: "/usr/bin/make"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompiler.cmake:115 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:71 (_cmake_find_compiler_path)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_WITH_PATH"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "icpx"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/dal/2025.0/bin/"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/"
+      - "/opt/intel/oneapi/dal/2025.0/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/"
+      - "/opt/intel/oneapi/compiler/2025.0/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/icpx"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/icpx"
+      - "/opt/intel/oneapi/tbb/2022.0/icpx"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/icpx"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/icpx"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/icpx"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/icpx"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/icpx"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/icpx"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/icpx"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/icpx"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/icpx"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/icpx"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/icpx"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/icpx"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/icpx"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/icpx"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/icpx"
+      - "/opt/intel/oneapi/dal/2025.0/bin/icpx"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/icpx"
+      - "/opt/intel/oneapi/dal/2025.0/icpx"
+    found: "/opt/intel/oneapi/compiler/2025.0/bin/icpx"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/usr/share/cmake/Modules/"
+    found: "/usr/share/cmake/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:15 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /opt/intel/oneapi/compiler/2025.0/bin/icpx 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is IntelLLVM, found in:
+        /home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/4.3.2/CompilerIdCXX/a.out
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-ar"
+      - "ar"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ar"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ar"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ar"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ar"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ar"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ar"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ar"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ar"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ar"
+      - "/home/tim/miniconda3/bin/llvm-ar"
+      - "/home/tim/.local/bin/llvm-ar"
+      - "/usr/local/sbin/llvm-ar"
+      - "/usr/local/bin/llvm-ar"
+      - "/usr/bin/llvm-ar"
+      - "/opt/cuda/bin/llvm-ar"
+      - "/usr/lib/jvm/default/bin/llvm-ar"
+      - "/usr/bin/site_perl/llvm-ar"
+      - "/usr/bin/vendor_perl/llvm-ar"
+      - "/usr/bin/core_perl/llvm-ar"
+      - "/opt/rocm/bin/llvm-ar"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/ar"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/ar"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/ar"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/ar"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/ar"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/ar"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/ar"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/ar"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/ar"
+      - "/home/tim/miniconda3/bin/ar"
+      - "/home/tim/.local/bin/ar"
+      - "/usr/local/sbin/ar"
+      - "/usr/local/bin/ar"
+    found: "/usr/bin/ar"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_RANLIB"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-ranlib"
+      - "ranlib"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ranlib"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ranlib"
+      - "/home/tim/miniconda3/bin/llvm-ranlib"
+      - "/home/tim/.local/bin/llvm-ranlib"
+      - "/usr/local/sbin/llvm-ranlib"
+      - "/usr/local/bin/llvm-ranlib"
+      - "/usr/bin/llvm-ranlib"
+      - "/opt/cuda/bin/llvm-ranlib"
+      - "/usr/lib/jvm/default/bin/llvm-ranlib"
+      - "/usr/bin/site_perl/llvm-ranlib"
+      - "/usr/bin/vendor_perl/llvm-ranlib"
+      - "/usr/bin/core_perl/llvm-ranlib"
+      - "/opt/rocm/bin/llvm-ranlib"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/ranlib"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/ranlib"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/ranlib"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/ranlib"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/ranlib"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/ranlib"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/ranlib"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/ranlib"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/ranlib"
+      - "/home/tim/miniconda3/bin/ranlib"
+      - "/home/tim/.local/bin/ranlib"
+      - "/usr/local/sbin/ranlib"
+      - "/usr/local/bin/ranlib"
+    found: "/usr/bin/ranlib"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_STRIP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-strip"
+      - "strip"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-strip"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-strip"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-strip"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-strip"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-strip"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-strip"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-strip"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-strip"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-strip"
+      - "/home/tim/miniconda3/bin/llvm-strip"
+      - "/home/tim/.local/bin/llvm-strip"
+      - "/usr/local/sbin/llvm-strip"
+      - "/usr/local/bin/llvm-strip"
+      - "/usr/bin/llvm-strip"
+      - "/opt/cuda/bin/llvm-strip"
+      - "/usr/lib/jvm/default/bin/llvm-strip"
+      - "/usr/bin/site_perl/llvm-strip"
+      - "/usr/bin/vendor_perl/llvm-strip"
+      - "/usr/bin/core_perl/llvm-strip"
+      - "/opt/rocm/bin/llvm-strip"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/strip"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/strip"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/strip"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/strip"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/strip"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/strip"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/strip"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/strip"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/strip"
+      - "/home/tim/miniconda3/bin/strip"
+      - "/home/tim/.local/bin/strip"
+      - "/usr/local/sbin/strip"
+      - "/usr/local/bin/strip"
+    found: "/usr/bin/strip"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ld.lld"
+      - "ld"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/ld.lld"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/ld.lld"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/ld.lld"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/ld.lld"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/ld.lld"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/ld.lld"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/ld.lld"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/ld.lld"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/ld.lld"
+      - "/home/tim/miniconda3/bin/ld.lld"
+      - "/home/tim/.local/bin/ld.lld"
+      - "/usr/local/sbin/ld.lld"
+      - "/usr/local/bin/ld.lld"
+    found: "/usr/bin/ld.lld"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_NM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-nm"
+      - "nm"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-nm"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-nm"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-nm"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-nm"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-nm"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-nm"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-nm"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-nm"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-nm"
+      - "/home/tim/miniconda3/bin/llvm-nm"
+      - "/home/tim/.local/bin/llvm-nm"
+      - "/usr/local/sbin/llvm-nm"
+      - "/usr/local/bin/llvm-nm"
+      - "/usr/bin/llvm-nm"
+      - "/opt/cuda/bin/llvm-nm"
+      - "/usr/lib/jvm/default/bin/llvm-nm"
+      - "/usr/bin/site_perl/llvm-nm"
+      - "/usr/bin/vendor_perl/llvm-nm"
+      - "/usr/bin/core_perl/llvm-nm"
+      - "/opt/rocm/bin/llvm-nm"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/nm"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/nm"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/nm"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/nm"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/nm"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/nm"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/nm"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/nm"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/nm"
+      - "/home/tim/miniconda3/bin/nm"
+      - "/home/tim/.local/bin/nm"
+      - "/usr/local/sbin/nm"
+      - "/usr/local/bin/nm"
+    found: "/usr/bin/nm"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJDUMP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-objdump"
+      - "objdump"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-objdump"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-objdump"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-objdump"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-objdump"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-objdump"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-objdump"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-objdump"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-objdump"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-objdump"
+      - "/home/tim/miniconda3/bin/llvm-objdump"
+      - "/home/tim/.local/bin/llvm-objdump"
+      - "/usr/local/sbin/llvm-objdump"
+      - "/usr/local/bin/llvm-objdump"
+      - "/usr/bin/llvm-objdump"
+      - "/opt/cuda/bin/llvm-objdump"
+      - "/usr/lib/jvm/default/bin/llvm-objdump"
+      - "/usr/bin/site_perl/llvm-objdump"
+      - "/usr/bin/vendor_perl/llvm-objdump"
+      - "/usr/bin/core_perl/llvm-objdump"
+      - "/opt/rocm/bin/llvm-objdump"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/objdump"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/objdump"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/objdump"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/objdump"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/objdump"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/objdump"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/objdump"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/objdump"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/objdump"
+      - "/home/tim/miniconda3/bin/objdump"
+      - "/home/tim/.local/bin/objdump"
+      - "/usr/local/sbin/objdump"
+      - "/usr/local/bin/objdump"
+    found: "/usr/bin/objdump"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJCOPY"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-objcopy"
+      - "objcopy"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-objcopy"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-objcopy"
+      - "/home/tim/miniconda3/bin/llvm-objcopy"
+      - "/home/tim/.local/bin/llvm-objcopy"
+      - "/usr/local/sbin/llvm-objcopy"
+      - "/usr/local/bin/llvm-objcopy"
+      - "/usr/bin/llvm-objcopy"
+      - "/opt/cuda/bin/llvm-objcopy"
+      - "/usr/lib/jvm/default/bin/llvm-objcopy"
+      - "/usr/bin/site_perl/llvm-objcopy"
+      - "/usr/bin/vendor_perl/llvm-objcopy"
+      - "/usr/bin/core_perl/llvm-objcopy"
+      - "/opt/rocm/bin/llvm-objcopy"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/objcopy"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/objcopy"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/objcopy"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/objcopy"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/objcopy"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/objcopy"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/objcopy"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/objcopy"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/objcopy"
+      - "/home/tim/miniconda3/bin/objcopy"
+      - "/home/tim/.local/bin/objcopy"
+      - "/usr/local/sbin/objcopy"
+      - "/usr/local/bin/objcopy"
+    found: "/usr/bin/objcopy"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_READELF"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-readelf"
+      - "readelf"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-readelf"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-readelf"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-readelf"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-readelf"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-readelf"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-readelf"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-readelf"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-readelf"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-readelf"
+      - "/home/tim/miniconda3/bin/llvm-readelf"
+      - "/home/tim/.local/bin/llvm-readelf"
+      - "/usr/local/sbin/llvm-readelf"
+      - "/usr/local/bin/llvm-readelf"
+      - "/usr/bin/llvm-readelf"
+      - "/opt/cuda/bin/llvm-readelf"
+      - "/usr/lib/jvm/default/bin/llvm-readelf"
+      - "/usr/bin/site_perl/llvm-readelf"
+      - "/usr/bin/vendor_perl/llvm-readelf"
+      - "/usr/bin/core_perl/llvm-readelf"
+      - "/opt/rocm/bin/llvm-readelf"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/readelf"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/readelf"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/readelf"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/readelf"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/readelf"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/readelf"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/readelf"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/readelf"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/readelf"
+      - "/home/tim/miniconda3/bin/readelf"
+      - "/home/tim/.local/bin/readelf"
+      - "/usr/local/sbin/readelf"
+      - "/usr/local/bin/readelf"
+    found: "/usr/bin/readelf"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_DLLTOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-dlltool"
+      - "dlltool"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-dlltool"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-dlltool"
+      - "/home/tim/miniconda3/bin/llvm-dlltool"
+      - "/home/tim/.local/bin/llvm-dlltool"
+      - "/usr/local/sbin/llvm-dlltool"
+      - "/usr/local/bin/llvm-dlltool"
+      - "/usr/bin/llvm-dlltool"
+      - "/opt/cuda/bin/llvm-dlltool"
+      - "/usr/lib/jvm/default/bin/llvm-dlltool"
+      - "/usr/bin/site_perl/llvm-dlltool"
+      - "/usr/bin/vendor_perl/llvm-dlltool"
+      - "/usr/bin/core_perl/llvm-dlltool"
+      - "/opt/rocm/bin/llvm-dlltool"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/dlltool"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/dlltool"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/dlltool"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/dlltool"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/dlltool"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/dlltool"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/dlltool"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/dlltool"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/dlltool"
+      - "/home/tim/miniconda3/bin/dlltool"
+      - "/home/tim/.local/bin/dlltool"
+      - "/usr/local/sbin/dlltool"
+      - "/usr/local/bin/dlltool"
+      - "/usr/bin/dlltool"
+      - "/opt/cuda/bin/dlltool"
+      - "/usr/lib/jvm/default/bin/dlltool"
+      - "/usr/bin/site_perl/dlltool"
+      - "/usr/bin/vendor_perl/dlltool"
+      - "/usr/bin/core_perl/dlltool"
+      - "/opt/rocm/bin/dlltool"
+    found: false
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_ADDR2LINE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-addr2line"
+      - "addr2line"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-addr2line"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-addr2line"
+      - "/home/tim/miniconda3/bin/llvm-addr2line"
+      - "/home/tim/.local/bin/llvm-addr2line"
+      - "/usr/local/sbin/llvm-addr2line"
+      - "/usr/local/bin/llvm-addr2line"
+      - "/usr/bin/llvm-addr2line"
+      - "/opt/cuda/bin/llvm-addr2line"
+      - "/usr/lib/jvm/default/bin/llvm-addr2line"
+      - "/usr/bin/site_perl/llvm-addr2line"
+      - "/usr/bin/vendor_perl/llvm-addr2line"
+      - "/usr/bin/core_perl/llvm-addr2line"
+      - "/opt/rocm/bin/llvm-addr2line"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/addr2line"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/addr2line"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/addr2line"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/addr2line"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/addr2line"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/addr2line"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/addr2line"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/addr2line"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/addr2line"
+      - "/home/tim/miniconda3/bin/addr2line"
+      - "/home/tim/.local/bin/addr2line"
+      - "/usr/local/sbin/addr2line"
+      - "/usr/local/bin/addr2line"
+    found: "/usr/bin/addr2line"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_TAPI"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "tapi"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin/tapi"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/tapi"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/tapi"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/tapi"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/tapi"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/tapi"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/tapi"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/tapi"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/tapi"
+      - "/home/tim/miniconda3/bin/tapi"
+      - "/home/tim/.local/bin/tapi"
+      - "/usr/local/sbin/tapi"
+      - "/usr/local/bin/tapi"
+      - "/usr/bin/tapi"
+      - "/opt/cuda/bin/tapi"
+      - "/usr/lib/jvm/default/bin/tapi"
+      - "/usr/bin/site_perl/tapi"
+      - "/usr/bin/vendor_perl/tapi"
+      - "/usr/bin/core_perl/tapi"
+      - "/opt/rocm/bin/tapi"
+    found: false
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/IntelLLVM-FindBinUtils.cmake:29 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_AR"
+    description: "LLVM archiver"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-ar-2025.0"
+      - "llvm-ar-2025"
+      - "llvm-ar"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ar-2025.0"
+      - "/home/tim/miniconda3/bin/llvm-ar-2025.0"
+      - "/home/tim/.local/bin/llvm-ar-2025.0"
+      - "/usr/local/sbin/llvm-ar-2025.0"
+      - "/usr/local/bin/llvm-ar-2025.0"
+      - "/usr/bin/llvm-ar-2025.0"
+      - "/opt/cuda/bin/llvm-ar-2025.0"
+      - "/usr/lib/jvm/default/bin/llvm-ar-2025.0"
+      - "/usr/bin/site_perl/llvm-ar-2025.0"
+      - "/usr/bin/vendor_perl/llvm-ar-2025.0"
+      - "/usr/bin/core_perl/llvm-ar-2025.0"
+      - "/opt/rocm/bin/llvm-ar-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ar-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ar-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ar-2025"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ar-2025"
+      - "/home/tim/miniconda3/bin/llvm-ar-2025"
+      - "/home/tim/.local/bin/llvm-ar-2025"
+      - "/usr/local/sbin/llvm-ar-2025"
+      - "/usr/local/bin/llvm-ar-2025"
+      - "/usr/bin/llvm-ar-2025"
+      - "/opt/cuda/bin/llvm-ar-2025"
+      - "/usr/lib/jvm/default/bin/llvm-ar-2025"
+      - "/usr/bin/site_perl/llvm-ar-2025"
+      - "/usr/bin/vendor_perl/llvm-ar-2025"
+      - "/usr/bin/core_perl/llvm-ar-2025"
+      - "/opt/rocm/bin/llvm-ar-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ar"
+    found: "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ar"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/IntelLLVM-FindBinUtils.cmake:40 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:15 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_RANLIB"
+    description: "Generate index for LLVM archive"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "llvm-ranlib-2025.0"
+      - "llvm-ranlib-2025"
+      - "llvm-ranlib"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+    searched_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ranlib-2025.0"
+      - "/home/tim/miniconda3/bin/llvm-ranlib-2025.0"
+      - "/home/tim/.local/bin/llvm-ranlib-2025.0"
+      - "/usr/local/sbin/llvm-ranlib-2025.0"
+      - "/usr/local/bin/llvm-ranlib-2025.0"
+      - "/usr/bin/llvm-ranlib-2025.0"
+      - "/opt/cuda/bin/llvm-ranlib-2025.0"
+      - "/usr/lib/jvm/default/bin/llvm-ranlib-2025.0"
+      - "/usr/bin/site_perl/llvm-ranlib-2025.0"
+      - "/usr/bin/vendor_perl/llvm-ranlib-2025.0"
+      - "/usr/bin/core_perl/llvm-ranlib-2025.0"
+      - "/opt/rocm/bin/llvm-ranlib-2025.0"
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/llvm-ranlib-2025"
+      - "/home/tim/miniconda3/bin/llvm-ranlib-2025"
+      - "/home/tim/.local/bin/llvm-ranlib-2025"
+      - "/usr/local/sbin/llvm-ranlib-2025"
+      - "/usr/local/bin/llvm-ranlib-2025"
+      - "/usr/bin/llvm-ranlib-2025"
+      - "/opt/cuda/bin/llvm-ranlib-2025"
+      - "/usr/lib/jvm/default/bin/llvm-ranlib-2025"
+      - "/usr/bin/site_perl/llvm-ranlib-2025"
+      - "/usr/bin/vendor_perl/llvm-ranlib-2025"
+      - "/usr/bin/core_perl/llvm-ranlib-2025"
+      - "/opt/rocm/bin/llvm-ranlib-2025"
+      - "/opt/intel/oneapi/compiler/2025.0/bin-llvm/llvm-ranlib"
+    found: "/opt/intel/oneapi/compiler/2025.0/bin/compiler/llvm-ranlib"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:15 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII"
+      binary: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g -Rno-debug-disables-optimization"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_8b191/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_8b191.dir/build.make CMakeFiles/cmTC_8b191.dir/build
+        make[1]: Entering directory '/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII'
+        Building CXX object CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o
+        /opt/intel/oneapi/compiler/2025.0/bin/icpx   -v -MD -MT CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Intel(R) oneAPI DPC++/C++ Compiler 2025.0.4 (2025.0.4.20241205)
+        Target: x86_64-unknown-linux-gnu
+        Thread model: posix
+        InstalledDir: /opt/intel/oneapi/compiler/2025.0/bin/compiler
+        Configuration file: /opt/intel/oneapi/compiler/2025.0/bin/compiler/../icpx.cfg
+        Found candidate GCC installation: /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1
+        Found candidate GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1
+        Selected GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1
+        Candidate multilib: .;@m64
+        Candidate multilib: 32;@m32
+        Selected multilib: .;@m64
+        Found CUDA installation: /opt/cuda, version 
+        Found HIP installation: /opt/rocm, version 7.2.53211
+         (in-process)
+         "/opt/intel/oneapi/compiler/2025.0/bin/compiler/clang" -cc1 -triple x86_64-unknown-linux-gnu -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model static -fveclib=SVML -faltmathlib=SVMLAltMathLibrary -mframe-pointer=none -fapprox-func -funsafe-math-optimizations -fno-signed-zeros -mreassociate -freciprocal-math -fdenormal-fp-math=preserve-sign,preserve-sign -ffp-contract=fast -fno-rounding-math -complex-range=promoted -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -mllvm -x86-enable-unaligned-vector-move=true -tune-cpu generic -debugger-tuning=gdb "-fdebug-compilation-dir=/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII" -v "-fcoverage-compilation-dir=/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII" -fclang-abi-compat=17 -resource-dir /opt/intel/oneapi/compiler/2025.0/lib/clang/19 -dependency-file CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -I/opt/intel/oneapi/umf/0.9/include -I/opt/intel/oneapi/tbb/2022.0/env/../include -I/opt/intel/oneapi/pti/0.10/include -I/opt/intel/oneapi/mpi/2021.14/include -I/opt/intel/oneapi/mkl/2025.0/include -I/opt/intel/oneapi/ippcp/2025.0/include -I/opt/intel/oneapi/ipp/2022.0/include -I/opt/intel/oneapi/dpl/2022.7/include -I/opt/intel/oneapi/dpcpp-ct/2025.0/include -I/opt/intel/oneapi/dnnl/2025.0/include -I/opt/intel/oneapi/dev-utilities/2025.0/include -I/opt/intel/oneapi/dal/2025.0/include -I/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include -I/opt/intel/oneapi/ccl/2021.14/include -internal-isystem /opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1 -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward -internal-isystem /opt/intel/oneapi/compiler/2025.0/lib/clang/19/include -internal-isystem /usr/local/include -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../x86_64-pc-linux-gnu/include -internal-externc-isystem /include -internal-externc-isystem /usr/include -O2 -fdeprecated-macro -ferror-limit 19 -fheinous-gnu-extensions -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -vectorize-loops -vectorize-slp -mllvm -disable-hir-generate-mkl-call -mllvm -loopopt=1 -floopopt-pipeline=light -mllvm -intel-abi-compatible=true -D__GCC_HAVE_DWARF2_CFI_ASM=1 -fintel-compatibility -fintel-libirc-allowed -fintel-libimf-allowed -o CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        clang -cc1 version 19.0.0git based upon LLVM 19.0.0git default target x86_64-unknown-linux-gnu
+        ignoring nonexistent directory "/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../x86_64-pc-linux-gnu/include"
+        ignoring nonexistent directory "/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /opt/intel/oneapi/umf/0.9/include
+         /opt/intel/oneapi/tbb/2022.0/env/../include
+         /opt/intel/oneapi/pti/0.10/include
+         /opt/intel/oneapi/mpi/2021.14/include
+         /opt/intel/oneapi/mkl/2025.0/include
+         /opt/intel/oneapi/ippcp/2025.0/include
+         /opt/intel/oneapi/ipp/2022.0/include
+         /opt/intel/oneapi/dpl/2022.7/include
+         /opt/intel/oneapi/dpcpp-ct/2025.0/include
+         /opt/intel/oneapi/dnnl/2025.0/include
+         /opt/intel/oneapi/dev-utilities/2025.0/include
+         /opt/intel/oneapi/dal/2025.0/include
+         /opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include
+         /opt/intel/oneapi/ccl/2021.14/include
+         /opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include
+         /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1
+         /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu
+         /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward
+         /opt/intel/oneapi/compiler/2025.0/lib/clang/19/include
+         /usr/local/include
+         /usr/include
+        End of search list.
+        Linking CXX executable cmTC_8b191
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8b191.dir/link.txt --verbose=1
+        Intel(R) oneAPI DPC++/C++ Compiler 2025.0.4 (2025.0.4.20241205)
+        Target: x86_64-unknown-linux-gnu
+        Thread model: posix
+        InstalledDir: /opt/intel/oneapi/compiler/2025.0/bin/compiler
+        Configuration file: /opt/intel/oneapi/compiler/2025.0/bin/compiler/../icpx.cfg
+        Found candidate GCC installation: /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1
+        Found candidate GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1
+        Selected GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1
+        Candidate multilib: .;@m64
+        Candidate multilib: 32;@m32
+        Selected multilib: .;@m64
+        Found CUDA installation: /opt/cuda, version 
+        Found HIP installation: /opt/rocm, version 7.2.53211
+         "/usr/bin/ld" --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_8b191 /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/lib -L/lib -L/usr/lib -L/opt/intel/oneapi/tcm/1.2/lib -L/opt/intel/oneapi/umf/0.9/lib -L/opt/intel/oneapi/tbb/2022.0/env/../lib/intel64/gcc4.8 -L/opt/intel/oneapi/pti/0.10/lib -L/opt/intel/oneapi/mpi/2021.14/lib -L/opt/intel/oneapi/mkl/2025.0/lib -L/opt/intel/oneapi/ippcp/2025.0/lib/ -L/opt/intel/oneapi/ipp/2022.0/lib -L/opt/intel/oneapi/dnnl/2025.0/lib -L/opt/intel/oneapi/dal/2025.0/lib -L/opt/intel/oneapi/compiler/2025.0/lib -L/opt/intel/oneapi/ccl/2021.14/lib/ CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -Bstatic -lsvml -Bdynamic -Bstatic -lirng -Bdynamic -lstdc++ -Bstatic -limf -Bdynamic -lm -lgcc_s -lgcc -Bstatic -lirc -Bdynamic -ldl -lgcc_s -lgcc -lc -lgcc_s -lgcc -Bstatic -lirc_s -Bdynamic /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o
+        /opt/intel/oneapi/compiler/2025.0/bin/icpx  -v CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_8b191
+        make[1]: Leaving directory '/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:15 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/opt/intel/oneapi/umf/0.9/include]
+          add: [/opt/intel/oneapi/tbb/2022.0/env/../include]
+          add: [/opt/intel/oneapi/pti/0.10/include]
+          add: [/opt/intel/oneapi/mpi/2021.14/include]
+          add: [/opt/intel/oneapi/mkl/2025.0/include]
+          add: [/opt/intel/oneapi/ippcp/2025.0/include]
+          add: [/opt/intel/oneapi/ipp/2022.0/include]
+          add: [/opt/intel/oneapi/dpl/2022.7/include]
+          add: [/opt/intel/oneapi/dpcpp-ct/2025.0/include]
+          add: [/opt/intel/oneapi/dnnl/2025.0/include]
+          add: [/opt/intel/oneapi/dev-utilities/2025.0/include]
+          add: [/opt/intel/oneapi/dal/2025.0/include]
+          add: [/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include]
+          add: [/opt/intel/oneapi/ccl/2021.14/include]
+          add: [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include]
+          add: [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1]
+          add: [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu]
+          add: [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward]
+          add: [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/include]
+          add: [/usr/local/include]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/opt/intel/oneapi/umf/0.9/include] ==> [/opt/intel/oneapi/umf/0.9/include]
+        collapse include dir [/opt/intel/oneapi/tbb/2022.0/env/../include] ==> [/opt/intel/oneapi/tbb/2022.0/include]
+        collapse include dir [/opt/intel/oneapi/pti/0.10/include] ==> [/opt/intel/oneapi/pti/0.10/include]
+        collapse include dir [/opt/intel/oneapi/mpi/2021.14/include] ==> [/opt/intel/oneapi/mpi/2021.14/include]
+        collapse include dir [/opt/intel/oneapi/mkl/2025.0/include] ==> [/opt/intel/oneapi/mkl/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/ippcp/2025.0/include] ==> [/opt/intel/oneapi/ippcp/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/ipp/2022.0/include] ==> [/opt/intel/oneapi/ipp/2022.0/include]
+        collapse include dir [/opt/intel/oneapi/dpl/2022.7/include] ==> [/opt/intel/oneapi/dpl/2022.7/include]
+        collapse include dir [/opt/intel/oneapi/dpcpp-ct/2025.0/include] ==> [/opt/intel/oneapi/dpcpp-ct/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/dnnl/2025.0/include] ==> [/opt/intel/oneapi/dnnl/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/dev-utilities/2025.0/include] ==> [/opt/intel/oneapi/dev-utilities/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/dal/2025.0/include] ==> [/opt/intel/oneapi/dal/2025.0/include]
+        collapse include dir [/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include] ==> [/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include]
+        collapse include dir [/opt/intel/oneapi/ccl/2021.14/include] ==> [/opt/intel/oneapi/ccl/2021.14/include]
+        collapse include dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include] ==> [/opt/intel/oneapi/compiler/2025.0/opt/compiler/include]
+        collapse include dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1] ==> [/usr/include/c++/15.2.1]
+        collapse include dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu] ==> [/usr/include/c++/15.2.1/x86_64-pc-linux-gnu]
+        collapse include dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward] ==> [/usr/include/c++/15.2.1/backward]
+        collapse include dir [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/include] ==> [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/opt/intel/oneapi/umf/0.9/include;/opt/intel/oneapi/tbb/2022.0/include;/opt/intel/oneapi/pti/0.10/include;/opt/intel/oneapi/mpi/2021.14/include;/opt/intel/oneapi/mkl/2025.0/include;/opt/intel/oneapi/ippcp/2025.0/include;/opt/intel/oneapi/ipp/2022.0/include;/opt/intel/oneapi/dpl/2022.7/include;/opt/intel/oneapi/dpcpp-ct/2025.0/include;/opt/intel/oneapi/dnnl/2025.0/include;/opt/intel/oneapi/dev-utilities/2025.0/include;/opt/intel/oneapi/dal/2025.0/include;/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include;/opt/intel/oneapi/ccl/2021.14/include;/opt/intel/oneapi/compiler/2025.0/opt/compiler/include;/usr/include/c++/15.2.1;/usr/include/c++/15.2.1/x86_64-pc-linux-gnu;/usr/include/c++/15.2.1/backward;/opt/intel/oneapi/compiler/2025.0/lib/clang/19/include;/usr/local/include;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:15 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_8b191/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_8b191.dir/build.make CMakeFiles/cmTC_8b191.dir/build]
+        ignore line: [make[1]: Entering directory '/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII']
+        ignore line: [Building CXX object CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/opt/intel/oneapi/compiler/2025.0/bin/icpx   -v -MD -MT CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Intel(R) oneAPI DPC++/C++ Compiler 2025.0.4 (2025.0.4.20241205)]
+        ignore line: [Target: x86_64-unknown-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /opt/intel/oneapi/compiler/2025.0/bin/compiler]
+        ignore line: [Configuration file: /opt/intel/oneapi/compiler/2025.0/bin/compiler/../icpx.cfg]
+        ignore line: [Found candidate GCC installation: /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Found candidate GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Selected GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Candidate multilib: 32]
+        ignore line: [@m32]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        ignore line: [Found CUDA installation: /opt/cuda  version ]
+        ignore line: [Found HIP installation: /opt/rocm  version 7.2.53211]
+        ignore line: [ (in-process)]
+        ignore line: [ "/opt/intel/oneapi/compiler/2025.0/bin/compiler/clang" -cc1 -triple x86_64-unknown-linux-gnu -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model static -fveclib=SVML -faltmathlib=SVMLAltMathLibrary -mframe-pointer=none -fapprox-func -funsafe-math-optimizations -fno-signed-zeros -mreassociate -freciprocal-math -fdenormal-fp-math=preserve-sign preserve-sign -ffp-contract=fast -fno-rounding-math -complex-range=promoted -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -mllvm -x86-enable-unaligned-vector-move=true -tune-cpu generic -debugger-tuning=gdb "-fdebug-compilation-dir=/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII" -v "-fcoverage-compilation-dir=/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/CMakeScratch/TryCompile-htNFII" -fclang-abi-compat=17 -resource-dir /opt/intel/oneapi/compiler/2025.0/lib/clang/19 -dependency-file CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o.d -MT CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -I/opt/intel/oneapi/umf/0.9/include -I/opt/intel/oneapi/tbb/2022.0/env/../include -I/opt/intel/oneapi/pti/0.10/include -I/opt/intel/oneapi/mpi/2021.14/include -I/opt/intel/oneapi/mkl/2025.0/include -I/opt/intel/oneapi/ippcp/2025.0/include -I/opt/intel/oneapi/ipp/2022.0/include -I/opt/intel/oneapi/dpl/2022.7/include -I/opt/intel/oneapi/dpcpp-ct/2025.0/include -I/opt/intel/oneapi/dnnl/2025.0/include -I/opt/intel/oneapi/dev-utilities/2025.0/include -I/opt/intel/oneapi/dal/2025.0/include -I/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include -I/opt/intel/oneapi/ccl/2021.14/include -internal-isystem /opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1 -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward -internal-isystem /opt/intel/oneapi/compiler/2025.0/lib/clang/19/include -internal-isystem /usr/local/include -internal-isystem /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../x86_64-pc-linux-gnu/include -internal-externc-isystem /include -internal-externc-isystem /usr/include -O2 -fdeprecated-macro -ferror-limit 19 -fheinous-gnu-extensions -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -vectorize-loops -vectorize-slp -mllvm -disable-hir-generate-mkl-call -mllvm -loopopt=1 -floopopt-pipeline=light -mllvm -intel-abi-compatible=true -D__GCC_HAVE_DWARF2_CFI_ASM=1 -fintel-compatibility -fintel-libirc-allowed -fintel-libimf-allowed -o CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -x c++ /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [clang -cc1 version 19.0.0git based upon LLVM 19.0.0git default target x86_64-unknown-linux-gnu]
+        ignore line: [ignoring nonexistent directory "/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../x86_64-pc-linux-gnu/include"]
+        ignore line: [ignoring nonexistent directory "/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /opt/intel/oneapi/umf/0.9/include]
+        ignore line: [ /opt/intel/oneapi/tbb/2022.0/env/../include]
+        ignore line: [ /opt/intel/oneapi/pti/0.10/include]
+        ignore line: [ /opt/intel/oneapi/mpi/2021.14/include]
+        ignore line: [ /opt/intel/oneapi/mkl/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/ippcp/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/ipp/2022.0/include]
+        ignore line: [ /opt/intel/oneapi/dpl/2022.7/include]
+        ignore line: [ /opt/intel/oneapi/dpcpp-ct/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/dnnl/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/dev-utilities/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/dal/2025.0/include]
+        ignore line: [ /opt/intel/oneapi/compiler/2025.0/opt/oclfpga/include]
+        ignore line: [ /opt/intel/oneapi/ccl/2021.14/include]
+        ignore line: [ /opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/include]
+        ignore line: [ /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1]
+        ignore line: [ /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/x86_64-pc-linux-gnu]
+        ignore line: [ /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../include/c++/15.2.1/backward]
+        ignore line: [ /opt/intel/oneapi/compiler/2025.0/lib/clang/19/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Linking CXX executable cmTC_8b191]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8b191.dir/link.txt --verbose=1]
+        ignore line: [Intel(R) oneAPI DPC++/C++ Compiler 2025.0.4 (2025.0.4.20241205)]
+        ignore line: [Target: x86_64-unknown-linux-gnu]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: /opt/intel/oneapi/compiler/2025.0/bin/compiler]
+        ignore line: [Configuration file: /opt/intel/oneapi/compiler/2025.0/bin/compiler/../icpx.cfg]
+        ignore line: [Found candidate GCC installation: /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Found candidate GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Selected GCC installation: /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+        ignore line: [Candidate multilib: .]
+        ignore line: [@m64]
+        ignore line: [Candidate multilib: 32]
+        ignore line: [@m32]
+        ignore line: [Selected multilib: .]
+        ignore line: [@m64]
+        ignore line: [Found CUDA installation: /opt/cuda  version ]
+        ignore line: [Found HIP installation: /opt/rocm  version 7.2.53211]
+        link line: [ "/usr/bin/ld" --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_8b191 /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib -L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/lib -L/lib -L/usr/lib -L/opt/intel/oneapi/tcm/1.2/lib -L/opt/intel/oneapi/umf/0.9/lib -L/opt/intel/oneapi/tbb/2022.0/env/../lib/intel64/gcc4.8 -L/opt/intel/oneapi/pti/0.10/lib -L/opt/intel/oneapi/mpi/2021.14/lib -L/opt/intel/oneapi/mkl/2025.0/lib -L/opt/intel/oneapi/ippcp/2025.0/lib/ -L/opt/intel/oneapi/ipp/2022.0/lib -L/opt/intel/oneapi/dnnl/2025.0/lib -L/opt/intel/oneapi/dal/2025.0/lib -L/opt/intel/oneapi/compiler/2025.0/lib -L/opt/intel/oneapi/ccl/2021.14/lib/ CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o -Bstatic -lsvml -Bdynamic -Bstatic -lirng -Bdynamic -lstdc++ -Bstatic -limf -Bdynamic -lm -lgcc_s -lgcc -Bstatic -lirc -Bdynamic -ldl -lgcc_s -lgcc -lc -lgcc_s -lgcc -Bstatic -lirc_s -Bdynamic /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o]
+          arg [/usr/bin/ld] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_8b191] ==> ignore
+          arg [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o] ==> obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o]
+          arg [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o] ==> obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o]
+          arg [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o] ==> obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu] ==> dir [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib]
+          arg [-L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1] ==> dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+          arg [-L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64] ==> dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64]
+          arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+          arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+          arg [-L/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../..] ==> dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../..]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/lib]
+          arg [-L/lib] ==> dir [/lib]
+          arg [-L/usr/lib] ==> dir [/usr/lib]
+          arg [-L/opt/intel/oneapi/tcm/1.2/lib] ==> dir [/opt/intel/oneapi/tcm/1.2/lib]
+          arg [-L/opt/intel/oneapi/umf/0.9/lib] ==> dir [/opt/intel/oneapi/umf/0.9/lib]
+          arg [-L/opt/intel/oneapi/tbb/2022.0/env/../lib/intel64/gcc4.8] ==> dir [/opt/intel/oneapi/tbb/2022.0/env/../lib/intel64/gcc4.8]
+          arg [-L/opt/intel/oneapi/pti/0.10/lib] ==> dir [/opt/intel/oneapi/pti/0.10/lib]
+          arg [-L/opt/intel/oneapi/mpi/2021.14/lib] ==> dir [/opt/intel/oneapi/mpi/2021.14/lib]
+          arg [-L/opt/intel/oneapi/mkl/2025.0/lib] ==> dir [/opt/intel/oneapi/mkl/2025.0/lib]
+          arg [-L/opt/intel/oneapi/ippcp/2025.0/lib/] ==> dir [/opt/intel/oneapi/ippcp/2025.0/lib/]
+          arg [-L/opt/intel/oneapi/ipp/2022.0/lib] ==> dir [/opt/intel/oneapi/ipp/2022.0/lib]
+          arg [-L/opt/intel/oneapi/dnnl/2025.0/lib] ==> dir [/opt/intel/oneapi/dnnl/2025.0/lib]
+          arg [-L/opt/intel/oneapi/dal/2025.0/lib] ==> dir [/opt/intel/oneapi/dal/2025.0/lib]
+          arg [-L/opt/intel/oneapi/compiler/2025.0/lib] ==> dir [/opt/intel/oneapi/compiler/2025.0/lib]
+          arg [-L/opt/intel/oneapi/ccl/2021.14/lib/] ==> dir [/opt/intel/oneapi/ccl/2021.14/lib/]
+          arg [CMakeFiles/cmTC_8b191.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-Bstatic] ==> search static
+          arg [-lsvml] ==> lib [svml]
+          arg [-Bdynamic] ==> search dynamic
+          arg [-Bstatic] ==> search static
+          arg [-lirng] ==> lib [irng]
+          arg [-Bdynamic] ==> search dynamic
+          arg [-lstdc++] ==> lib [stdc++]
+          arg [-Bstatic] ==> search static
+          arg [-limf] ==> lib [imf]
+          arg [-Bdynamic] ==> search dynamic
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-Bstatic] ==> search static
+          arg [-lirc] ==> lib [irc]
+          arg [-Bdynamic] ==> search dynamic
+          arg [-ldl] ==> lib [dl]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-Bstatic] ==> search static
+          arg [-lirc_s] ==> lib [irc_s]
+          arg [-Bdynamic] ==> search dynamic
+          arg [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o] ==> obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o]
+          arg [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o] ==> obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o]
+        linker tool for 'CXX': /usr/bin/ld
+        collapse obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/Scrt1.o] ==> [/usr/lib64/Scrt1.o]
+        collapse obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
+        collapse obj [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64/crtn.o] ==> [/usr/lib64/crtn.o]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> [/opt/intel/oneapi/compiler/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> [/opt/intel/oneapi/compiler/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu] ==> [/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> [/opt/intel/oneapi/compiler/2025.0/lib]
+        collapse library dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1] ==> [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1]
+        collapse library dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib64] ==> [/usr/lib64]
+        collapse library dir [/lib/../lib64] ==> [/lib64]
+        collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+        collapse library dir [/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/../../..] ==> [/usr/lib64]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../lib] ==> [/opt/intel/oneapi/compiler/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/bin/compiler/../../opt/compiler/lib] ==> [/opt/intel/oneapi/compiler/2025.0/opt/compiler/lib]
+        collapse library dir [/lib] ==> [/lib]
+        collapse library dir [/usr/lib] ==> [/usr/lib]
+        collapse library dir [/opt/intel/oneapi/tcm/1.2/lib] ==> [/opt/intel/oneapi/tcm/1.2/lib]
+        collapse library dir [/opt/intel/oneapi/umf/0.9/lib] ==> [/opt/intel/oneapi/umf/0.9/lib]
+        collapse library dir [/opt/intel/oneapi/tbb/2022.0/env/../lib/intel64/gcc4.8] ==> [/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8]
+        collapse library dir [/opt/intel/oneapi/pti/0.10/lib] ==> [/opt/intel/oneapi/pti/0.10/lib]
+        collapse library dir [/opt/intel/oneapi/mpi/2021.14/lib] ==> [/opt/intel/oneapi/mpi/2021.14/lib]
+        collapse library dir [/opt/intel/oneapi/mkl/2025.0/lib] ==> [/opt/intel/oneapi/mkl/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/ippcp/2025.0/lib/] ==> [/opt/intel/oneapi/ippcp/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/ipp/2022.0/lib] ==> [/opt/intel/oneapi/ipp/2022.0/lib]
+        collapse library dir [/opt/intel/oneapi/dnnl/2025.0/lib] ==> [/opt/intel/oneapi/dnnl/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/dal/2025.0/lib] ==> [/opt/intel/oneapi/dal/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/compiler/2025.0/lib] ==> [/opt/intel/oneapi/compiler/2025.0/lib]
+        collapse library dir [/opt/intel/oneapi/ccl/2021.14/lib/] ==> [/opt/intel/oneapi/ccl/2021.14/lib]
+        implicit libs: [svml;irng;stdc++;imf;m;gcc_s;gcc;irc;dl;gcc_s;gcc;c;gcc_s;gcc;irc_s]
+        implicit objs: [/usr/lib64/Scrt1.o;/usr/lib64/crti.o;/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o;/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o;/usr/lib64/crtn.o]
+        implicit dirs: [/opt/intel/oneapi/compiler/2025.0/lib;/opt/intel/oneapi/compiler/2025.0/lib/clang/19/lib/x86_64-unknown-linux-gnu;/usr/lib64/gcc/x86_64-pc-linux-gnu/15.2.1;/usr/lib64;/lib64;/opt/intel/oneapi/compiler/2025.0/opt/compiler/lib;/lib;/usr/lib;/opt/intel/oneapi/tcm/1.2/lib;/opt/intel/oneapi/umf/0.9/lib;/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8;/opt/intel/oneapi/pti/0.10/lib;/opt/intel/oneapi/mpi/2021.14/lib;/opt/intel/oneapi/mkl/2025.0/lib;/opt/intel/oneapi/ippcp/2025.0/lib;/opt/intel/oneapi/ipp/2022.0/lib;/opt/intel/oneapi/dnnl/2025.0/lib;/opt/intel/oneapi/dal/2025.0/lib;/opt/intel/oneapi/ccl/2021.14/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:15 (project)"
+    message: |
+      Running the CXX compiler's linker: "/usr/bin/ld" "-v"
+      GNU ld (GNU Binutils) 2.46
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:34 (find_package)"
+    name: "Eigen3"
+    configs:
+      -
+        filename: "Eigen3.cps"
+        kind: "cps"
+      -
+        filename: "eigen3.cps"
+        kind: "cps"
+      -
+        filename: "Eigen3Config.cmake"
+        kind: "cmake"
+      -
+        filename: "eigen3-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "Eigen3"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/vtune/2025.0/bin64/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mpi/2021.14/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/cmake/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/cmake/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpcpp-ct/2025.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dev-utilities/2025.0/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/debugger/2025.0/opt/debugger/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/advisor/2025.0/bin64/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/.local/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/x86_64-unknown-linux-gnu/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/x86_64-unknown-linux-gnu/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/Eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/eigen3.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/eigen3/Eigen3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/share/eigen3/eigen3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "/usr/share/eigen3/cmake/Eigen3Config.cmake"
+      mode: "config"
+      version: "5.0.1"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:69 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_release_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbb.so.12"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbb.so.12"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:77 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_debug_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbb_debug.so.12"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbb_debug.so.12"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:69 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_release_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbbmalloc.so.2"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbbmalloc.so.2"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:77 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_debug_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbbmalloc_debug.so.2"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbbmalloc_debug.so.2"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:69 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_release_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbbmalloc_proxy.so.2"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbbmalloc_proxy.so.2"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake:77 (find_library)"
+      - "CMakeLists.txt:35 (find_package)"
+    mode: "library"
+    variable: "_tbb_debug_lib"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "libtbbmalloc_proxy_debug.so.2"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/gcc4.8/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/lib/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+    found: "/opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbbmalloc_proxy_debug.so.2"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:35 (find_package)"
+    name: "TBB"
+    configs:
+      -
+        filename: "TBB.cps"
+        kind: "cps"
+      -
+        filename: "tbb.cps"
+        kind: "cps"
+      -
+        filename: "TBBConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "tbb-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "TBB"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/TBBConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/tbb-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/TBBConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/tbb-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/TBB.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/tbb.cps"
+        mode: "cps"
+        reason: "no_exist"
+    found:
+      path: "/opt/intel/oneapi/tbb/2022.0/lib/cmake/tbb/TBBConfig.cmake"
+      mode: "config"
+      version: "2022.0.0"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:517 (find_program)"
+      - "/opt/intel/oneapi/compiler/2025.0/lib/cmake/IntelSYCL/IntelSYCLConfig.cmake:83 (find_package)"
+      - "CMakeLists.txt:36 (find_package)"
+    mode: "program"
+    variable: "PKG_CONFIG_EXECUTABLE"
+    description: "pkg-config executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "pkg-config"
+      - "pkgconf"
+    candidate_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/"
+      - "/opt/intel/oneapi/tbb/2022.0/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/"
+      - "/opt/intel/oneapi/dal/2025.0/bin/"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/"
+      - "/opt/intel/oneapi/dal/2025.0/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/"
+      - "/opt/intel/oneapi/compiler/2025.0/"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/"
+      - "/home/tim/miniconda3/bin/"
+      - "/home/tim/.local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/opt/cuda/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/opt/rocm/bin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/opt/intel/oneapi/tbb/2022.0/bin/pkg-config"
+      - "/opt/intel/oneapi/tbb/2022.0/bin/pkgconf"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/pkg-config"
+      - "/opt/intel/oneapi/tbb/2022.0/sbin/pkgconf"
+      - "/opt/intel/oneapi/tbb/2022.0/pkg-config"
+      - "/opt/intel/oneapi/tbb/2022.0/pkgconf"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/pkg-config"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/bin/pkgconf"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/pkg-config"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/sbin/pkgconf"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/pkg-config"
+      - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/pkgconf"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/pkg-config"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/bin/pkgconf"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/pkg-config"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/sbin/pkgconf"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/pkg-config"
+      - "/opt/intel/oneapi/mkl/2025.0/lib/cmake/pkgconf"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/pkg-config"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/bin/pkgconf"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/pkg-config"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/sbin/pkgconf"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/pkg-config"
+      - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/pkgconf"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/pkg-config"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/bin/pkgconf"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/pkg-config"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/sbin/pkgconf"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/pkg-config"
+      - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/pkgconf"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/pkg-config"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/bin/pkgconf"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/pkg-config"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/sbin/pkgconf"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/pkg-config"
+      - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/pkgconf"
+      - "/opt/intel/oneapi/dal/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/dal/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/pkg-config"
+      - "/opt/intel/oneapi/dal/2025.0/sbin/pkgconf"
+      - "/opt/intel/oneapi/dal/2025.0/pkg-config"
+      - "/opt/intel/oneapi/dal/2025.0/pkgconf"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/pkg-config"
+      - "/opt/intel/oneapi/compiler/2025.0/sbin/pkgconf"
+      - "/opt/intel/oneapi/compiler/2025.0/pkg-config"
+      - "/opt/intel/oneapi/compiler/2025.0/pkgconf"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/pkg-config"
+      - "/opt/intel/oneapi/vtune/2025.0/bin64/pkgconf"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/pkg-config"
+      - "/opt/intel/oneapi/mpi/2021.14/bin/pkgconf"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/mkl/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/dev-utilities/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/pkg-config"
+      - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin/pkgconf"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/pkg-config"
+      - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin/pkgconf"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/pkg-config"
+      - "/opt/intel/oneapi/compiler/2025.0/bin/pkgconf"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/pkg-config"
+      - "/opt/intel/oneapi/advisor/2025.0/bin64/pkgconf"
+      - "/home/tim/miniconda3/bin/pkg-config"
+      - "/home/tim/miniconda3/bin/pkgconf"
+      - "/home/tim/.local/bin/pkg-config"
+      - "/home/tim/.local/bin/pkgconf"
+      - "/usr/local/sbin/pkg-config"
+      - "/usr/local/sbin/pkgconf"
+      - "/usr/local/bin/pkg-config"
+      - "/usr/local/bin/pkgconf"
+    found: "/usr/bin/pkg-config"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/compiler/2025.0/lib/cmake/IntelSYCL/IntelSYCLConfig.cmake:230 (find_file)"
+      - "CMakeLists.txt:36 (find_package)"
+    mode: "file"
+    variable: "SYCL_INCLUDE_DIR"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "include"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/"
+    found: "/opt/intel/oneapi/compiler/2025.0/include"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/intel/oneapi/compiler/2025.0/lib/cmake/IntelSYCL/IntelSYCLConfig.cmake:239 (find_file)"
+      - "CMakeLists.txt:36 (find_package)"
+    mode: "file"
+    variable: "SYCL_LIBRARY_DIR"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "lib"
+      - "lib64"
+    candidate_directories:
+      - "/opt/intel/oneapi/compiler/2025.0/"
+    found: "/opt/intel/oneapi/compiler/2025.0/lib"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:36 (find_package)"
+    name: "IntelSYCL"
+    configs:
+      -
+        filename: "IntelSYCL.cps"
+        kind: "cps"
+      -
+        filename: "intelsycl.cps"
+        kind: "cps"
+      -
+        filename: "IntelSYCLConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "intelsycl-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "IntelSYCL"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/pkgRedirects/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/tbb/2022.0/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/pti/0.10/lib/cmake/pti/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/mkl/2025.0/lib/cmake/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dnnl/2025.0/lib/cmake/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/dal/2025.0/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/IntelSYCLConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/intelsycl-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/x86_64-unknown-linux-gnu/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/x86_64-unknown-linux-gnu/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/lib/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/share/cps/IntelSYCL.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/intel/oneapi/compiler/2025.0/share/cps/intelsycl.cps"
+        mode: "cps"
+        reason: "no_exist"
+    found:
+      path: "/opt/intel/oneapi/compiler/2025.0/lib/cmake/IntelSYCL/IntelSYCLConfig.cmake"
+      mode: "config"
+      version: "1.0.0"
+    search_context:
+      ENV{CMAKE_PREFIX_PATH}:
+        - "/opt/intel/oneapi/tbb/2022.0/env/.."
+        - "/opt/intel/oneapi/pti/0.10/lib/cmake/pti"
+        - "/opt/intel/oneapi/mkl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/ipp/2022.0/lib/cmake/ipp"
+        - "/opt/intel/oneapi/dpl/2022.7/lib/cmake/oneDPL"
+        - "/opt/intel/oneapi/dnnl/2025.0/lib/cmake"
+        - "/opt/intel/oneapi/dal/2025.0"
+        - "/opt/intel/oneapi/compiler/2025.0"
+      ENV{PATH}:
+        - "/opt/intel/oneapi/vtune/2025.0/bin64"
+        - "/opt/intel/oneapi/mpi/2021.14/bin"
+        - "/opt/intel/oneapi/mkl/2025.0/bin"
+        - "/opt/intel/oneapi/dpcpp-ct/2025.0/bin"
+        - "/opt/intel/oneapi/dev-utilities/2025.0/bin"
+        - "/opt/intel/oneapi/debugger/2025.0/opt/debugger/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/opt/oclfpga/bin"
+        - "/opt/intel/oneapi/compiler/2025.0/bin"
+        - "/opt/intel/oneapi/advisor/2025.0/bin64"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/miniconda3/bin"
+        - "/home/tim/.local/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/opt/cuda/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/opt/rocm/bin"
+        - "/opt/cuda/bin"
+        - "/opt/cuda/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+...

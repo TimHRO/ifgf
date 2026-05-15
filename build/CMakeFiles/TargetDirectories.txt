@@ -1,0 +1,4 @@
+/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/test_ifgf.dir
+/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/ifgflib.dir
+/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/edit_cache.dir
+/home/tim/Desktop/ifgf old stuff/ifgf/build/CMakeFiles/rebuild_cache.dir
