@@ -55,8 +55,8 @@ namespace SyclChebychevInterpolation
     
 
 
-    template <typename T, int DIM, int DIMX, int MAX_ORDER>
-    void chebtransform_impl(const sycl::accessor<T> &src,
+    template <typename T, int DIM, int DIMX, int MAX_ORDER, typename BufType>
+    void chebtransform_impl(BufType &src,
                             sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER) > & dest,
                             const std::array<int,DIMX>& ns,
                             const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
@@ -159,7 +159,50 @@ namespace SyclChebychevInterpolation
 	for(int i=0;i<DIM;i++) {
 	    size*=ns[i];
 	}
-	std::copy(tmp.begin(),tmp.begin()+size,buf.begin()+offset);
+	//std::copy(tmp.begin(),tmp.begin()+size,buf.begin()+offset);
+	    for (size_t i = 0; i < size; ++i) {
+        	buf[offset + i] = tmp[i];
+    	}
+    }
+
+	template<typename T>
+	struct RawPointerBuffer{
+		T* ptr;
+		size_t sz;
+
+		T* begin() {return ptr;}
+		const T* begin() const {return ptr;}
+		size_t size() const {return sz;}
+		T& operator[](size_t i){return ptr[i];}
+		const T& operator[](size_t i) const {return ptr[i];}
+		
+	};
+
+	template <typename T, int DIM, int MAX_ORDER>
+    void chebtransform_inplace_local(T *ptr,
+			       const std::array<int,DIM>& ns,
+			       const sycl::accessor<PointScalar,1, sycl::access_mode::read>& cv,
+			       size_t local_offset
+			       )
+    {
+
+	RawPointerBuffer<T> buf{ptr + local_offset, 1};
+	for(int i=0; i<DIM; i++){
+		buf.sz *= ns[i];
+	}
+
+	sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER)> tmp;
+	tmp=0;
+	chebtransform_impl<T,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,local_offset,0,0);
+
+	size_t size=1;
+	for(int i=0;i<DIM;i++) {
+	    size*=ns[i];
+	}
+	//std::copy(tmp.begin(),tmp.begin()+size,buf.begin()+offset);
+	for(size_t i=0; i<buf.sz; i++){
+		ptr[local_offset + i] = tmp[i];
+	}
     }
 
 

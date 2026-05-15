@@ -1,1 +1,0 @@
-/opt/intel/oneapi/compiler/2025.0/bin/icpx  -march=native -O2 -g -DNDEBUG -O2  -g -flto=auto -O  -fsycl -fsycl-targets=spir64 -fsycl -Wl,--dependency-file=CMakeFiles/test_ifgf.dir/link.d CMakeFiles/test_ifgf.dir/test_ifgf.cpp.o -o test_ifgf  /opt/intel/oneapi/tbb/2022.0/lib/intel64/gcc4.8/libtbb.so.12

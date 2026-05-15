@@ -404,10 +404,14 @@ public:
 	return m_numEls;
     }
 
-    PointScalar h() const
-    {
-	return m_h[2];
-    }
+	inline constexpr sycl::marray<PointScalar,DIM> min() const {
+		return m_min;
+	}
+
+
+    inline constexpr sycl::marray<PointScalar,DIM> h() const {
+		return m_h;
+	}
     
     //transforms from (-1,1) to K_el
     void transform(size_t el,const sycl::accessor<const PointScalar,1,sycl::access_mode::read>& pnts, sycl::marray<PointScalar,DIM>& dest, size_t i) const 

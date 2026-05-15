@@ -1146,6 +1146,26 @@ public:
     }
 
 
+	size_t memId(size_t level, size_t boxIdx, size_t cIdx) const {
+		// 1. Safety check for level bounds
+		if (level >= m_coneMaps.size()) return SIZE_MAX;
+		
+		// 2. Safety check for box index bounds
+		const auto& levelMaps = m_coneMaps[level];
+		if (boxIdx >= levelMaps.size()) return SIZE_MAX;
+
+		// 3. Look up the cone in the map for this specific box
+		const auto& boxMap = levelMaps[boxIdx];
+		auto it = boxMap.find(cIdx);
+
+		// 4. If found, return the global memory ID; otherwise return SIZE_MAX
+		if (it != boxMap.end()) {
+			return it->second;
+		}
+
+		return SIZE_MAX;
+	}
+
 
     const std::vector<size_t> childBoxes(unsigned int level, size_t i) const
     {
@@ -1947,6 +1967,8 @@ class OctreeLevelData
 {
 public:
     OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
+	m_octree(octree), // Store reference
+    m_level(level),   // Store level
     points_start(octree.numBoxes(level)),
     points_end(octree.numBoxes(level)),
     ffBi_vec(std::move(octree.m_farFieldBoxes[level].indices)),
@@ -1964,6 +1986,7 @@ public:
     leafCones_vec((octree.m_leafCones[level])),
     leafCones(leafCones_vec),
     ftAFlags(octree.numBoxes(level)),
+	leafFlags(octree.numBoxes(level)),
     boxCenters(octree.numBoxes(level)*DIM),
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
@@ -1982,6 +2005,7 @@ public:
 	sycl::host_accessor ends(points_end,sycl::write_only);
 
 	sycl::host_accessor flags(ftAFlags,sycl::write_only);
+	sycl::host_accessor lf(leafFlags, sycl::write_only);
 
 	sycl::host_accessor bs(boxSizes,sycl::write_only);
 	sycl::host_accessor bc(boxCenters,sycl::write_only);
@@ -2001,6 +2025,7 @@ public:
 	    ends[box]=range.second;
 
 	    flags[box]=octree.hasFarTargetsIncludingAncestors(level,box);
+		lf[box]=octree.isLeaf(level,box);
 
 	    auto bbox=octree.bbox(level,box);
 	    bs[box]=bbox.sideLength();
@@ -2033,6 +2058,7 @@ public:
 	}
 
 
+
 	//assert(octree.m_childToParent[level].pntRanges.size()==m_numActiveCones[0]);
 
 	//std::cout<<"done"<<std::endl;
@@ -2045,6 +2071,9 @@ public:
     }
   
     
+	size_t numBoxes() const{
+		return  m_octree.numBoxes(m_level);
+	}
 
 
     class Accessor
@@ -2061,6 +2090,7 @@ public:
 	    points_end(data.points_end,h),
 	    leafCones(data.leafCones,h),
 	    ftAFlags(data.ftAFlags,h),
+		leafFlags(data.leafFlags,h),
 	    boxCenters(data.boxCenters,h),
 	    boxSizes(data.boxSizes,h),
 	    activeCones(data.activeCones,h),
@@ -2155,6 +2185,11 @@ public:
 	    return ftAFlags[boxId];
 	}
 
+	bool isLeaf(size_t boxId) const
+	{
+		return leafFlags[boxId];
+	}
+
 	PointScalar boxSize(size_t boxId) const
 	{
 	    return boxSizes[boxId];
@@ -2232,6 +2267,7 @@ public:
 	
 
 	sycl::accessor< char,1,sycl::access_mode::read> ftAFlags;
+	sycl::accessor< char,1,sycl::access_mode::read> leafFlags;
 
 
 
@@ -2301,7 +2337,8 @@ private:
     sycl::buffer<PointScalar,1> ffB_points;
 
     
-
+	const Octree<T, DIM>& m_octree;
+    size_t m_level;
     //near field boxes
     
     std::vector<size_t> nfBs_vec;
@@ -2318,6 +2355,7 @@ private:
     std::vector<ConeRef> leafCones_vec;
     sycl::buffer<ConeRef,1> leafCones;
     sycl::buffer<char,1> ftAFlags;
+	sycl::buffer<char,1> leafFlags;
 
 
     sycl::buffer<PointScalar,1> boxSizes;
