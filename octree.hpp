@@ -797,7 +797,7 @@ public:
     }
 
 
-    FieldInfo computeFarFieldInfo(int level, const Octree& target, bool isFarField=true) const
+/*     FieldInfo computeFarFieldInfo(int level, const Octree& target, bool isFarField=true) const
     {
 	FieldInfo info;
 
@@ -882,7 +882,92 @@ public:
 	}
 	return info;
 		
+    } */
+
+	FieldInfo computeFarFieldInfo(int level, const Octree& target, bool isFarField = true) const
+{
+    FieldInfo info;
+    const size_t nTargets = target.points().cols();
+
+    // First pass: count how many active cone–target interactions we will store
+    std::vector<size_t> nBoxPerTarget(nTargets, 0);
+    size_t totalEntries = 0;
+
+    for (size_t n = 0; n < numBoxes(level); ++n) {
+        std::shared_ptr<OctreeNode> node = m_nodes[level][n];
+        const auto& coneMap = m_coneMaps[level][n];   // map: localConeId -> globalId
+        const std::vector<IndexRange>& targets = isFarField ? node->farTargets() : node->nearTargets();
+
+        for (const auto& tRange : targets) {
+            for (size_t trg = tRange.first; trg < tRange.second; ++trg) {
+                const Point target_pnt = target.points().col(trg).matrix();
+                const PointScalar H = node->boundingBox().sideLength();
+                const Point& center = node->boundingBox().center();
+                const auto& transformed = Util::cartToInterp<DIM>(target_pnt, center, H);
+                const size_t el = node->coneDomain().elementForPoint(transformed);
+                if (el == SIZE_MAX) continue;                 // outside cone domain
+                if (coneMap.find(el) != coneMap.end()) {      // only count active cones
+                    ++nBoxPerTarget[trg];
+                    ++totalEntries;
+                }
+            }
+        }
     }
+
+    // Build prefix sums (starts)
+    info.starts.resize(nTargets + 1);
+    info.starts[0] = 0;
+    for (size_t trg = 1; trg <= nTargets; ++trg) {
+        info.starts[trg] = info.starts[trg - 1] + nBoxPerTarget[trg - 1];
+    }
+    assert(info.starts[nTargets] == totalEntries);
+
+    if (totalEntries == 0) {
+        info.indices.resize(0);
+        info.points.resize(DIM, 0);
+        info.boxIndices.resize(0);
+        return info;
+    }
+
+    // Allocate storage
+    info.indices.resize(totalEntries);
+    info.points.resize(DIM, totalEntries);
+    info.boxIndices.resize(totalEntries);
+
+    // Reset nBoxPerTarget to use as a write position index
+    std::fill(nBoxPerTarget.begin(), nBoxPerTarget.end(), 0);
+
+    // Second pass: fill the arrays
+    for (size_t n = 0; n < numBoxes(level); ++n) {
+        std::shared_ptr<OctreeNode> node = m_nodes[level][n];
+        const auto& coneMap = m_coneMaps[level][n];
+        const PointScalar H = node->boundingBox().sideLength();
+        const Point& center = node->boundingBox().center();
+        const ConeDomain<DIM>& coneDomain = node->coneDomain();
+        const std::vector<IndexRange>& targets = isFarField ? node->farTargets() : node->nearTargets();
+
+        for (const auto& tRange : targets) {
+            for (size_t trg = tRange.first; trg < tRange.second; ++trg) {
+                const Point target_pnt = target.points().col(trg).matrix();
+                const auto transformed = Util::cartToInterp<DIM>(target_pnt, center, H);
+                const size_t el = coneDomain.elementForPoint(transformed);
+                if (el == SIZE_MAX) continue;
+
+                auto it = coneMap.find(el);
+                if (it == coneMap.end()) continue;   // inactive cone – skip
+
+                size_t memId = it->second;
+                size_t writePos = info.starts[trg] + nBoxPerTarget[trg];
+                info.indices[writePos] = memId;
+                info.boxIndices[writePos] = n;
+                info.points.col(writePos) = coneDomain.transformBackwards(el, transformed);
+                ++nBoxPerTarget[trg];
+            }
+        }
+    }
+
+    return info;
+}
 
 
     FieldInfo computeFieldInfo(int level, const Octree& target, bool isFarField=true) const

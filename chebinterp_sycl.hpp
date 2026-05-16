@@ -52,11 +52,8 @@ namespace SyclChebychevInterpolation
 
     }
 
-    
-
-
     template <typename T, int DIM, int DIMX, int MAX_ORDER, typename BufType>
-    void chebtransform_impl(BufType &src,
+    [[clang::noinline]] void chebtransform_impl(BufType &src,
                             sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER) > & dest,
                             const std::array<int,DIMX>& ns,
                             const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
@@ -434,11 +431,12 @@ namespace SyclChebychevInterpolation
 			   const Eigen::Vector<int, DIM>& ns,
 			   BoundingBox<DIM> box);
 
-    template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType>
+    template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType, typename AccType>
     void tp_evaluate_int(
 			 const sycl::marray<PointScalar, POINTS_AT_CTIME> &points,
 			 int pnt_offset,
-			 const sycl::accessor<const T,1,sycl::access_mode::read> &interp_values,
+			 //const sycl::accessor<const T,1,sycl::access_mode::read> &interp_values,
+			 AccType& interp_values,
 			 size_t offset,
 			 DestType& dest,				
 			 const std::array<int, DIMX> &ns,
@@ -494,6 +492,7 @@ namespace SyclChebychevInterpolation
 
 
             for (size_t idx = 0; idx < ns[DIM - 1]; idx++) {
+		assert((int) pnt_offset >= (int)nps[DIM-2]);
 		size_t new_pnt_offset= DIM >= 2 ?   pnt_offset-nps[DIM-2] : 0;
 		assert(new_pnt_offset>=0);
 		tp_evaluate_int<T, DIM - 1, DIMX, POINTS_AT_CTIME>(
