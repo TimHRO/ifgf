@@ -308,7 +308,16 @@ public:
 										coneTargets[el].begin(), coneTargets[el].end());
 					info.normPoints.insert(info.normPoints.end(),
 										coneNormPoints[el].begin(), coneNormPoints[el].end());
+
 				}
+			}
+
+			size_t numLowCones = m_octree->numActiveCones(level,0);
+			info.fineMemIdToMeta.assign(numLowCones, -1);
+
+			for(size_t i=0; i<info.metaData.size(); i++){
+				size_t fineMemId = info.metaData[i].coeffOffset / stride;
+				info.fineMemIdToMeta[fineMemId] = static_cast<int32_t>(i);
 			}
 
 			// Optional: shrink vectors to remove unused capacity
@@ -481,7 +490,7 @@ public:
 	    std::cout<<"level="<<level<<std::endl;
 	    //std::cout<<"created ocdata"<<std::endl;
 	    
-	    {
+	    /*{
 		Q.wait();
 		std::cout<<"nearfield"<<std::endl;
 		
@@ -551,6 +560,49 @@ public:
 		//Q.wait();
 		//std::cout<<"done nf"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
 		//e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;
+	    } */
+
+		{
+		Q.wait();
+		std::cout<<"nearfield"<<std::endl;
+		auto e=Q.submit([&](sycl::handler &h) {
+		    // start by pushing  some data to the GPU (octree stuff)
+		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
+		    sycl::accessor a_targets(b_targets, h, sycl::read_only);
+		    sycl::accessor a_weights(b_weights, h, sycl::read_only);
+
+		    sycl::accessor a_result(b_result, h, sycl::read_write);
+
+		    const auto &srcDataAcc = srcData->accessor(h);
+		    const auto functions =
+			static_cast<Derived *>(this)->kernelFunctions();
+
+
+		    //auto out = sycl::stream(1024, 768, h);
+		    const size_t num_targets=m_octree->targetPoints().cols();
+
+		    //std::cout<<"setup complete"<<num_targets<<std::endl;
+
+		    h.parallel_for(
+				   sycl::range(num_targets),
+				   [=](sycl::id<1> i) {
+				       //out<<"pnt"<<i<<"\n";
+				       for( size_t boxId : srcDataAcc.nearFieldBoxes(i)) {
+			  
+					   IndexRange srcs = srcDataAcc.points(boxId);	
+					   const size_t nS = srcs.second - srcs.first;
+					   if (nS == 0) { //skip empty boxes
+					       continue;
+					   }
+			  
+					   a_result[i]+=functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
+										 a_targets, i, a_weights);
+				       }
+				   });
+		});
+		/*Q.wait();
+		std::cout<<"done nf"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
+		e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;*/
 	    }
 		
 
@@ -588,7 +640,17 @@ public:
 
 			//std::array<int, DIM> ho_ns;
 			//std::copy(high_order.begin(), high_order.end(), ho_ns.begin());
-			std::cout << "Launching work group with " << stride << " threads" << "\n";
+			std::cout << "Launching work group with (high_order_stride)" << stride << " threads" << "\n";
+			std::cout << "Fine stride is " << fine_stride << "\n"; 
+
+			auto& thisLevelConeInfo = m_allLevelConeInfo[level];
+
+			sycl::buffer<int32_t,1> buf_fineMemIdToMeta(
+			thisLevelConeInfo.fineMemIdToMeta.data(),
+			sycl::range<1>(thisLevelConeInfo.fineMemIdToMeta.size()));
+			sycl::buffer<ConeMetaData,1> buf_meta(thisLevelConeInfo.metaData);
+			sycl::buffer<uint32_t,1> buf_targetIds(thisLevelConeInfo.targetIds);
+			sycl::buffer<PointScalar,1> buf_normPoints(thisLevelConeInfo.normPoints);
 
 			auto e = Q.submit([&](sycl::handler &h){
 				//sycl::stream out(1024, 256, h);
@@ -600,6 +662,14 @@ public:
 				sycl::accessor a_hoChebNodes(b_hoChebNodes, h, sycl::read_only);
 				sycl::accessor a_hoChebVals(b_hoChebvals, h, sycl::read_only);
 				sycl::accessor a_chebVals(b_chebvals, h, sycl::read_only);
+
+				sycl::accessor a_fineMemIdToMeta(buf_fineMemIdToMeta, h, sycl::read_only);
+				sycl::accessor a_meta(buf_meta, h, sycl::read_only);
+				sycl::accessor a_targetIds(buf_targetIds, h, sycl::read_only);
+				sycl::accessor a_normPoints(buf_normPoints, h, sycl::read_only);
+				sycl::accessor a_targets(b_targets, h, sycl::read_only);
+				sycl::accessor a_result(b_result, h, sycl::read_write);
+
 				const auto &srcDataAcc = srcData->accessor(h);
 				const auto functions =
 				static_cast<Derived *>(this)->kernelFunctions();
@@ -617,6 +687,7 @@ public:
 				constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-3,1);
 				constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
 				sycl::local_accessor<T,1> rawData(sycl::range<1>(nF*stride), h);
+				sycl::local_accessor<T,1> fineCoeffs(sycl::range<1>(nF*fine_stride), h);
 				sycl::local_accessor<T,1> ctfScratch(sycl::range<1>(nF*BUF_SIZE), h);
 				sycl::local_accessor<T,1> chebScratch(sycl::range<1>(stride), h);
 				//sycl::local_accessor<T,1> ctfScratch(sycl::range<1>(BUF_SIZE),h);
@@ -701,8 +772,10 @@ public:
 						const size_t fineMemId = srcDataAcc.memId(ref.boxId(), fine_el);
 
 						if(fineMemId < SIZE_MAX-1){
-							for(int i = 0; i < fine_stride; i++)
+							for(int i = 0; i < fine_stride; i++){
 								a_parentIntData[fineMemId*fine_stride+i] = T(0);
+								fineCoeffs[localId * fine_stride + i] = T(0);
+							}
 
 							size_t offset = 0;
 							tmp = 0;
@@ -721,11 +794,59 @@ public:
 
 							SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(
 								t_pnts, rawData, localId*stride,   // ← offset into rawData for this cone
-								ho_ns, lo_ns, a_parentIntData,
-								tmp, fineMemId*fine_stride, localId*BUF_SIZE);
+								ho_ns, lo_ns, fineCoeffs,
+								tmp, localId*fine_stride, 0);
 
 							SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
-								a_parentIntData, lo_ns, a_chebVals, fineMemId*fine_stride);
+								fineCoeffs, lo_ns, a_chebVals, localId*fine_stride);
+
+							// Write to global array for CTP later
+							for(int i=0; i<fine_stride; i++){
+								a_parentIntData[fineMemId * fine_stride + i] = fineCoeffs[localId*fine_stride + i];
+							}
+
+							// far field evaluation
+							int32_t metaIdx = a_fineMemIdToMeta[fineMemId];
+							if(metaIdx >= 0){
+								const ConeMetaData cmd = a_meta[metaIdx];
+								
+								sycl::marray<PointScalar,DIM> center;
+								for(int d = 0; d < DIM; d++) 
+									center[d] = static_cast<PointScalar>(cmd.center[d]);
+								const PointScalar H = static_cast<PointScalar>(cmd.H);
+								
+								SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
+								
+								for(uint32_t t = 0; t < cmd.numTargets; t++){
+									uint32_t targetId = a_targetIds[cmd.targetOffset + t];
+									
+									sycl::marray<PointScalar,DIM> norm;
+									for(int d = 0; d < DIM; d++)
+										norm[d] = a_normPoints[(cmd.targetOffset + t) * DIM + d];
+									
+									T val = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(norm),
+													fineCoeffs, lo_ns,
+													localId * fine_stride);
+									
+									sycl::marray<PointScalar,DIM> target_pnt;
+									for(int d = 0; d < DIM; d++)
+										target_pnt[d] = a_targets[targetId * DIM + d];
+									
+									val *= functions.CF(target_pnt - center, H);
+									
+									using ScalarT = typename T::value_type;
+									ScalarT* base_ptr = reinterpret_cast<ScalarT*>(&a_result[targetId]);
+									sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
+													sycl::memory_scope::device,
+													sycl::access::address_space::global_space> atm_real(base_ptr[0]);
+									sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
+													sycl::memory_scope::device,
+													sycl::access::address_space::global_space> atm_imag(base_ptr[1]);
+									atm_real.fetch_add(val.real());
+									atm_imag.fetch_add(val.imag());
+								}
+							}
+
 						}
 					}
 				});
@@ -990,7 +1111,7 @@ public:
                 std::cout<<"far field"<<H<<std::endl;
             }
 	    //Q.wait();
-		{
+		/*{
 
 		auto& thisLevelConeInfo = m_allLevelConeInfo[level];
 
@@ -1122,9 +1243,9 @@ public:
 			
 		});
 
-		/*std::cout<<"done FF"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
-		  e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;*/
-	    }
+		//std::cout<<"done FF"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
+		 // e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;
+	    }*/
 
 
 	    if(level<1) //there is no parent
@@ -1547,6 +1668,7 @@ private:
 		std::vector<ConeMetaData> metaData;
 		std::vector<uint32_t> targetIds;
 		std::vector<PointScalar> normPoints; // DIM values per target, flat
+		std::vector<int32_t> fineMemIdToMeta;
 	};
 	std::vector<InfoPerLevel> m_allLevelConeInfo;
 };
