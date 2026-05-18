@@ -1,5 +1,5 @@
 #CPPFLAGS=-O3 -g    -DEIGEN_FAST_MATH=1  -DEIGEN_DONT_PARALLELIZE   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
-CPPFLAGS=-O3 -g    -DEIGEN_FAST_MATH=1  -ffast-math -funroll-loops   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
+CPPFLAGS=-O2 -g    -DEIGEN_FAST_MATH=1  -ffast-math -funroll-loops   -march=native -std=c++20   -I/usr/include/eigen3/ -flto=auto
 
 all: 
 	g++ $(CPPFLAGS) -o ./test/test_ifgf  ./test/test_ifgf.cpp  -ltbb
