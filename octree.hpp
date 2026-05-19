@@ -1501,7 +1501,7 @@ private:
 	return level+1 < m_levels ? numBoxes(level)*pow(2,DIM) : 0 ; //The finest level does not have children
     }
 
-
+/*
     void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
 				std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
 				std::function<PointScalar(PointScalar)> smin_for_H)
@@ -1515,7 +1515,7 @@ private:
 	tbb::enumerable_thread_specific<PointArray > transformedNodes;
 	tbb::enumerable_thread_specific<PointArray > childNodes;
 
-	return;
+	//return;
 
 	for(int level=1;level<levels();level++) {
 	    estpH/=2.0;
@@ -1637,7 +1637,7 @@ private:
 	    std::cout<<"done with level"<<level<<std::endl;
 
 
-	    /*{
+	    {
 		Eigen::VectorXi tmp(numActiveCones(level-1,1));
 		tmp.fill(0);
 		ChildToParentData& data=m_childToParent[level];
@@ -1651,11 +1651,120 @@ private:
 		    assert(tmp[i]==tmp2[i]);
 		}
 		
-		}*/
+		}
 
         }
 
     }
+*/
+void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+                            std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
+                            std::function<PointScalar(PointScalar)> smin_for_H)
+{
+    std::cout<<"building CtP data"<<std::endl;
+    PointScalar estpH=2*m_sideLength;
+
+    tbb::spin_mutex mutex;
+
+    m_childToParent.resize(m_levels);
+    tbb::enumerable_thread_specific<PointArray > transformedNodes;
+    tbb::enumerable_thread_specific<PointArray > childNodes;
+
+    for(int level=1; level<levels(); ++level) {
+        estpH /= 2.0;
+        const auto order = order_for_H(estpH/2.0, 0);
+        const auto high_order = order_for_H(estpH, 1);
+        const auto& ho_chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
+
+        m_childToParent[level].pntRanges.resize(this->numActiveCones(level, 0));
+
+        Eigen::VectorXi tmp2(numActiveCones(level-1, 1));
+        tmp2.fill(0);
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, this->numActiveCones(level - 1, 1)),
+            [&](tbb::blocked_range<size_t> r) {
+                transformedNodes.local().resize(DIM, ho_chebNodes.cols());
+                childNodes.local().resize(DIM, ho_chebNodes.cols());
+
+                for (size_t i = r.begin(); i < r.end(); ++i) {
+                    // parent cone
+                    ConeRef parentCone = this->activeCone(level-1, i, 1);
+                    size_t parentBox = parentCone.boxId();
+                    auto pGrid = this->coneDomain(level-1, parentBox, 1);
+                    BoundingBox parent_bbox = this->bbox(level-1, parentBox);
+                    auto parent_center = parent_bbox.center();
+                    PointScalar pH = parent_bbox.sideLength();
+
+                    if (!this->hasPoints(level-1, parentBox)) continue;
+                    if (!this->hasFarTargetsIncludingAncestors(level-1, parentBox)) continue;
+
+                    transformedNodes.local() = Util::interpToCart<DIM>(
+                        pGrid.transform(parentCone.id(), ho_chebNodes).array(),
+                        parent_center, pH);
+
+                    const size_t stride = ho_chebNodes.cols();
+                    const size_t lo_stride = order.prod();
+
+                    for (size_t childBox : this->childBoxes(level-1, parentBox)) {
+                        BoundingBox bbox = this->bbox(level, childBox);
+                        auto center = bbox.center();
+                        PointScalar H = bbox.sideLength();
+
+                        const auto &childGrid = coneDomain(level, childBox, 0);
+                        Util::cartToInterp2<DIM>(transformedNodes.local(), center, H, childNodes.local());
+
+                        const size_t N = ho_chebNodes.cols();
+                        std::vector<size_t> elIds(N);
+                        for (size_t idx = 0; idx < N; ++idx) {
+                            elIds[idx] = childGrid.elementForPoint(childNodes.local().col(idx));
+                        }
+
+                        std::vector<size_t> perm = Util::sort_with_permutation(elIds.begin(), elIds.end(),
+                                                                               std::less<size_t>());
+
+                        size_t idx = 0;
+                        while (idx < N) {
+                            size_t nb = 1;
+                            const size_t el = elIds[perm[idx]];
+                            while (idx + nb < N && elIds[perm[idx + nb]] == el) {
+                                ++nb;
+                            }
+                            std::vector<size_t> ids(nb);
+                            std::copy_n(perm.begin() + idx, nb, ids.begin());
+                            idx += nb;
+
+                            if (el == SIZE_MAX) continue;
+
+                            // ========== FIX: safe lookup ==========
+                            auto it = m_coneMaps[level][childBox].find(el);
+                            if (it == m_coneMaps[level][childBox].end()) continue;
+                            size_t memId = it->second;
+                            // ======================================
+
+                            {
+                                tbb::spin_mutex::scoped_lock lock(mutex);
+                                m_childToParent[level].pntRanges[memId].push_back(
+                                    std::make_pair(parentCone, ids));
+                            }
+                        } // while idx
+                        tmp2[parentCone.globalId()] = 1;
+                    } // for childBox
+                } // for i
+            }); // parallel_for
+
+        // ... (rest of the function: compute sizes, etc.)
+        m_childToParent[level].pntRangeSize = 0;
+        m_childToParent[level].numChunks = 0;
+        for(const auto& coneData : m_childToParent[level].pntRanges) {
+            m_childToParent[level].numChunks += coneData.size();
+            for(auto chunk: coneData) {
+                m_childToParent[level].pntRangeSize += chunk.second.size();
+            }
+        }
+        std::cout<<"ctp "<<m_childToParent[level].pntRangeSize<<std::endl;
+        std::cout<<"done with level"<<level<<std::endl;
+    } // for level
+}
 
 #if 0
     void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
@@ -2158,6 +2267,10 @@ public:
     
 	size_t numBoxes() const{
 		return  m_octree.numBoxes(m_level);
+	}
+
+	ConeRef fineActiveCone(size_t index) const {
+    	return activeCones2_vec[index];
 	}
 
 
