@@ -731,7 +731,7 @@ public:
 						}
 
 						// CTP
-						if(hasParent){
+						if(hasParent && level > 2){
 							const size_t fineIdx = a_fineMemIdToFineIdx[fineMemId];
 							if(fineIdx < SIZE_MAX){
 								auto child_center = srcDataAcc.boxCenter(boxId);
@@ -784,8 +784,10 @@ public:
 	    Q.wait();
 
 		interpolationDataBuffer.reset();
-		if(level > 0) {
+		if(level > 2 && hasParentData) {
 			std::swap(interpolationDataBuffer, parentCTPBuffer);
+			parentCTPBuffer.reset();
+		} else {
 			parentCTPBuffer.reset();
 		}
 
