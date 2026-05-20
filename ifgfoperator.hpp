@@ -527,15 +527,15 @@ public:
 	    }
 		
 
-            Q.wait();
+        Q.wait();
 
-            {
-                const double H=m_octree->sideLength()*pow(2,-level);
-                if(static_cast<Derived *>(this)->farfieldCanBeSkipped(H)) {
-                    std::cout<<"skipping farfield computation"<<std::endl;
-                    continue;
-                }
+        {
+            const double H=m_octree->sideLength()*pow(2,-level);
+            if(static_cast<Derived *>(this)->farfieldCanBeSkipped(H)) {
+                std::cout<<"skipping farfield computation"<<std::endl;
+                continue;
             }
+        }
 
             //const size_t stride=chebNodes.cols();
 
@@ -565,22 +565,18 @@ public:
 			// level == 0 – dummy buffer (unused)
 			parentCTPBuffer = std::make_unique<sycl::buffer<T,1>>(sycl::range<1>(1));
 		}
-		Q.wait();
+		//Q.wait();
 
 		// set parentData before the kernel so we can access level-1 geometry inside it
 		if(level > 0)
 			parentData = m_octree->data(level-1);
 
-		//prepare interpolation data that is computed by interpolation and projection
-		//initInterpolationData(level,0,parentInterpolationDataBuffer);
-		Q.wait();
+		//Q.wait();
 
 		//-----------------------------------------------
 		// Interpolation Data + Far Fiel Evaluation + CTF
 		//-----------------------------------------------
 
-		// prepare chebtransoformed data for each coarse cone, if its leaf cone evaluate kernel first
-		// when finished project coarse to fine but still looping over coarse cones - one coarse -> 8 fine cones sequentially
 		{
 
 			const size_t stride = ho_chebNodes.cols();
@@ -659,19 +655,7 @@ public:
 				const int nF=std::pow(REFINEMENT_FACTOR,DIM); 
 				constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-3,1);
 				constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
-				sycl::local_accessor<T,1> rawData(sycl::range<1>(nF*stride), h);
-				sycl::local_accessor<T,1> fineCoeffs(sycl::range<1>(nF*fine_stride), h);
-				sycl::local_accessor<T,1> ctfScratch(sycl::range<1>(nF*BUF_SIZE), h);
-				sycl::local_accessor<T,1> chebScratch(sycl::range<1>(stride), h);
-
-				//sycl::local_accessor<T,1> ctfScratch(sycl::range<1>(BUF_SIZE),h);
-				// try {
-				// 	sycl::local_accessor<T,1> rawData(sycl::range<1>(stride), h);
-				// 	sycl::local_accessor<T,1> ctfScratch(sycl::range<1>(BUF_SIZE), h);
-				// } catch (sycl::exception &e) {
-				// 	std::cerr << "Local memory allocation failed: " << e.what() << std::endl;
-				// 	continue;
-				// }
+				
 				std::cout << "rawData local mem = " << nF * stride * sizeof(T) << " bytes\n";
 				std::cout << "local mem limit = " 
 						<< Q.get_device().get_info<sycl::info::device::local_mem_size>() 
@@ -687,329 +671,49 @@ public:
 						<< " true_buf=" << true_buf 
 						<< " BUF_SIZE=" << BUF_SIZE << "\n";
 
-				h.parallel_for(sycl::nd_range<1>(numActive * nF, nF), [=](sycl::nd_item<1> item){
-					const size_t groupId = item.get_group_linear_id(); // which batch of nF cones
-					const size_t localId = item.get_local_linear_id(); // which cone within batch (0..nF-1)
-					
-					const size_t coneIdx = groupId * nF + localId;     // global cone index
-					if(coneIdx >= numActive) return;
+				constexpr size_t MAX_STRIDE = /* ho order product */ 
+				(size_t)MAX_ORDER * MAX_ORDER * MAX_ORDER;
+				constexpr size_t MAX_FINE_STRIDE = 
+				(size_t)MAX_LOW_ORDER * MAX_LOW_ORDER * MAX_LOW_ORDER;
 
-					const ConeRef ref = srcDataAcc.activeCone(coneIdx);
+				h.parallel_for(sycl::range<1>(numActive), [=](sycl::id<1> i){
+					const ConeRef ref = srcDataAcc.activeCone(i);
 					const size_t boxId = ref.boxId();
 					if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId)) return;
 
 					const size_t globalOffset = ref.globalId() * stride;
 
-					// Phase 1: leaf eval or grab from interpolation — sequential per thread
-					// each thread evaluates its own cone fully
+					// Phase 1: load into private (register) array — no local memory needed
+					T coarseCoeffs[MAX_STRIDE]; // private per-thread stack array
+					for(size_t i=0; i<stride; i++){
+						coarseCoeffs[i] = T(0);
+					}
 					if(srcDataAcc.isLeaf(boxId)){
-						sycl::marray<PointScalar,DIM> center = srcDataAcc.boxCenter(boxId);
-						PointScalar H = srcDataAcc.boxSize(boxId);
-						auto grid = srcDataAcc.coneDomain(boxId,1);
-						IndexRange srcs = srcDataAcc.points(boxId);
-
-						// evaluateFactoredKernel needs to loop over all stride cheb nodes
-						// each thread does this sequentially for its own cone
-						for(size_t node = 0; node < stride; node++){
-							sycl::marray<PointScalar,DIM> transformed, cartesian;
-							grid.transform(ref.id(), a_hoChebNodes, transformed, node);
-							Util::interpToCart(transformed, cartesian, center, H);
-							rawData[localId * stride + node] = 
-								functions.evaluateFactoredKernel(a_srcs, srcs.first, srcs.second,
-																cartesian, a_weights, center, H);
-						}
-					} else {
-						for(size_t node = 0; node < stride; node++){
-							rawData[localId * stride + node] = a_intData[globalOffset + node];
-						}
-					}
-
-					// Phase 2: chebtransform — each thread does its own cone, fully sequential
-					SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
-						rawData, ho_ns, a_hoChebVals, localId * stride);
-
-					// Phase 3: CTF — each thread does all nF sub-cells for its cone
-					auto ho_id = SyclConeDomain<DIM>::indicesFromId(ref.id(), n_el);
-					std::array<size_t,DIM> factors;
-					factors.fill(REFINEMENT_FACTOR);
-
-					sycl::marray<PointScalar, MAX_LOW_ORDER*DIM> t_pnts;
-					sycl::marray<T, BUF_SIZE> tmp;
-
-					//const size_t sub = localId;
-					for(size_t sub = 0; sub < nF; sub++){
-						auto lid = SyclConeDomain<DIM>::indicesFromId(sub, factors);
-						const size_t fine_el =
-							(ho_id[2]*REFINEMENT_FACTOR+lid[2])*n_elements[1]*n_elements[0]+
-							(ho_id[1]*REFINEMENT_FACTOR+lid[1])*n_elements[0]+
-							(ho_id[0]*REFINEMENT_FACTOR+lid[0]);
-						const size_t fineMemId = srcDataAcc.memId(ref.boxId(), fine_el);
-
-						if(fineMemId < SIZE_MAX-1){
-							for(int i = 0; i < fine_stride; i++){
-								//a_parentIntData[fineMemId*fine_stride+i] = T(0);
-								fineCoeffs[localId * fine_stride + i] = T(0);
-							}
-
-							size_t offset = 0;
-							tmp = 0;
-							t_pnts = 0;
-							for(int d = 0; d < DIM; d++){
-								const PointScalar h = 2;
-								const PointScalar mmin = -1+(lid[d]*(h/((PointScalar)REFINEMENT_FACTOR)));
-								const PointScalar mmax = mmin+(h/((PointScalar)REFINEMENT_FACTOR));
-								const PointScalar a = 0.5*(mmax-mmin);
-								const PointScalar b = 0.5*(mmax+mmin);
-								for(size_t l = 0; l < lo_ns[d]; l++){
-									t_pnts[offset] = a*a_points[offset]+b;
-									offset++;
-								}
-							}
-
-							SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(
-								t_pnts, rawData, localId*stride,   // ← offset into rawData for this cone
-								ho_ns, lo_ns, fineCoeffs,
-								tmp, localId*fine_stride, 0);
-
-							SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
-								fineCoeffs, lo_ns, a_chebVals, localId*fine_stride);
-
-							// Write to global array for CTP later
-							//for(int i=0; i<fine_stride; i++){
-							//	a_parentIntData[fineMemId * fine_stride + i] = fineCoeffs[localId*fine_stride + i];
-							//}
-
-							// far field evaluation
-							int32_t metaIdx = a_fineMemIdToMeta[fineMemId];
-							if(metaIdx >= 0){
-								const ConeMetaData cmd = a_meta[metaIdx];
-								
-								sycl::marray<PointScalar,DIM> center;
-								for(int d = 0; d < DIM; d++) 
-									center[d] = static_cast<PointScalar>(cmd.center[d]);
-								const PointScalar H = static_cast<PointScalar>(cmd.H);
-								
-								SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
-								
-								for(uint32_t t = 0; t < cmd.numTargets; t++){
-									uint32_t targetId = a_targetIds[cmd.targetOffset + t];
-									
-									sycl::marray<PointScalar,DIM> norm;
-									for(int d = 0; d < DIM; d++)
-										norm[d] = a_normPoints[(cmd.targetOffset + t) * DIM + d];
-									
-									T val = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(norm),
-													fineCoeffs, lo_ns,
-													localId * fine_stride);
-									
-									sycl::marray<PointScalar,DIM> target_pnt;
-									for(int d = 0; d < DIM; d++)
-										target_pnt[d] = a_targets[targetId * DIM + d];
-									
-									val *= functions.CF(target_pnt - center, H);
-									
-									using ScalarT = typename T::value_type;
-									ScalarT* base_ptr = reinterpret_cast<ScalarT*>(&a_result[targetId]);
-									sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
-													sycl::memory_scope::device,
-													sycl::access::address_space::global_space> atm_real(base_ptr[0]);
-									sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
-													sycl::memory_scope::device,
-													sycl::access::address_space::global_space> atm_imag(base_ptr[1]);
-									atm_real.fetch_add(val.real());
-									atm_imag.fetch_add(val.imag());
-								}
-							}
-
-							if(hasParentData && level > 2){
-								const size_t fineIdx = a_fineMemIdToFineIdx[fineMemId];
-								if(fineIdx < SIZE_MAX){
-
-									auto child_center = srcDataAcc.boxCenter(boxId);
-									PointScalar child_H = srcDataAcc.boxSize(boxId);
-									const auto fineGrid = srcDataAcc.coneDomain(boxId, 0);
-									SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
-
-									for(size_t chunkIdx = srcDataAcc.ctpData().fineConeShift(fineIdx);
-											chunkIdx < srcDataAcc.ctpData().fineConeShift(fineIdx+1);
-											++chunkIdx)
-									{
-										ConeRef parentCone = srcDataAcc.ctpData().parentConeId(chunkIdx);
-										size_t parentBoxId = parentCone.boxId();
-
-										if(!parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId))
-											continue;
-
-										auto pGrid         = parentDataAcc.coneDomain(parentBoxId, 1);
-										auto parent_center = parentDataAcc.boxCenter(parentBoxId);
-										PointScalar pH     = parentDataAcc.boxSize(parentBoxId);
-
-										for(size_t pntOfChunk = srcDataAcc.ctpData().chunkShift(chunkIdx);
-												pntOfChunk < srcDataAcc.ctpData().chunkShift(chunkIdx+1);
-												++pntOfChunk)
-										{
-											size_t pntIdx = srcDataAcc.ctpData().pntId(pntOfChunk);
-
-											sycl::marray<PointScalar,DIM> pnt, cart_pnt, pnt2;
-											pGrid.transform(parentCone.id(), a_hoChebNodes, pnt, pntIdx);
-											Util::interpToCart(pnt, cart_pnt, parent_center, pH);
-											Util::cartToInterp(cart_pnt, pnt2, child_center, child_H);
-
-											const size_t el2 = fineGrid.elementForPoint(pnt2);
-											if(el2 != fine_el) continue;
-
-											fineGrid.transformBackwards(fine_el, pnt2, pnt);
-
-											T res = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(pnt),
-															fineCoeffs, lo_ns, localId * fine_stride);
-											T TF = functions.transfer_factor(cart_pnt,
-																			child_center, child_H,
-																			parent_center, pH);
-
-											using ScalarT = typename T::value_type;
-											ScalarT* base_ptr = reinterpret_cast<ScalarT*>(
-												&a_parentCTPData[parentCone.globalId() * stride + pntIdx]);
-											sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
-												sycl::memory_scope::device,
-												sycl::access::address_space::global_space> ar(base_ptr[0]), ai(base_ptr[1]);
-											ar.fetch_add((res * TF).real());
-											ai.fetch_add((res * TF).imag());
-										}
-									}
-								}
-							}
-
-						}
-					}
-				});
-			});
-		} 
-/*
-		{
-		const size_t stride = ho_chebNodes.cols();
-		const size_t numActive = m_octree->numActiveCones(level, 1);
-		if(numActive == 0) continue;
-
-		auto e1 = Q.submit([&](sycl::handler &h){
-			sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
-			sycl::accessor a_weights(b_weights, h, sycl::read_only);
-			sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
-			sycl::accessor a_hoChebNodes(b_hoChebNodes, h, sycl::read_only);
-			sycl::accessor a_hoChebVals(b_hoChebvals, h, sycl::read_only);
-			const auto &srcDataAcc = srcData->accessor(h);
-			const auto functions = static_cast<Derived*>(this)->kernelFunctions();
-
-			sycl::local_accessor<T,1> rawData(sycl::range<1>(stride), h);
-
-			h.parallel_for(sycl::nd_range<1>(numActive * stride, stride),
-				[=](sycl::nd_item<1> item){
-					const size_t coneIdx = item.get_group_linear_id();
-					const size_t localId = item.get_local_linear_id();
-
-					const ConeRef ref = srcDataAcc.activeCone(coneIdx);
-					const size_t boxId = ref.boxId();
-					const size_t globalOffset = ref.globalId() * stride;
-
-					if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){
-						// still need to participate in barrier
-						rawData[localId] = T(0);
-					} else if(srcDataAcc.isLeaf(boxId)){
 						sycl::marray<PointScalar,DIM> center = srcDataAcc.boxCenter(boxId);
 						PointScalar H = srcDataAcc.boxSize(boxId);
 						auto grid = srcDataAcc.coneDomain(boxId, 1);
 						IndexRange srcs = srcDataAcc.points(boxId);
-						sycl::marray<PointScalar,DIM> transformed, cartesian;
-						grid.transform(ref.id(), a_hoChebNodes, transformed, localId);
-						Util::interpToCart(transformed, cartesian, center, H);
-						rawData[localId] = functions.evaluateFactoredKernel(
-							a_srcs, srcs.first, srcs.second,
-							cartesian, a_weights, center, H);
+						for(size_t node = 0; node < stride; node++){
+							sycl::marray<PointScalar,DIM> transformed, cartesian;
+							grid.transform(ref.id(), a_hoChebNodes, transformed, node);
+							Util::interpToCart(transformed, cartesian, center, H);
+							coarseCoeffs[node] = functions.evaluateFactoredKernel(
+								a_srcs, srcs.first, srcs.second,
+								cartesian, a_weights, center, H);
+						}
 					} else {
-						rawData[localId] = a_intData[globalOffset + localId];
+						for(size_t node = 0; node < stride; node++)
+							coarseCoeffs[node] = a_intData[globalOffset + node];
 					}
 
-					// barrier before chebtransform
-					item.barrier(sycl::access::fence_space::local_space);
+					// Phase 2: chebtransform in-place on private array
+					SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
+						coarseCoeffs, ho_ns, a_hoChebVals, 0);
 
-					if(localId == 0){
-						SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
-							rawData, ho_ns, a_hoChebVals, 0);
-					}
-					item.barrier(sycl::access::fence_space::local_space);
-
-					// write back to global interpolationDataBuffer
-					if(srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){
-						a_intData[globalOffset + localId] = rawData[localId];
-					}
-				});
-		});
-	}*/
-
-	std::cout << "Finished Interpolation Data gathering, now CTF and Far Field" << "\n";
-	/*
-	{
-		const size_t stride = ho_chebNodes.cols();
-		const size_t fine_stride = order.prod();
-		const size_t numActive = m_octree->numActiveCones(level, 1);
-
-		auto& thisLevelConeInfo = m_allLevelConeInfo[level];
-		sycl::buffer<int32_t,1> buf_fineMemIdToMeta(
-			thisLevelConeInfo.fineMemIdToMeta.data(),
-			sycl::range<1>(thisLevelConeInfo.fineMemIdToMeta.size()));
-		sycl::buffer<ConeMetaData,1> buf_meta(thisLevelConeInfo.metaData);
-		sycl::buffer<uint32_t,1> buf_targetIds(thisLevelConeInfo.targetIds);
-		sycl::buffer<PointScalar,1> buf_normPoints(thisLevelConeInfo.normPoints);
-
-		auto e2 = Q.submit([&](sycl::handler &h){
-			sycl::accessor a_points(b_points, h, sycl::read_only);
-			sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only); // ← read only now
-			sycl::accessor a_parentIntData(*parentInterpolationDataBuffer, h, sycl::read_write);
-			sycl::accessor a_chebVals(b_chebvals, h, sycl::read_only);
-			sycl::accessor a_fineMemIdToMeta(buf_fineMemIdToMeta, h, sycl::read_only);
-			sycl::accessor a_meta(buf_meta, h, sycl::read_only);
-			sycl::accessor a_targetIds(buf_targetIds, h, sycl::read_only);
-			sycl::accessor a_normPoints(buf_normPoints, h, sycl::read_only);
-			sycl::accessor a_targets(b_targets, h, sycl::read_only);
-			sycl::accessor a_result(b_result, h, sycl::read_write);
-			const auto &srcDataAcc = srcData->accessor(h);
-			const auto functions = static_cast<Derived*>(this)->kernelFunctions();
-
-			const double H = H0*pow(2,-level);
-			Eigen::Vector<size_t,DIM> coarse_N = static_cast<Derived*>(this)->elementsForBox(
-				H, this->m_baseOrder, this->m_base_n_elements);
-			Eigen::Vector<size_t,DIM> fine_N = (size_t)(std::pow(
-				(unsigned int)REFINEMENT_FACTOR,
-				(unsigned int)REFINEMENT_LEVELS)) * coarse_N;
-			std::array<int,DIM> n_elements = SyclHelpers::EigenVectorToCPPArray<int,DIM>(
-				fine_N.template cast<int>());
-			std::array<size_t,DIM> n_el = SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(coarse_N);
-
-			const int nF = std::pow(REFINEMENT_FACTOR, DIM);
-			constexpr int MAX_LOW_ORDER = std::max(MAX_ORDER-3, 1);
-			constexpr int BUF_SIZE = _CtFBufferSize<DIM>(MAX_LOW_ORDER, MAX_ORDER);
-
-			sycl::local_accessor<T,1> fineCoeffs(sycl::range<1>(fine_stride * nF), h); // single slot, reused per sub
-			// rawData reads from global a_intData now — no local needed
-
-			h.parallel_for(sycl::nd_range<1>(numActive * nF, nF),
-				[=](sycl::nd_item<1> item){
-					const size_t groupId = item.get_group_linear_id();
-					const size_t localId = item.get_local_linear_id();
-					const size_t coneIdx = groupId * nF + localId;
-					if(coneIdx >= numActive) return;
-
-					const ConeRef ref = srcDataAcc.activeCone(coneIdx);
-					const size_t boxId = ref.boxId();
-					if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId)) return;
-
-					const size_t globalOffset = ref.globalId() * stride;
-
+					// Phase 3+4: loop over all nF fine sub-cones sequentially
 					auto ho_id = SyclConeDomain<DIM>::indicesFromId(ref.id(), n_el);
 					std::array<size_t,DIM> factors;
 					factors.fill(REFINEMENT_FACTOR);
-
-					sycl::marray<PointScalar, MAX_LOW_ORDER*DIM> t_pnts;
-					sycl::marray<T, BUF_SIZE> tmp;
 
 					for(size_t sub = 0; sub < nF; sub++){
 						auto lid = SyclConeDomain<DIM>::indicesFromId(sub, factors);
@@ -1018,88 +722,120 @@ public:
 							(ho_id[1]*REFINEMENT_FACTOR+lid[1])*n_elements[0]+
 							(ho_id[0]*REFINEMENT_FACTOR+lid[0]);
 						const size_t fineMemId = srcDataAcc.memId(ref.boxId(), fine_el);
+						if(fineMemId >= SIZE_MAX-1) continue;
 
-						if(fineMemId < SIZE_MAX-1){
-							for(int i = 0; i < fine_stride; i++)
-								fineCoeffs[localId * fine_stride + i] = T(0);
+						T fineCoeffs[MAX_FINE_STRIDE];
+						for(size_t i=0; i<fine_stride; i++){
+							fineCoeffs[i]=T(0);
+						}
+						sycl::marray<PointScalar, MAX_LOW_ORDER*DIM> t_pnts(PointScalar(0));
+						sycl::marray<T, BUF_SIZE> tmp(T(0));
 
-							size_t offset = 0;
-							tmp = 0;
-							t_pnts = 0;
-							for(int d = 0; d < DIM; d++){
-								const PointScalar h = 2;
-								const PointScalar mmin = -1+(lid[d]*(h/((PointScalar)REFINEMENT_FACTOR)));
-								const PointScalar mmax = mmin+(h/((PointScalar)REFINEMENT_FACTOR));
-								const PointScalar a = 0.5*(mmax-mmin);
-								const PointScalar b = 0.5*(mmax+mmin);
-								for(size_t l = 0; l < lo_ns[d]; l++){
-									t_pnts[offset] = a*a_points[offset]+b;
-									offset++;
-								}
+						size_t offset = 0;
+						for(int d = 0; d < DIM; d++){
+							const PointScalar h = 2;
+							const PointScalar mmin = -1 + (lid[d]*(h/(PointScalar)REFINEMENT_FACTOR));
+							const PointScalar mmax = mmin + (h/(PointScalar)REFINEMENT_FACTOR);
+							const PointScalar a = 0.5*(mmax-mmin);
+							const PointScalar b = 0.5*(mmax+mmin);
+							for(size_t l = 0; l < lo_ns[d]; l++){
+								t_pnts[offset] = a*a_points[offset]+b;
+								offset++;
 							}
+						}
 
-							// reads from global a_intData at globalOffset
-							SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(
-								t_pnts, a_intData, globalOffset,
-								ho_ns, lo_ns, fineCoeffs,
-								tmp, localId*fine_stride, 0);
+						SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(
+							t_pnts, coarseCoeffs, 0,
+							ho_ns, lo_ns, fineCoeffs, tmp, 0, 0);
 
-							SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
-								fineCoeffs, lo_ns, a_chebVals, localId*fine_stride);
+						SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
+							fineCoeffs, lo_ns, a_chebVals, 0);
 
-							// write to parentIntData for CTP
-							for(int i = 0; i < fine_stride; i++)
-								a_parentIntData[fineMemId*fine_stride+i] =
-									fineCoeffs[localId*fine_stride+i];
-
-							// far field
-							int32_t metaIdx = a_fineMemIdToMeta[fineMemId];
-							if(metaIdx >= 0){
-								const ConeMetaData cmd = a_meta[metaIdx];
-								sycl::marray<PointScalar,DIM> center;
+						// far field
+						int32_t metaIdx = a_fineMemIdToMeta[fineMemId];
+						if(metaIdx >= 0){
+							const ConeMetaData cmd = a_meta[metaIdx];
+							sycl::marray<PointScalar,DIM> center;
+							for(int d = 0; d < DIM; d++)
+								center[d] = static_cast<PointScalar>(cmd.center[d]);
+							const PointScalar H = static_cast<PointScalar>(cmd.H);
+							SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
+							for(uint32_t t = 0; t < cmd.numTargets; t++){
+								uint32_t targetId = a_targetIds[cmd.targetOffset + t];
+								sycl::marray<PointScalar,DIM> norm;
 								for(int d = 0; d < DIM; d++)
-									center[d] = static_cast<PointScalar>(cmd.center[d]);
-								const PointScalar H = static_cast<PointScalar>(cmd.H);
+									norm[d] = a_normPoints[(cmd.targetOffset+t)*DIM+d];
+								T val = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(norm),
+												fineCoeffs, lo_ns, 0);
+								sycl::marray<PointScalar,DIM> target_pnt;
+								for(int d = 0; d < DIM; d++)
+									target_pnt[d] = a_targets[targetId*DIM+d];
+								val *= functions.CF(target_pnt - center, H);
+								using ScalarT = typename T::value_type;
+								ScalarT* base_ptr = reinterpret_cast<ScalarT*>(&a_result[targetId]);
+								sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
+									sycl::memory_scope::device,
+									sycl::access::address_space::global_space> ar(base_ptr[0]), ai(base_ptr[1]);
+								ar.fetch_add(val.real());
+								ai.fetch_add(val.imag());
+							}
+						}
 
+						// CTP
+						if(hasParent){
+							const size_t fineIdx = a_fineMemIdToFineIdx[fineMemId];
+							if(fineIdx < SIZE_MAX){
+								auto child_center = srcDataAcc.boxCenter(boxId);
+								PointScalar child_H = srcDataAcc.boxSize(boxId);
+								const auto fineGrid = srcDataAcc.coneDomain(boxId, 0);
 								SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
-
-								for(uint32_t t = 0; t < cmd.numTargets; t++){
-									uint32_t targetId = a_targetIds[cmd.targetOffset + t];
-									sycl::marray<PointScalar,DIM> norm;
-									for(int d = 0; d < DIM; d++)
-										norm[d] = a_normPoints[(cmd.targetOffset+t)*DIM+d];
-
-									T val = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(norm),
-													fineCoeffs, lo_ns, localId*fine_stride);
-
-									sycl::marray<PointScalar,DIM> target_pnt;
-									for(int d = 0; d < DIM; d++)
-										target_pnt[d] = a_targets[targetId*DIM+d];
-
-									val *= functions.CF(target_pnt - center, H);
-
-									using ScalarT = typename T::value_type;
-									ScalarT* base_ptr = reinterpret_cast<ScalarT*>(&a_result[targetId]);
-									sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
-													sycl::memory_scope::device,
-													sycl::access::address_space::global_space>
-										atm_real(base_ptr[0]), atm_imag(base_ptr[1]);
-									atm_real.fetch_add(val.real());
-									atm_imag.fetch_add(val.imag());
+								for(size_t chunkIdx = srcDataAcc.ctpData().fineConeShift(fineIdx);
+										chunkIdx < srcDataAcc.ctpData().fineConeShift(fineIdx+1);
+										++chunkIdx){
+									ConeRef parentCone = srcDataAcc.ctpData().parentConeId(chunkIdx);
+									size_t parentBoxId = parentCone.boxId();
+									if(!parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId))
+										continue;
+									auto pGrid         = parentDataAcc.coneDomain(parentBoxId, 1);
+									auto parent_center = parentDataAcc.boxCenter(parentBoxId);
+									PointScalar pH     = parentDataAcc.boxSize(parentBoxId);
+									for(size_t pntOfChunk = srcDataAcc.ctpData().chunkShift(chunkIdx);
+											pntOfChunk < srcDataAcc.ctpData().chunkShift(chunkIdx+1);
+											++pntOfChunk){
+										size_t pntIdx = srcDataAcc.ctpData().pntId(pntOfChunk);
+										sycl::marray<PointScalar,DIM> pnt, cart_pnt, pnt2;
+										pGrid.transform(parentCone.id(), a_hoChebNodes, pnt, pntIdx);
+										Util::interpToCart(pnt, cart_pnt, parent_center, pH);
+										Util::cartToInterp(cart_pnt, pnt2, child_center, child_H);
+										const size_t el2 = fineGrid.elementForPoint(pnt2);
+										if(el2 != fine_el) continue;
+										fineGrid.transformBackwards(fine_el, pnt2, pnt);
+										T res = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(pnt),
+														fineCoeffs, lo_ns, 0);
+										T TF = functions.transfer_factor(cart_pnt,
+																		child_center, child_H,
+																		parent_center, pH);
+										using ScalarT = typename T::value_type;
+										ScalarT* base_ptr = reinterpret_cast<ScalarT*>(
+											&a_parentCTPData[parentCone.globalId()*stride+pntIdx]);
+										sycl::atomic_ref<ScalarT, sycl::memory_order::relaxed,
+											sycl::memory_scope::device,
+											sycl::access::address_space::global_space> ar(base_ptr[0]), ai(base_ptr[1]);
+										ar.fetch_add((res*TF).real());
+										ai.fetch_add((res*TF).imag());
+									}
 								}
 							}
 						}
-					}
+					} // end for(sub)
 				});
-		});
-	}
-*/
-	    
-	    Q.wait();
-		std::cout << "Far Field and CTF done, now CTP" << "\n";
+			});
+		} 
 
-	    //std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);
-	    //parentInterpolationDataBuffer.reset();
+
+		std::cout << "Finished Interpolation Data gathering, CTF, Far Field and CTP" << "\n";
+  
+	    Q.wait();
 
 		interpolationDataBuffer.reset();
 		if(level > 0) {
@@ -1109,267 +845,16 @@ public:
 
 		if(level < 1) break;
 
-		//------------------------------
-		// Propagate Children to Parents
-		//------------------------------
-
-		/*
-
-	    if(level<1) //there is no parent
-	    {		
-		break;
-	    }
-
-        //Now transform the interpolation data to the parents
-	    std::cout<<"propagating upward"<<std::endl;
-
-	    initInterpolationData(level-1,1, parentInterpolationDataBuffer);
-
-	    const size_t numActiveParentCones= m_octree->numActiveCones(level-1,1);
-	    if(numActiveParentCones==0) {
-		continue;
-	    }
-
-
-	    std::cout<<"Child To Parent "<<level<<std::endl;
-	    
-
-	    parentData = m_octree->data(level-1);//std::make_unique< OctreeLevelData<T,DIM> >(*m_octree,level-1);
-
-#ifdef  FAST_CTP
-	    const bool use_fast_ctp=true;//level>3;//level>3;
-#else
-	    const bool use_fast_ctp=false;
-#endif
-	    
-
-	    
-
-	    if(use_fast_ctp) {
-
-		Q.fill(parentInterpolationDataBuffer->get_access(), T(0.0));
-		Q.wait();
-
-		std::cout << "Local Memory Size: "
-			  << Q.get_device().get_info<sycl::info::device::local_mem_size>()
-			  << std::endl;
-
-		size_t local_mem_size=Q.get_device().get_info<sycl::info::device::local_mem_size>();
-
-		size_t storage_per_cone=ho_chebNodes.cols()*sizeof(T)+_CtFBufferSize<DIM>(order.maxCoeff(),high_order.maxCoeff());
-
-
-		size_t conesPerGroup=local_mem_size/storage_per_cone;
-
-		std::cout<<"using "<<conesPerGroup<<" as at the same time"<<std::endl;
-
-
-		auto e=Q.submit([&](sycl::handler &h) {
-		    // start by pushing  some data to the GPU (octree stuff)
-		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
-		    sycl::accessor a_parentIntData(*parentInterpolationDataBuffer, h, sycl::read_write);
-
-		    std::array<int,DIM> ns=SyclHelpers::EigenVectorToCPPArray<int,DIM>(order);
-		    std::array<int,DIM> ns_ho=SyclHelpers::EigenVectorToCPPArray<int,DIM>(high_order);
-
-
-		    //sycl::local_accessor<T> coarseData(high_order.prod());
-
-		    sycl::accessor a_hoChebNodes(b_hoChebNodes,h,sycl::read_only);
-		
-		    const auto &srcDataAcc = srcData->accessor(h);
-		    const auto &parentDataAcc = parentData->accessor(h);
-	
-		
-		    const size_t stride=ho_chebNodes.cols();
-		    const size_t lo_stride=chebNodes.cols();
-		    auto out = sycl::stream(100, 100, h);
-		    //std::cout<<"survived setup1234"<<std::endl;
-
-		    const auto functions =
-			static_cast<Derived *>(this)->kernelFunctions();
-
-		    const size_t numActiveCones= m_octree->numActiveCones(level,0);
-
-		    
-		    
-		    h.parallel_for(sycl::range<1>( numActiveCones ), [=](sycl::id<1> i)
-		    {
-			ConeRef cone=srcDataAcc.fineActiveCone(i);
-
-			size_t childBox=cone.boxId();
-			auto center = srcDataAcc.boxCenter(childBox);
-			PointScalar H = srcDataAcc.boxSize(childBox);
-			const auto grid=srcDataAcc.coneDomain(childBox,0);
-			    
-
-			for(size_t chunkIdx=srcDataAcc.ctpData().fineConeShift(i);chunkIdx<srcDataAcc.ctpData().fineConeShift(i+1);chunkIdx++)
-			{
-			    	sycl::marray<PointScalar,DIM> pnt;
-				sycl::marray<PointScalar,DIM> cart_pnt;
-				sycl::marray<PointScalar,DIM> pnt2;
-
-				ConeRef parentCone=srcDataAcc.ctpData().parentConeId(chunkIdx);
-				size_t parentBoxId = parentCone.boxId();
-				auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);
-				auto parent_center = parentDataAcc.boxCenter(parentBoxId);
-				PointScalar pH = parentDataAcc.boxSize(parentBoxId);
-
-
-				
-				if( ! parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)){ //we dont need the interpolation info for those levels.
-				    continue;
-				}
-				for(size_t pntOfChunk=srcDataAcc.ctpData().chunkShift(chunkIdx);pntOfChunk<srcDataAcc.ctpData().chunkShift(chunkIdx+1);++pntOfChunk) {
-				    size_t pntIdx=srcDataAcc.ctpData().pntId(pntOfChunk);
-				    pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,pntIdx);
-				    Util::interpToCart(pnt,cart_pnt,parent_center,pH);
-								
-				    //Transfer to the interpolation domain relative to the child box
-				    Util::cartToInterp(cart_pnt,pnt2,center,H);
-				    const size_t el2=grid.elementForPoint(pnt2);
-				    assert(el2==cone.id());
-
-			
-				    const size_t memId=cone.globalId();
-				    size_t el=cone.id();
-				    grid.transformBackwards(el,pnt2,pnt);
-
-				
-				    SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
-				    const size_t offset=lo_stride*memId;
-				    T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
-				
-				    T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
-
-
-				    //
-				   	using ScalarT = typename T::value_type;
-					ScalarT* base_ptr = reinterpret_cast<ScalarT*>(&a_parentIntData[parentCone.globalId()*stride+pntIdx]);
-					sycl::atomic_ref<ScalarT, sycl::memory_order_relaxed,
-									sycl::memory_scope_device,
-									sycl::access::address_space::global_space> atm_real(base_ptr[0]);
-					sycl::atomic_ref<ScalarT, sycl::memory_order_relaxed,
-									sycl::memory_scope_device,
-									sycl::access::address_space::global_space> atm_imag(base_ptr[1]);
-					atm_real.fetch_add((res*TF).real());
-					atm_imag.fetch_add((res*TF).imag());
-				    ///
-				    //a_parentIntData[parentCone.globalId()*stride+pntIdx]+=res*TF;			    
-				}
-			
-			}
-		   
-		    
-		    });
-		});
-			
-		Q.wait();
-		//std::cout<<"done old CTP"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
-		//  e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;
-
-
-		//Q.wait();
-	    }else{ //"regular" CTP
-		auto e=Q.submit([&](sycl::handler &h) {
-		    // start by pushing  some data to the GPU (octree stuff)
-		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_only);
-		    sycl::accessor a_parentIntData(*parentInterpolationDataBuffer, h, sycl::read_write);
-		
-
-		    std::array<int,DIM> ns=SyclHelpers::EigenVectorToCPPArray<int,DIM>(order);
-		    std::array<int,DIM> ns_ho=SyclHelpers::EigenVectorToCPPArray<int,DIM>(high_order);
-
-		
-
-		    sycl::accessor a_hoChebNodes(b_hoChebNodes,h,sycl::read_only);
-
-		
-		    const auto &srcDataAcc = srcData->accessor(h);
-		    const auto &parentDataAcc = parentData->accessor(h);
-	
-		
-		    const size_t stride=ho_chebNodes.cols();
-		    const size_t lo_stride=chebNodes.cols();
-			auto out = sycl::stream(100, 100, h);
-			//sycl::local_accessor<T,1> localFineCoeffs(sycl::range<1>(8 * lo_stride),h);
-		    //std::cout<<"survived setup1234"<<std::endl;
-
-		    const auto functions =
-			static_cast<Derived *>(this)->kernelFunctions();
-
-			// nd_range: numActiveParentCones * stride threads, stride per workgroup
-			h.parallel_for(sycl::nd_range<1>(numActiveParentCones * stride, stride),
-				[=](sycl::nd_item<1> item){
-					const size_t i = item.get_group_linear_id(); // parent cone index
-					const size_t j = item.get_local_linear_id(); // Chebyshev node index
-
-					ConeRef parentCone = parentDataAcc.activeCone(i);
-					size_t parentBoxId = parentCone.boxId();
-					if(!parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)) return;
-
-					auto parent_center = parentDataAcc.boxCenter(parentBoxId);
-					PointScalar pH     = parentDataAcc.boxSize(parentBoxId);
-					auto pGrid         = parentDataAcc.coneDomain(parentBoxId, 1);
-
-					sycl::marray<PointScalar,DIM> pnt, cart_pnt, pnt2;
-					pGrid.transform(parentCone.id(), a_hoChebNodes, pnt, j);
-					Util::interpToCart(pnt, cart_pnt, parent_center, pH);
-
-					T acc = T(0);
-					for(size_t childBox : parentDataAcc.children(parentBoxId)){
-						if(childBox == SIZE_MAX) continue;
-
-						auto center   = srcDataAcc.boxCenter(childBox);
-						PointScalar H = srcDataAcc.boxSize(childBox);
-						const auto grid = srcDataAcc.coneDomain(childBox, 0);
-
-						Util::cartToInterp(cart_pnt, pnt2, center, H);
-						const size_t el = grid.elementForPoint(pnt2);
-						if(el >= SIZE_MAX) continue;
-
-						const size_t fineMemId = srcDataAcc.memId(childBox, el);
-						if(fineMemId >= SIZE_MAX) continue;
-
-						grid.transformBackwards(el, pnt2, pnt);
-
-						SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
-						T res = clenshaw(SyclRowMatrix<PointScalar,DIM,1>(pnt),
-										a_intData, lo_ns, fineMemId * lo_stride);
-
-						T TF = functions.transfer_factor(cart_pnt, center, H, parent_center, pH);
-						acc += res * TF;
-					}
-					// no atomics needed — each (i,j) pair written by exactly one thread
-					a_parentIntData[i * stride + j] = acc;
-				});
-		    
-		});
-		//Q.wait();
-		//std::cout<<"done old CTP"<<(e.template get_profiling_info<sycl::info::event_profiling::command_end>() -
-		//  e.template get_profiling_info<sycl::info::event_profiling::command_start>())/(1.0e9)<<std::endl;
-
-	    }
-	    Q.wait();
-
-	    
-            //std::swap(interpolationData, parentInterpolationData);
-
-	    interpolationDataBuffer.reset();
-	    std::swap(interpolationDataBuffer,parentInterpolationDataBuffer);	    
-	    parentInterpolationDataBuffer.reset();
-            //parentInterpolationData.resize(0);
-		*/
 	    std::cout<<"done with this level"<<std::endl;
         }
-            std::cout<<"copying back"<<std::endl;
-        } //end of sycl scope
+        std::cout<<"copying back"<<std::endl;
+    	} //end of sycl scope
 	//std::cout<<"mult over\n";
 
-	Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
+		Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
         Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_octree->targetPermutation(),true_result);
 
-	return true_result;
+		return true_result;
     }
 
 

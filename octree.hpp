@@ -1735,11 +1735,11 @@ void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int
 
                             if (el == SIZE_MAX) continue;
 
-                            // ========== FIX: safe lookup ==========
+                            // --- safe lookup - to avoid segfault
                             auto it = m_coneMaps[level][childBox].find(el);
                             if (it == m_coneMaps[level][childBox].end()) continue;
                             size_t memId = it->second;
-                            // ======================================
+                            
 
                             {
                                 tbb::spin_mutex::scoped_lock lock(mutex);
