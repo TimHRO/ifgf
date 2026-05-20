@@ -158,58 +158,6 @@ public:
 		
 		size_t nLevels = m_src_octree->levels();
 
-		// ---------------------------------------------------
-		// Build target-centric data for near-field GPU kernel
-		// ---------------------------------------------------
-
-		m_allNearFieldMetaData.resize(nLevels);
-
-		for(int level=0;level<nLevels;level++){
-			auto& nearFieldMeta = m_allNearFieldMetaData[level];
-			size_t numBoxes = m_src_octree->numBoxes(level);
-
-			for(size_t boxIdx=0; boxIdx<numBoxes; boxIdx++){
-				IndexRange srcRange = m_src_octree->points(level,boxIdx);
-
-				NearFieldMetaData nf;
-				nf.sourceStart = static_cast<uint32_t>(srcRange.first);
-				nf.sourceEnd = static_cast<uint32_t>(srcRange.second);
-
-				BoundingBox<DIM> bbox = m_src_octree->bbox(level,boxIdx);
-				auto center = bbox.center();
-				double H = bbox.sideLength();
-
-
-				const auto& nearTargetRange = m_src_octree->nearTargets(level, boxIdx);
-				const uint32_t MAX_WORK_SIZE = 64;
-				for (const auto& range : nearTargetRange){
-					uint32_t tStart = (uint32_t)range.first;
-					uint32_t tEnd = (uint32_t)range.second;
-					uint32_t totalTargets = tEnd - tStart;
-
-					for (uint32_t chunkStart = tStart; chunkStart < tEnd; chunkStart += MAX_WORK_SIZE) {
-						uint32_t chunkEnd = std::min(chunkStart + MAX_WORK_SIZE, tEnd);
-
-						nf.targetStart = static_cast<uint32_t>(chunkStart);
-						nf.targetEnd = static_cast<uint32_t>(chunkEnd);
-						nf.H = H;
-						for(int d=0; d<DIM; ++d) {
-							nf.Center[d] = center[d];
-						}
-						nearFieldMeta.push_back(nf);
-					}
-				}
-
-			}
-			// try sorting as optimization
-				std::sort(nearFieldMeta.begin(), nearFieldMeta.end(), [](const auto& a, const auto& b) {
-					if (a.targetStart != b.targetStart)
-						return a.targetStart < b.targetStart;
-					return a.sourceStart < b.sourceStart;
-				});
-		}
-
-
 		// ------------------------------------------------
 		// Build cone‑centric data for far‑field GPU kernel
 		// ------------------------------------------------
@@ -565,13 +513,14 @@ public:
 			// level == 0 – dummy buffer (unused)
 			parentCTPBuffer = std::make_unique<sycl::buffer<T,1>>(sycl::range<1>(1));
 		}
-		//Q.wait();
+		Q.wait();
 
 		// set parentData before the kernel so we can access level-1 geometry inside it
 		if(level > 0)
 			parentData = m_octree->data(level-1);
 
-		//Q.wait();
+		
+		Q.wait();
 
 		//-----------------------------------------------
 		// Interpolation Data + Far Fiel Evaluation + CTF
@@ -655,7 +604,7 @@ public:
 				const int nF=std::pow(REFINEMENT_FACTOR,DIM); 
 				constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-3,1);
 				constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
-				
+
 				std::cout << "rawData local mem = " << nF * stride * sizeof(T) << " bytes\n";
 				std::cout << "local mem limit = " 
 						<< Q.get_device().get_info<sycl::info::device::local_mem_size>() 
@@ -782,7 +731,7 @@ public:
 						}
 
 						// CTP
-						if(hasParent && level > 2){
+						if(hasParent){
 							const size_t fineIdx = a_fineMemIdToFineIdx[fineMemId];
 							if(fineIdx < SIZE_MAX){
 								auto child_center = srcDataAcc.boxCenter(boxId);
@@ -832,9 +781,6 @@ public:
 			});
 		} 
 
-
-		std::cout << "Finished Interpolation Data gathering, CTF, Far Field and CTP" << "\n";
-  
 	    Q.wait();
 
 		interpolationDataBuffer.reset();
@@ -977,18 +923,6 @@ private:
     Eigen::Vector<size_t, DIM> m_base_n_elements;
     Eigen::Vector<int, DIM> m_baseOrder;
     PointScalar m_tolerance;
-
-	struct NearFieldMetaData{
-		uint32_t targetStart;
-		uint32_t targetEnd;
-		uint32_t sourceStart;
-		uint32_t sourceEnd;
-
-		double Center[DIM];
-		double H;
-	};
-
-	std::vector<std::vector<NearFieldMetaData>> m_allNearFieldMetaData;
 
 
 	struct ConeMetaData {
