@@ -201,7 +201,7 @@ public:
 				}
 
 			}
-			// Add this at the end of your init() function
+			// try sorting as optimization
 				std::sort(nearFieldMeta.begin(), nearFieldMeta.end(), [](const auto& a, const auto& b) {
 					if (a.targetStart != b.targetStart)
 						return a.targetStart < b.targetStart;
@@ -782,7 +782,7 @@ public:
 						}
 
 						// CTP
-						if(hasParent){
+						if(hasParent && level > 2){
 							const size_t fineIdx = a_fineMemIdToFineIdx[fineMemId];
 							if(fineIdx < SIZE_MAX){
 								auto child_center = srcDataAcc.boxCenter(boxId);
