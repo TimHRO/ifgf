@@ -4,11 +4,11 @@
 
 
 //default float type used
-typedef  float DefaultScalarType;
+typedef float DefaultScalarType;
 
 //change specific instances of float if needed
-typedef DefaultScalarType PointScalar ;
-typedef DefaultScalarType RealScalar;
+typedef double PointScalar;
+typedef double RealScalar;
 typedef DefaultScalarType ExtendedScalar;
 
 //#define FAST_CTP

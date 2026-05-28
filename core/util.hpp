@@ -2,8 +2,10 @@
 #define _UTIL_HPP_
 
 #include "config.hpp"
+#include <sycl/sycl.hpp>
 #include <Eigen/Dense>
 #include <numeric>
+
 
 #include <algorithm>
 #include <oneapi/tbb/parallel_for.h>
@@ -264,7 +266,7 @@ namespace Util
 	    }
 	}
 
-	return sqrt(v2)/std::max(1.,sqrt(v1));
+	return sqrt(v2)/std::max<T>(T(1),sqrt(v1));
     }
 
 

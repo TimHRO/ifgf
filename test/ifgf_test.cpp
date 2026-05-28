@@ -11,18 +11,18 @@
 #include <fenv.h>
 #include <chrono>
 
-#include "config.hpp"
-#include "modified_helmholtz_ifgf.hpp"
-#include "helmholtz_ifgf.hpp"
-#include "ifgfoperator.hpp"
-#include "octree.hpp"
+#include "../core/config.hpp"
+#include "../core/modified_helmholtz_ifgf.hpp"
+#include "../core/helmholtz_ifgf.hpp"
+#include "../core/ifgfoperator.hpp"
+#include "../core/octree.hpp"
 
-#include "grad_helmholtz_ifgf.hpp"
+#include "../core/grad_helmholtz_ifgf.hpp"
 
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-const Complex  kappa =((RealScalar) 1)*Complex(2.35318922187804,43.6495537831048);//4.*Complex(5,-60);
+const Complex  kappa =((RealScalar) 1)*Complex(2.35318922187804,3.6495537831048);//4.*Complex(5,-60);
 //const double kappa=7;
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)

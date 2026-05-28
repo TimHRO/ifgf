@@ -5,8 +5,9 @@
 
 #include <tbb/global_control.h>
 
-#include "PointScalar_layer_helmholtz_ifgf.hpp"
+//#include "PointScalar_layer_helmholtz_ifgf.hpp"
 #include "helmholtz_ifgf.hpp"
+#include "double_layer_helmholtz_ifgf.hpp"
 #include "modified_helmholtz_ifgf.hpp"
 #include "grad_helmholtz_ifgf.hpp"
 #include "laplace_ifgf.hpp"
@@ -34,16 +35,16 @@ PYBIND11_MODULE(pyifgf, m) {
     auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,   num_threads );
     */
     addOp<ModifiedHelmholtzIfgfOperator<3>,std::complex<PointScalar> >(m,"MofifiedHelmholtzIfgfOperator");
-    addOp<GradHelmholtzIfgfOperator<3>,std::complex<PointScalar> >(m,"GradHelmholtzIfgfOperator")
-	.def("setDx", &GradHelmholtzIfgfOperator<3>::setDx);
+    //addOp<GradHelmholtzIfgfOperator<3>,std::complex<PointScalar> >(m,"GradHelmholtzIfgfOperator")
+	//.def("setDx", &GradHelmholtzIfgfOperator<3>::setDx);
 
-    addOp<DoubleLayerHelmholtzIfgfOperator<3>,std::complex<PointScalar> >(m,"DoubleLayerHelmholtzIfgfOperator");
+    //addOp<DoubleLayerHelmholtzIfgfOperator<3>,std::complex<PointScalar> >(m,"DoubleLayerHelmholtzIfgfOperator");
 
 
-    py::class_< LaplaceIfgfOperator<3>>(m,"LaplaceIfgfOperator")
-	.def(py::init<int,size_t,int,PointScalar>())
-       .def("mult", &LaplaceIfgfOperator<3>::mult)	     
-       .def("init", &LaplaceIfgfOperator<3>::init);	     
+    //py::class_< LaplaceIfgfOperator<3>>(m,"LaplaceIfgfOperator")
+	//.def(py::init<int,size_t,int,PointScalar>())
+    //  .def("mult", &LaplaceIfgfOperator<3>::mult)	     
+    //   .def("init", &LaplaceIfgfOperator<3>::init);	     
 
 
     //addOp<GradHelmholtzIfgfOperator<3,1>,std::complex<PointScalar> >(m,"HelmholtzDyIfgfOperator");
