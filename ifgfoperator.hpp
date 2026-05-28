@@ -283,7 +283,7 @@ public:
 	case 8:  return mult_impl<8>(weights);
 	    //	case 16:  return mult_impl<16>(weights);
 	    //case 32:  return mult_impl<32>(weights);
-	    //case 10:  return mult_impl<10>(weights);
+	case 10:  return mult_impl<10>(weights);
 	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
 	}
 	
@@ -603,7 +603,8 @@ public:
 				sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
 				const int nF=std::pow(REFINEMENT_FACTOR,DIM); 
 				constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-3,1);
-				constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
+				//constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
+				constexpr int BUF_SIZE = MAX_ORDER * (MAX_ORDER-2) * MAX_ORDER + MAX_ORDER * (MAX_ORDER-2);
 
 				std::cout << "rawData local mem = " << nF * stride * sizeof(T) << " bytes\n";
 				std::cout << "local mem limit = " 
@@ -622,13 +623,13 @@ public:
 
 				constexpr size_t MAX_STRIDE = /* ho order product */ 
 				(size_t)MAX_ORDER * MAX_ORDER * MAX_ORDER;
-				constexpr size_t MAX_FINE_STRIDE = 
-				(size_t)MAX_LOW_ORDER * MAX_LOW_ORDER * MAX_LOW_ORDER;
-
+				//constexpr size_t MAX_FINE_STRIDE = 
+				//(size_t)MAX_LOW_ORDER * MAX_LOW_ORDER * MAX_LOW_ORDER;
+				constexpr size_t MAX_FINE_STRIDE = (size_t)(MAX_ORDER-2) * MAX_ORDER * MAX_ORDER;
 				h.parallel_for(sycl::range<1>(numActive), [=](sycl::id<1> i){
 					const ConeRef ref = srcDataAcc.activeCone(i);
 					const size_t boxId = ref.boxId();
-					if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId)) return;
+					//if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId)) return;
 
 					const size_t globalOffset = ref.globalId() * stride;
 
@@ -677,7 +678,7 @@ public:
 						for(size_t i=0; i<fine_stride; i++){
 							fineCoeffs[i]=T(0);
 						}
-						sycl::marray<PointScalar, MAX_LOW_ORDER*DIM> t_pnts(PointScalar(0));
+						sycl::marray<PointScalar, MAX_ORDER*DIM> t_pnts(PointScalar(0));
 						sycl::marray<T, BUF_SIZE> tmp(T(0));
 
 						size_t offset = 0;
