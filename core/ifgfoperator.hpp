@@ -22,6 +22,8 @@
 #include "sycl_helpers.hpp"
 #include "util.hpp"
 
+#include <chrono>
+
 //#include <fstream>
 #include <iostream>
 
@@ -276,7 +278,7 @@ public:
 	case 1: 
 	case 2: 
 	case 3: 
-	    //case 4:  return mult_impl<4>(weights);
+	case 4:  return mult_impl<4>(weights);
 	case 5:  
  	case 6:  return mult_impl<6>(weights);
 	case 7:  
@@ -296,6 +298,8 @@ public:
     template <int MAX_ORDER>
     Eigen::Array<T, Eigen::Dynamic,DIMOUT> mult_impl(const Eigen::Ref<const Eigen::Vector<T, Eigen::Dynamic> > &weights)
     {
+	using namespace std::chrono;
+    	high_resolution_clock::time_point t1 = high_resolution_clock::now();
         std::cout<<"multimpl"<<std::endl;
         Eigen::Array<T, Eigen::Dynamic, DIMOUT> result(m_numTargets,DIMOUT);
         result.fill(0);
@@ -561,7 +565,7 @@ public:
 			}
 			sycl::buffer<size_t,1> buf_fineMemIdToFineIdx(
 				h_fineMemIdToFineIdx.data(), sycl::range<1>(numFineCones));
-
+			
 
 			auto e = Q.submit([&](sycl::handler &h){
 				//sycl::stream out(1024, 256, h);
@@ -802,7 +806,9 @@ public:
 
 		Eigen::Array<T, Eigen::Dynamic, DIMOUT> true_result(result.rows(),result.cols());
         Util::copy_with_inverse_permutation_rowwise<T,DIMOUT>(result, m_octree->targetPermutation(),true_result);
-
+	high_resolution_clock::time_point t12 = high_resolution_clock::now();
+    	duration<PointScalar> time_span = duration_cast<duration<PointScalar>>(t12 - t1);
+    	std::cout <<"----- mult time ------ "<< time_span.count() << " seconds" << std::endl;
 		return true_result;
     }
 

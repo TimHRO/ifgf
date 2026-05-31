@@ -1,14 +1,22 @@
+if(UNIX)
+    set(CMAKE_CXX_COMPILER icpx)
+else()
+    include(CMakeForceCompiler)
+    CMAKE_FORCE_CXX_COMPILER(icx-cl IntelDPCPP)
+    include(Platform/Windows-Clang)
+endif()
+
 cmake_minimum_required(VERSION 3.20)
 project(ifgf LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(SYCL_PARAMS "-fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
-set(SYCL_PARAMS "-fsycl-targets=spir64")
+set(SYCL_TARGETS "nvptx64-nvidia-cuda,spir64")
+set(SYCL_CUDA_ARCH "sm_86")
 
 add_compile_options(
-  "$<$<CONFIG:Release>:-O3;-march=native;-funroll-loops;-fsycl;${SYCL_PARAMS}>"
+  "$<$<CONFIG:Release>:-O3;-march=native;-funroll-loops>"
   "$<$<CONFIG:RelWithDebInfo>:-O2;-g>"
   "$<$<CONFIG:Debug>:-O0;-g>"
 )
@@ -29,11 +37,24 @@ target_sources(ifgf_core
     core/ifgf_library.cpp
 )
 
-
 target_include_directories(ifgf_core
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ifgf>
+)
+
+target_compile_options(ifgf_core PRIVATE
+  -fsycl
+  -fsycl-targets=${SYCL_TARGETS}
+  -Xsycl-target-backend=nvptx64-nvidia-cuda
+  --cuda-gpu-arch=${SYCL_CUDA_ARCH}
+)
+
+target_link_options(ifgf_core PRIVATE
+  -fsycl
+  -fsycl-targets=${SYCL_TARGETS}
+  -Xsycl-target-backend=nvptx64-nvidia-cuda
+  --cuda-gpu-arch=${SYCL_CUDA_ARCH}
 )
 
 target_link_libraries(ifgf_core
@@ -60,7 +81,6 @@ install(TARGETS ifgf_core
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# *** ADDED: install the public header ***
 install(FILES
   core/ifgf_library.hpp
   core/config.hpp
@@ -96,12 +116,27 @@ option(IFGF_BUILD_TESTS "Build ifgf tests" ON)
 
 if(IFGF_BUILD_TESTS)
   add_executable(ifgf_test ./test/ifgf_test.cpp)
-  target_link_libraries(ifgf_test
-  PUBLIC Eigen3::Eigen
-  PRIVATE TBB::tbb
+
+  target_compile_options(ifgf_test PRIVATE
+    -fsycl
+    -fsycl-targets=${SYCL_TARGETS}
+    -Xsycl-target-backend=nvptx64-nvidia-cuda
+    --cuda-gpu-arch=${SYCL_CUDA_ARCH}
   )
-  target_link_libraries(ifgf_test PRIVATE ifgf_core)
-  
+
+  target_link_options(ifgf_test PRIVATE
+    -fsycl
+    -fsycl-targets=${SYCL_TARGETS}
+    -Xsycl-target-backend=nvptx64-nvidia-cuda
+    --cuda-gpu-arch=${SYCL_CUDA_ARCH}
+  )
+
+  target_link_libraries(ifgf_test
+    PUBLIC Eigen3::Eigen
+    PRIVATE TBB::tbb
+    PRIVATE ifgf_core
+  )
+
   add_sycl_to_target(
     TARGET ifgf_test
     SOURCES ./test/ifgf_test.cpp

@@ -8,7 +8,7 @@ typedef float DefaultScalarType;
 
 //change specific instances of float if needed
 typedef double PointScalar;
-typedef double RealScalar;
+typedef float RealScalar;
 typedef DefaultScalarType ExtendedScalar;
 
 //#define FAST_CTP

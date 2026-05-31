@@ -22,7 +22,7 @@
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-const Complex  kappa =((RealScalar) 1)*Complex(2.35318922187804,3.6495537831048);//4.*Complex(5,-60);
+const Complex  kappa =((RealScalar) 1)*Complex(1.0,1.0);//4.*Complex(5,-60);
 //const double kappa=7;
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
@@ -66,11 +66,11 @@ auto randomPointOnSphere() {
 
 
 
-int main()
+int main(int argc, char** argv)
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-    const int N = 10000;
+    const int N = argc > 0 ? atoi(argv[1]) : 100000;
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -141,7 +141,7 @@ int main()
     result = op.mult(weights);
     
     high_resolution_clock::time_point t13 = high_resolution_clock::now();
-    const int Nmult=1;
+    const int Nmult=10;
     for(int i=0;i<Nmult;i++) {
 	std::cout<<"mult"<<std::endl;
 	result = op.mult(weights);
@@ -150,7 +150,8 @@ int main()
     high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
     time_span = duration_cast<duration<PointScalar>>(t2 - t13);
-    std::cout << "mult time="<<time_span.count()/Nmult << " seconds" << std::endl;
+    std::cout << "mult time per iter="<<time_span.count()/Nmult << " seconds" << std::endl;
+    std::cout << "qusi gmres total="<<time_span.count() << " seconds" << std::endl;
 
     fedisableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
 

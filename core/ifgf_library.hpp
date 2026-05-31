@@ -14,7 +14,7 @@ class HIfgfPrivate;
 class HelmholtzIfgfOperator3d 
 {
 public:
-    HelmholtzIfgfOperator3d(RealScalar waveNumber,
+    HelmholtzIfgfOperator3d(RealScalar  waveNumber,
 			    size_t leafSize,
 			    size_t order,
 			    size_t n_elem=1,PointScalar tol=-1);
