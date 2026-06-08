@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find all PUBLIC dependencies that ifgf_core exposes in its link interface
+find_dependency(Eigen3 CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/ifgfTargets.cmake")
+
+check_required_components(ifgf)
