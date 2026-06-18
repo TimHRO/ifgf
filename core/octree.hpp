@@ -1391,6 +1391,11 @@ public:
 	
     }
 
+	void freeCtpLevel(size_t level) {
+		if (level < m_childToParent.size())
+			m_childToParent[level].clear();
+	}
+
     const auto& points() const {
 	return m_pnts;
     }
@@ -1657,6 +1662,8 @@ private:
 
     }
 */
+
+/*
 void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
                             std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
                             std::function<PointScalar(PointScalar)> smin_for_H)
@@ -1764,6 +1771,291 @@ void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int
         std::cout<<"ctp "<<m_childToParent[level].pntRangeSize<<std::endl;
         std::cout<<"done with level"<<level<<std::endl;
     } // for level
+}
+*/
+/*
+void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+                            std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
+                            std::function<PointScalar(PointScalar)> smin_for_H)
+{
+    std::cout << "building CtP data" << std::endl;
+    PointScalar estpH = 2 * m_sideLength;
+
+    m_childToParent.resize(m_levels);
+
+    tbb::enumerable_thread_specific<PointArray> transformedNodes;
+    tbb::enumerable_thread_specific<PointArray> childNodes;
+    tbb::enumerable_thread_specific<std::vector<size_t>> tls_elIds;
+    tbb::enumerable_thread_specific<std::vector<size_t>> tls_perm;
+
+    for (int level = 1; level < levels(); ++level) {
+        estpH /= 2.0;
+        const auto order      = order_for_H(estpH / 2.0, 0);
+        const auto high_order = order_for_H(estpH, 1);
+        const auto& ho_chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
+        const size_t N = ho_chebNodes.cols();
+
+        const size_t numFineCones   = this->numActiveCones(level, 0);
+        const size_t numParentCones = this->numActiveCones(level - 1, 1);
+
+        // nested structure for this level only
+        // outer index = fine cone memId, inner = (parentCone, [pntIds])
+        struct Chunk { ConeRef parentCone; std::vector<size_t> pntIds; };
+        std::vector<std::vector<Chunk>> perFineCone(numFineCones);
+
+        tbb::spin_mutex mutex;
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, numParentCones),
+            [&](tbb::blocked_range<size_t> r) {
+                auto& elIds = tls_elIds.local();
+                auto& perm  = tls_perm.local();
+                elIds.resize(N);
+                perm.resize(N);
+                transformedNodes.local().resize(DIM, N);
+                childNodes.local().resize(DIM, N);
+
+                for (size_t i = r.begin(); i < r.end(); ++i) {
+                    ConeRef parentCone = this->activeCone(level - 1, i, 1);
+                    size_t parentBox   = parentCone.boxId();
+                    if (!this->hasPoints(level - 1, parentBox)) continue;
+                    if (!this->hasFarTargetsIncludingAncestors(level - 1, parentBox)) continue;
+
+                    auto pGrid         = this->coneDomain(level - 1, parentBox, 1);
+                    auto parent_center = this->bbox(level - 1, parentBox).center();
+                    PointScalar pH     = this->bbox(level - 1, parentBox).sideLength();
+
+                    transformedNodes.local() = Util::interpToCart<DIM>(
+                        pGrid.transform(parentCone.id(), ho_chebNodes).array(),
+                        parent_center, pH);
+
+                    for (size_t childBox : this->childBoxes(level - 1, parentBox)) {
+                        const auto& childGrid = coneDomain(level, childBox, 0);
+                        Util::cartToInterp2<DIM>(
+                            transformedNodes.local(),
+                            this->bbox(level, childBox).center(),
+                            this->bbox(level, childBox).sideLength(),
+                            childNodes.local());
+
+                        for (size_t idx = 0; idx < N; ++idx)
+                            elIds[idx] = childGrid.elementForPoint(childNodes.local().col(idx));
+
+                        std::iota(perm.begin(), perm.end(), 0);
+                        std::sort(perm.begin(), perm.end(),
+                            [&](size_t a, size_t b){ return elIds[a] < elIds[b]; });
+
+                        size_t idx = 0;
+                        while (idx < N) {
+                            const size_t el = elIds[perm[idx]];
+                            size_t nb = 1;
+                            while (idx + nb < N && elIds[perm[idx + nb]] == el) ++nb;
+
+                            if (el != SIZE_MAX) {
+                                auto it = m_coneMaps[level][childBox].find(el);
+                                if (it != m_coneMaps[level][childBox].end()) {
+                                    size_t memId = it->second;
+                                    Chunk chunk;
+                                    chunk.parentCone = parentCone;
+                                    chunk.pntIds.resize(nb);
+                                    std::copy_n(perm.begin() + idx, nb, chunk.pntIds.begin());
+                                    tbb::spin_mutex::scoped_lock lock(mutex);
+                                    perFineCone[memId].push_back(std::move(chunk));
+                                }
+                            }
+                            idx += nb;
+                        }
+                    }
+                }
+            });
+
+        // --- prefix-sum sizes and flatten into flat arrays ---
+        ChildToParentData& ctp = m_childToParent[level];
+
+        size_t totalChunks = 0;
+        size_t totalPnts   = 0;
+        for (const auto& cone : perFineCone) {
+            totalChunks += cone.size();
+            for (const auto& ch : cone) totalPnts += ch.pntIds.size();
+        }
+
+        ctp.fineConeShifts.resize(numFineCones + 1);
+        ctp.chunkShifts.resize(totalChunks + 1);
+        ctp.parentConeIds.resize(totalChunks);
+        ctp.pntIds.resize(totalPnts);
+
+        size_t chunkIdx = 0;
+        size_t pntIdx   = 0;
+        ctp.fineConeShifts[0] = 0;
+        ctp.chunkShifts[0]    = 0;
+
+        for (size_t c = 0; c < numFineCones; ++c) {
+            for (const auto& ch : perFineCone[c]) {
+                ctp.parentConeIds[chunkIdx] = ch.parentCone;
+                std::copy(ch.pntIds.begin(), ch.pntIds.end(), ctp.pntIds.begin() + pntIdx);
+                pntIdx += ch.pntIds.size();
+                ++chunkIdx;
+                ctp.chunkShifts[chunkIdx] = pntIdx;
+            }
+            ctp.fineConeShifts[c + 1] = chunkIdx;
+        }
+
+        std::cout << "ctp pnts=" << totalPnts << " chunks=" << totalChunks << std::endl;
+        std::cout << "done with level " << level << std::endl;
+
+        // perFineCone destructs, freeing all temporary per-level memory
+    }
+}
+*/
+
+void buildChildToParentData(std::function<Eigen::Vector<int,DIM>(PointScalar,int)> order_for_H,
+                            std::function<Eigen::Vector<size_t,DIM>(PointScalar )> N_for_H,
+                            std::function<PointScalar(PointScalar)> smin_for_H)
+{
+    std::cout << "building CtP data" << std::endl;
+    PointScalar estpH = 2 * m_sideLength;
+
+    m_childToParent.resize(m_levels);
+
+    tbb::enumerable_thread_specific<PointArray> transformedNodes;
+    tbb::enumerable_thread_specific<PointArray> childNodes;
+    tbb::enumerable_thread_specific<std::vector<size_t>> tls_elIds;
+    tbb::enumerable_thread_specific<std::vector<size_t>> tls_perm;
+
+    auto iterateChunks = [&](int level,
+                             const auto& ho_chebNodes,
+                             auto&& visit)
+    {
+        const size_t N = ho_chebNodes.cols();
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, this->numActiveCones(level - 1, 1)),
+            [&](tbb::blocked_range<size_t> r) {
+                auto& elIds = tls_elIds.local();
+                auto& perm  = tls_perm.local();
+                elIds.resize(N);
+                perm.resize(N);
+                transformedNodes.local().resize(DIM, N);
+                childNodes.local().resize(DIM, N);
+
+                for (size_t i = r.begin(); i < r.end(); ++i) {
+                    ConeRef parentCone = this->activeCone(level - 1, i, 1);
+                    size_t parentBox   = parentCone.boxId();
+                    if (!this->hasPoints(level - 1, parentBox)) continue;
+                    if (!this->hasFarTargetsIncludingAncestors(level - 1, parentBox)) continue;
+
+                    auto pGrid         = this->coneDomain(level - 1, parentBox, 1);
+                    auto parent_center = this->bbox(level - 1, parentBox).center();
+                    PointScalar pH     = this->bbox(level - 1, parentBox).sideLength();
+
+                    transformedNodes.local() = Util::interpToCart<DIM>(
+                        pGrid.transform(parentCone.id(), ho_chebNodes).array(),
+                        parent_center, pH);
+
+                    for (size_t childBox : this->childBoxes(level - 1, parentBox)) {
+                        const auto& childGrid = coneDomain(level, childBox, 0);
+                        Util::cartToInterp2<DIM>(
+                            transformedNodes.local(),
+                            this->bbox(level, childBox).center(),
+                            this->bbox(level, childBox).sideLength(),
+                            childNodes.local());
+
+                        for (size_t k = 0; k < N; ++k)
+                            elIds[k] = childGrid.elementForPoint(childNodes.local().col(k));
+
+                        std::iota(perm.begin(), perm.end(), 0);
+                        std::sort(perm.begin(), perm.end(),
+                            [&](size_t a, size_t b){ return elIds[a] < elIds[b]; });
+
+                        size_t idx = 0;
+                        while (idx < N) {
+                            const size_t el = elIds[perm[idx]];
+                            size_t nb = 1;
+                            while (idx + nb < N && elIds[perm[idx + nb]] == el) ++nb;
+                            if (el != SIZE_MAX) {
+                                auto it = m_coneMaps[level][childBox].find(el);
+                                if (it != m_coneMaps[level][childBox].end())
+                                    visit(it->second, parentCone, perm, idx, nb);
+                            }
+                            idx += nb;
+                        }
+                    }
+                }
+            });
+    };
+
+    for (int level = 1; level < levels(); ++level) {
+        estpH /= 2.0;
+        const auto high_order    = order_for_H(estpH, 1);
+        const auto& ho_chebNodes = ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
+        const size_t numFineCones = this->numActiveCones(level, 0);
+
+        ChildToParentData& ctp = m_childToParent[level];
+
+        std::vector<std::atomic<size_t>> chunkCount(numFineCones);
+        std::vector<std::atomic<size_t>> pntCount(numFineCones);
+        for (size_t c = 0; c < numFineCones; ++c) {
+            chunkCount[c].store(0, std::memory_order_relaxed);
+            pntCount[c].store(0, std::memory_order_relaxed);
+        }
+
+        iterateChunks(level, ho_chebNodes,
+            [&](size_t memId, const ConeRef&, const std::vector<size_t>&, size_t, size_t nb) {
+                chunkCount[memId].fetch_add(1,  std::memory_order_relaxed);
+                pntCount[memId].fetch_add(nb, std::memory_order_relaxed);
+            });
+
+        ctp.fineConeShifts.resize(numFineCones + 1);
+        ctp.fineConeShifts[0] = 0;
+        for (size_t c = 0; c < numFineCones; ++c)
+            ctp.fineConeShifts[c + 1] = ctp.fineConeShifts[c] + chunkCount[c].load();
+
+        const size_t totalChunks = ctp.fineConeShifts[numFineCones];
+
+        ctp.chunkShifts.resize(totalChunks + 1);
+        ctp.parentConeIds.resize(totalChunks);
+
+        std::vector<size_t> pntBase(numFineCones + 1);
+        pntBase[0] = 0;
+        for (size_t c = 0; c < numFineCones; ++c)
+            pntBase[c + 1] = pntBase[c] + pntCount[c].load();
+
+        const size_t totalPnts = pntBase[numFineCones];
+        ctp.pntIds.resize(totalPnts);
+
+        { std::vector<std::atomic<size_t>>().swap(chunkCount); }
+        { std::vector<std::atomic<size_t>>().swap(pntCount); }
+
+        std::vector<std::atomic<size_t>> chunkCursor(numFineCones);
+
+        std::vector<std::atomic<size_t>> pntCursor(numFineCones);
+        for (size_t c = 0; c < numFineCones; ++c) {
+            chunkCursor[c].store(0, std::memory_order_relaxed);
+            pntCursor[c].store(0, std::memory_order_relaxed);
+        }
+
+        iterateChunks(level, ho_chebNodes,
+            [&](size_t memId, const ConeRef& parentCone,
+                const std::vector<size_t>& perm, size_t idx, size_t nb)
+            {
+
+                size_t localChunk = chunkCursor[memId].fetch_add(1, std::memory_order_relaxed);
+                size_t localPnt   = pntCursor[memId].fetch_add(nb, std::memory_order_relaxed);
+
+                size_t chunkIdx = ctp.fineConeShifts[memId] + localChunk;
+                size_t pntIdx   = pntBase[memId] + localPnt;
+
+                ctp.parentConeIds[chunkIdx] = parentCone;
+                ctp.chunkShifts[chunkIdx]   = pntIdx;
+                for (size_t k = 0; k < nb; ++k)
+                    ctp.pntIds[pntIdx + k] = perm[idx + k];
+            });
+
+        for (size_t c = 0; c < numFineCones; ++c) {
+            size_t lastChunk = ctp.fineConeShifts[c + 1];
+            if (lastChunk > ctp.fineConeShifts[c]) 
+                ctp.chunkShifts[lastChunk] = pntBase[c + 1];
+        }
+        ctp.chunkShifts[totalChunks] = totalPnts;
+
+        std::cout << "ctp pnts=" << totalPnts << " chunks=" << totalChunks
+                  << " fineCones=" << numFineCones << std::endl;
+    }
 }
 
 #if 0
@@ -2005,11 +2297,25 @@ private:
     std::vector<unsigned int> m_numLeafCones;
 
 
-    struct ChildToParentData {
-	std::vector<std::vector<std::pair<ConeRef,std::vector<size_t> > > > pntRanges;
-	size_t pntRangeSize;
-	size_t numChunks;
-    };
+	struct ChildToParentData {
+		std::vector<size_t>  fineConeShifts; // size: numFineCones + 1
+		std::vector<size_t>  chunkShifts;    // size: numChunks + 1
+		std::vector<ConeRef> parentConeIds;  // size: numChunks
+		std::vector<size_t>  pntIds;         // size: total point indices
+
+		void clear() {
+			fineConeShifts.clear();  fineConeShifts.shrink_to_fit();
+			chunkShifts.clear();     chunkShifts.shrink_to_fit();
+			parentConeIds.clear();   parentConeIds.shrink_to_fit();
+			pntIds.clear();          pntIds.shrink_to_fit();
+		}
+	};
+
+	// public accessor for ChildToParentData — used by IfgfOperator::precomputeCtpData()
+	public:
+	ChildToParentData& childToParentData(size_t level) { return m_childToParent[level]; }
+	const ChildToParentData& childToParentData(size_t level) const { return m_childToParent[level]; }
+	private:
 
 
     struct FarfieldData {
@@ -2043,7 +2349,7 @@ private:
     std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
 };
 
-
+/*
 template<typename T,int DIM>
 class SyclChildToParentData {
 public:
@@ -2084,71 +2390,68 @@ public:
 	std::cout<<"done"<<chunkIdx<<std::endl;
     }
 
-  
-    
+ */ 
+	template<typename T,int DIM>
+	class SyclChildToParentData {
+	public:
+		SyclChildToParentData(const Octree<T,DIM>::ChildToParentData& data) :
+			buf_fineConeShifts(data.fineConeShifts.size()),
+			buf_chunkShifts(data.chunkShifts.size()),
+			buf_parentConeIds(data.parentConeIds.size()),
+			buf_pntIds(data.pntIds.size())
+		{
+			std::cout << "size: " << data.fineConeShifts.size()
+					<< " " << data.chunkShifts.size() << std::endl;
+			{
+				auto acc = buf_fineConeShifts.get_host_access();
+				std::copy(data.fineConeShifts.begin(), data.fineConeShifts.end(), acc.begin());
+			}
+			{
+				auto acc = buf_chunkShifts.get_host_access();
+				std::copy(data.chunkShifts.begin(), data.chunkShifts.end(), acc.begin());
+			}
+			{
+				auto acc = buf_parentConeIds.get_host_access();
+				std::copy(data.parentConeIds.begin(), data.parentConeIds.end(), acc.begin());
+			}
+			{
+				auto acc = buf_pntIds.get_host_access();
+				std::copy(data.pntIds.begin(), data.pntIds.end(), acc.begin());
+			}
+			std::cout << "done " << data.chunkShifts.size() - 1 << std::endl;
+		}
 
+	class Accessor {
+	public:
+		Accessor(SyclChildToParentData& data, sycl::handler& h) :
+			m_fineConeShifts(data.buf_fineConeShifts, h),
+			m_parentConeIds (data.buf_parentConeIds,  h),
+			m_chunkShifts   (data.buf_chunkShifts,    h),
+			m_pntIds        (data.buf_pntIds,          h)
+		{}
 
-    class Accessor {
-    public:
-	Accessor(SyclChildToParentData& data,sycl::handler& h):
-	    m_fineConeShifts(data.fineConeShifts,h),
-	    m_parentConeIds(data.parentConeIds,h),
-	    m_chunkShifts(data.chunkShifts,h),
-	    m_pntIds(data.pntIds,h)
-	{
+		Accessor() {}
 
-	}
+		ConeRef parentConeId(size_t id)  const { return m_parentConeIds[id]; }
+		size_t  chunkShift(size_t idx)   const { return m_chunkShifts[idx];  }
+		size_t  fineConeShift(size_t id) const { return m_fineConeShifts[id];}
+		size_t  pntId(size_t idx)        const { return m_pntIds[idx];       }
 
-	Accessor()
-	{
+		// precomputed geometry accessors
+	private:
+		sycl::accessor<size_t, 1, sycl::access_mode::read> m_fineConeShifts;
+		sycl::accessor<size_t, 1, sycl::access_mode::read> m_chunkShifts;
+		sycl::accessor<ConeRef,1, sycl::access_mode::read> m_parentConeIds;
+		sycl::accessor<size_t, 1, sycl::access_mode::read> m_pntIds;
+	};
 
-	}
+	Accessor accessor(sycl::handler& h) { return Accessor(*this, h); }
 
-	ConeRef parentConeId(size_t id) const {
-	    return m_parentConeIds[id];
-	}
-
-	size_t chunkShift(size_t idx) const {
-	    return m_chunkShifts[idx];
-	}
-
-	size_t fineConeShift(size_t coneId) const {
-	    return m_fineConeShifts[coneId];
-	}
-
-	size_t pntId(size_t idx) const {
-	    return m_pntIds[idx];
-	}
-
-	
-
-    private:
-
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_fineConeShifts;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_chunkShifts;
-	sycl::accessor< ConeRef,1,sycl::access_mode::read> m_parentConeIds;
-	sycl::accessor< size_t,1,sycl::access_mode::read> m_pntIds;
-	
-
-    };
-
-
-
-    Accessor accessor(sycl::handler& h)
-    {
-	return Accessor(*this,h);	
-    }
-
-
-
-    
 private:
-    sycl::buffer<size_t,1> fineConeShifts;
-    sycl::buffer<size_t,1> chunkShifts;
-    sycl::buffer<ConeRef,1> parentConeIds;
-    sycl::buffer<size_t,1 > pntIds;
-    
-
+	sycl::buffer<size_t, 1> buf_fineConeShifts;
+	sycl::buffer<size_t, 1> buf_chunkShifts;
+	sycl::buffer<ConeRef,1> buf_parentConeIds;
+	sycl::buffer<size_t, 1> buf_pntIds;
 };
 
 
@@ -2192,7 +2495,12 @@ public:
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level)),
-    m_ctpData(octree.m_childToParent[level])
+    m_ctpData(octree.m_childToParent[level]),
+    // host copies of CTP topology saved before freeCtpLevel() clears them
+    m_h_fineConeShifts(octree.m_childToParent[level].fineConeShifts),
+    m_h_chunkShifts   (octree.m_childToParent[level].chunkShifts),
+    m_h_parentConeIds (octree.m_childToParent[level].parentConeIds),
+    m_h_pntIds        (octree.m_childToParent[level].pntIds)
     {
 	std::cout<<"creating ocdata"<<level<<std::endl;
 	sycl::host_accessor starts(points_start,sycl::write_only);
@@ -2272,6 +2580,12 @@ public:
 	ConeRef fineActiveCone(size_t index) const {
     	return activeCones2_vec[index];
 	}
+
+	// Host-side CTP topology accessors — valid even after freeCtpLevel()
+	const std::vector<size_t>&  h_fineConeShifts() const { return m_h_fineConeShifts; }
+	const std::vector<size_t>&  h_chunkShifts()    const { return m_h_chunkShifts;    }
+	const std::vector<ConeRef>& h_parentConeIds()  const { return m_h_parentConeIds;  }
+	const std::vector<size_t>&  h_pntIds()         const { return m_h_pntIds;         }
 
 
     class Accessor
@@ -2578,8 +2892,13 @@ private:
 
     std::array<size_t, N_STEPS> m_numActiveCones;
 
-
     SyclChildToParentData<T,DIM> m_ctpData;
+
+    // host copies of CTP topology — survive freeCtpLevel()
+    std::vector<size_t>  m_h_fineConeShifts;
+    std::vector<size_t>  m_h_chunkShifts;
+    std::vector<ConeRef> m_h_parentConeIds;
+    std::vector<size_t>  m_h_pntIds;
 
 };
 
@@ -2597,7 +2916,7 @@ public:
 
     }
     
-    FlatOctree(const Octree<T,DIM> src_octree,const Octree<T,DIM> target_octree):
+    FlatOctree(Octree<T,DIM>& src_octree,Octree<T,DIM>& target_octree):
 	m_srcPermutation(src_octree.permutation()),
 	m_srcPoints(src_octree.points()),
 	m_targetPermutation(target_octree.permutation()),
@@ -2608,6 +2927,7 @@ public:
 	m_data.reserve(src_octree.levels());
 	for(int level=0;level<src_octree.levels();level++) {
 	    m_data.push_back(std::make_shared<OctreeLevelData<T,DIM> > (src_octree,level));
+		src_octree.freeCtpLevel(level);
 	}
 		
     }

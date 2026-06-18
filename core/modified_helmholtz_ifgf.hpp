@@ -238,7 +238,7 @@ public:
         return std::min(smin,sqrt(dim)/dim);
     }
 
-    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=0) const
+    inline  Eigen::Vector<size_t,dim>  elementsForBox(PointScalar H, Eigen::Vector<int,dim> baseOrder,Eigen::Vector<size_t,dim> base, int step=1) const
     {
 	const auto orders=orderForBox(H,baseOrder,step);
 	Eigen::Vector<size_t,dim> els;
