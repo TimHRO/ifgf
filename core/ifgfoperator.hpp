@@ -702,6 +702,87 @@ public:
 			sycl::buffer<T,1> fineInterpBuffer(
 			    sycl::range<1>(numFineCones_ff * fine_stride));
 
+
+			// Need to be known at compile time
+			// TODO make MAX_LEAF_SRCS generic
+			constexpr size_t MAX_STRIDE      = (size_t)MAX_ORDER * MAX_ORDER * MAX_ORDER;
+			constexpr int    MAX_LOW_ORDER_K  = std::max(MAX_ORDER-3, 1);
+			constexpr size_t MAX_FINE_STRIDE  = (size_t)MAX_LOW_ORDER_K * MAX_LOW_ORDER_K * MAX_LOW_ORDER_K;
+			constexpr size_t MAX_LEAF_SRCS    = 300; 
+
+			// Build compact list of leaf cone indices on CPU
+			std::vector<uint32_t> h_leafIds;
+			h_leafIds.reserve(numActive / 4);
+			for (size_t ci = 0; ci < numActive; ++ci) {
+				const ConeRef ref = srcData->activeCone(ci);
+				if (m_src_octree->isLeaf(level, ref.boxId()))
+					h_leafIds.push_back(static_cast<uint32_t>(ci));
+			}
+			const size_t numLeafCones = h_leafIds.size();
+
+			if (numLeafCones > 0) {
+				sycl::buffer<uint32_t,1> buf_leafIds(
+					h_leafIds.data(), sycl::range<1>(numLeafCones));
+
+				Q.submit([&](sycl::handler& h_leaf) {
+					sycl::accessor a_srcs_l    (b_srcs,    h_leaf, sycl::read_only);
+					sycl::accessor a_weights_l (b_weights, h_leaf, sycl::read_only);
+					sycl::accessor a_intData_l (*interpolationDataBuffer, h_leaf, sycl::read_write);
+					sycl::accessor a_hoChebNodes_l(b_hoChebNodes, h_leaf, sycl::read_only);
+					sycl::accessor<uint32_t,1,sycl::access_mode::read>
+					    a_leafIds(buf_leafIds, h_leaf);
+					const auto& srcDataAcc_l = srcData->accessor(h_leaf);
+					const auto  functions_l  = static_cast<Derived*>(this)->kernelFunctions();
+
+					sycl::local_accessor<PointScalar,1>
+					    sh_srcs(sycl::range<1>(MAX_LEAF_SRCS * DIM), h_leaf);
+					sycl::local_accessor<T,1>
+					    sh_ws  (sycl::range<1>(MAX_LEAF_SRCS),       h_leaf);
+
+					h_leaf.parallel_for(
+						sycl::nd_range<1>(
+							sycl::range<1>(numLeafCones * MAX_STRIDE),
+							sycl::range<1>(MAX_STRIDE)),
+						[=](sycl::nd_item<1> item) {
+						const size_t groupId = item.get_group(0);
+						const size_t nodeId  = item.get_local_id(0);
+
+						const uint32_t coneIdx = a_leafIds[groupId];
+						const ConeRef  ref     = srcDataAcc_l.activeCone(coneIdx);
+						const size_t   boxId   = ref.boxId();
+
+						const IndexRange srcs  = srcDataAcc_l.points(boxId);
+						const size_t     nSrcs = srcs.second - srcs.first;
+
+						for (size_t s = nodeId; s < nSrcs; s += MAX_STRIDE) {
+							const size_t si = srcs.first + s;
+							for (int d = 0; d < DIM; d++)
+								sh_srcs[s*DIM+d] = a_srcs_l[si*DIM+d];
+							sh_ws[s] = a_weights_l[si];
+						}
+						item.barrier(sycl::access::fence_space::local_space);
+
+						// All MAX_STRIDE threads active, no divergence
+						// All threads in a workgroup reuse geomtrie info from cache since boxId is equal
+						if (nodeId >= stride) return;
+
+						const sycl::marray<PointScalar,DIM> center = srcDataAcc_l.boxCenter(boxId);
+						const PointScalar H_box = srcDataAcc_l.boxSize(boxId);
+						const auto grid = srcDataAcc_l.coneDomain(boxId, 1);
+
+						sycl::marray<PointScalar,DIM> transformed, cartesian;
+						grid.transform(ref.id(), a_hoChebNodes_l, transformed, nodeId);
+						Util::interpToCart(transformed, cartesian, center, H_box);
+
+						a_intData_l[ref.globalId() * stride + nodeId] =
+							functions_l.evaluateFactoredKernel(
+								sh_srcs, (size_t)0, nSrcs,
+								cartesian, sh_ws, center, H_box);
+					});
+				});
+				Q.wait();
+			}
+
 			auto e = Q.submit([&](sycl::handler &h){
 				//sycl::stream out(1024, 256, h);
 				sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
@@ -755,11 +836,6 @@ public:
 						<< " true_buf=" << true_buf 
 						<< " BUF_SIZE=" << BUF_SIZE << "\n";
 
-				constexpr size_t MAX_STRIDE = /* ho order product */ 
-				(size_t)MAX_ORDER * MAX_ORDER * MAX_ORDER;
-				constexpr size_t MAX_FINE_STRIDE = 
-				(size_t)MAX_LOW_ORDER * MAX_LOW_ORDER * MAX_LOW_ORDER;
-				//constexpr size_t MAX_FINE_STRIDE = (size_t)(MAX_ORDER-2) * MAX_ORDER * MAX_ORDER;
 				h.parallel_for(sycl::range<1>(numActive), [=](sycl::id<1> i){
 					const ConeRef ref = srcDataAcc.activeCone(i);
 					const size_t boxId = ref.boxId();
@@ -767,27 +843,10 @@ public:
 
 					const size_t globalOffset = ref.globalId() * stride;
 
-					T coarseCoeffs[MAX_STRIDE]; // private per-thread stack array
-					for(size_t i=0; i<stride; i++){
-						coarseCoeffs[i] = T(0);
-					}
-					if(srcDataAcc.isLeaf(boxId)){
-						sycl::marray<PointScalar,DIM> center = srcDataAcc.boxCenter(boxId);
-						PointScalar H = srcDataAcc.boxSize(boxId);
-						auto grid = srcDataAcc.coneDomain(boxId, 1);
-						IndexRange srcs = srcDataAcc.points(boxId);
-						for(size_t node = 0; node < stride; node++){
-							sycl::marray<PointScalar,DIM> transformed, cartesian;
-							grid.transform(ref.id(), a_hoChebNodes, transformed, node);
-							Util::interpToCart(transformed, cartesian, center, H);
-							coarseCoeffs[node] = functions.evaluateFactoredKernel(
-								a_srcs, srcs.first, srcs.second,
-								cartesian, a_weights, center, H);
-						}
-					} else {
-						for(size_t node = 0; node < stride; node++)
-							coarseCoeffs[node] = a_intData[globalOffset + node];
-					}
+					T coarseCoeffs[MAX_STRIDE];
+
+					for(size_t node = 0; node < stride; node++)
+						coarseCoeffs[node] = a_intData[globalOffset + node];
 
 					SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>(
 						coarseCoeffs, ho_ns, a_hoChebVals, 0);
@@ -925,7 +984,6 @@ public:
 				sycl::accessor<float,1,sycl::access_mode::read>   a_tgtCFi(buf_tgtCFi, h);
 				sycl::accessor<T,1,sycl::access_mode::read_write> a_result2(b_result, h);
 				const std::array<int,DIM> lo_ns_cap = lo_ns;
-				const size_t fine_stride_cap = fine_stride;
 				h.parallel_for(sycl::range<1>(numTargets_ff), [=](sycl::id<1> tgtId){
 					const size_t tStart = a_tgtShift[tgtId];
 					const size_t tEnd   = a_tgtShift[tgtId + 1];
@@ -934,7 +992,7 @@ public:
 					SyclChebychevInterpolation::ClenshawEvaluator<T,1,DIM,DIM,DIMOUT> clenshaw;
 					for (size_t ci = tStart; ci < tEnd; ++ci) {
 						const uint32_t fineMemId = a_tgtConeIds[ci];
-						const size_t fineOffset  = fineMemId * fine_stride_cap;
+						const size_t fineOffset  = fineMemId * fine_stride;
 						sycl::marray<PointScalar,DIM> norm;
 						for (int d = 0; d < DIM; d++)
 							norm[d] = static_cast<PointScalar>(a_tgtNorm[ci * DIM + d]);
