@@ -26,7 +26,7 @@ string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0  -flto=auto")
 
 
 
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package (Eigen3 5.0 REQUIRED NO_MODULE)
 find_package (TBB REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR} ${TBB_INCLUDE_DIR})
 
@@ -46,12 +46,23 @@ set(SOURCE_FILE test_ifgf.cpp)
 add_executable(${TARGET_NAME} ${SOURCE_FILE})
 add_sycl_to_target(TARGET ${TARGET_NAME}  SOURCES ${SOURCE_FILE} )
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 20)
-target_link_libraries (${TARGET_NAME} PRIVATE tbb)
+#target_link_libraries (${TARGET_NAME} PRIVATE tbb)
 
 
 add_library(ifgflib SHARED
     ifgf_library.cpp)
 add_sycl_to_target(TARGET ifgflib ifgf_library.cpp)
 set_property(TARGET ifgflib PROPERTY CXX_STANDARD 20)
-target_link_libraries (ifgflib PRIVATE tbb)
+#target_link_libraries (ifgflib PRIVATE tbb)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        Eigen3::Eigen
+        TBB::tbb
+)
+
+target_link_libraries(ifgflib
+    PRIVATE
+        Eigen3::Eigen
+        TBB::tbb
+)
 

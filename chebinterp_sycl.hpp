@@ -55,8 +55,8 @@ namespace SyclChebychevInterpolation
     
 
 
-    template <typename T, int DIM, int DIMX, int MAX_ORDER>
-    void chebtransform_impl(const sycl::accessor<T> &src,
+    template <typename T, int DIM, int DIMX, int MAX_ORDER, typename SrcType>
+    void chebtransform_impl(const SrcType &src,
                             sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER) > & dest,
                             const std::array<int,DIMX>& ns,
                             const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
@@ -390,11 +390,11 @@ namespace SyclChebychevInterpolation
 			   const Eigen::Vector<int, DIM>& ns,
 			   BoundingBox<DIM> box);
 
-    template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType>
+    template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType, typename InterpAccessorType>
     void tp_evaluate_int(
 			 const sycl::marray<PointScalar, POINTS_AT_CTIME> &points,
 			 int pnt_offset,
-			 const sycl::accessor<const T,1,sycl::access_mode::read> &interp_values,
+			 const InterpAccessorType &interp_values,
 			 size_t offset,
 			 DestType& dest,				
 			 const std::array<int, DIMX> &ns,

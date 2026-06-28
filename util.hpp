@@ -163,7 +163,7 @@ namespace Util
     inline typename PointVector::PlainObject cartToInterp2(const Eigen::ArrayBase<PointVector>& x, const Eigen::Vector<PointScalar, DIM> &xc, PointScalar H, PointVector2& rs)
     {
 
-	auto p=(x.colwise()-xc.array()).template cast<double>();
+	auto p=(x.colwise()-xc.array()).template cast<PointScalar>();
 	
 	const auto a = p.row(0)*p.row(0)+p.row(1)*p.row(1);
 	rs.row(2)= (p.row(0).binaryExpr(p.row(1), [](PointScalar a,PointScalar b) {return  std::atan2(b,a);})).template cast<PointScalar>();

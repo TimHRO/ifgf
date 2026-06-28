@@ -374,6 +374,7 @@ public:
 
 	m_farFieldBoxes.resize(levels());
 	m_nearFieldBoxes.resize(levels());
+	m_nearFieldTargets.resize(levels());
 
 	m_coneMaps.resize(levels());
 
@@ -437,6 +438,7 @@ public:
                      std::fill(info.starts.begin(),info.starts.end(),0);
                      m_farFieldBoxes[level]=info;//computeFieldInfo(level,target, true);
                      m_nearFieldBoxes[level]=computeFieldInfo(level,target, false); //we still do the nearfield regularly
+                     m_nearFieldTargets[level]=computeFieldInfoTranspose(level,target, false);
 
 
  
@@ -506,7 +508,7 @@ public:
 		local_interp_pnts.local().resize(DIM, HoChebNodes.cols());
 		
 			      
-		Eigen::Vector<double,DIM> d;
+		Eigen::Vector<PointScalar,DIM> d;
 		for(int j=0;j<DIM;j++) {
 		    bool flag=cube_corner & (1<<j);
 		    d[j]= flag ? 0.5: -0.5;		    
@@ -515,7 +517,7 @@ public:
 				
 		IndexSet is_active;
 		is_active.reserve(1 << DIM);
-		local_pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Vector3d::Zero(),pH);
+		local_pnts.local()=Util::interpToCart<DIM>(p_hoGrid.transform(el,HoChebNodes).array(),Eigen::Matrix<PointScalar,3,1>::Zero(),pH);
 		Util::cartToInterp2<DIM>(local_pnts.local().array(),d*HH,HH,local_interp_pnts.local().array());  //xc-pxc
 		for (size_t i=0;i<HoChebNodes.cols();i++) {
 		    auto coneId=loGrid.elementForPoint(local_interp_pnts.local().col(i));
@@ -768,7 +770,8 @@ public:
 
 	    //compute the farFieldBoxes
 	    m_farFieldBoxes[level]=computeFieldInfo(level,target, true);
-	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);			
+	    m_nearFieldBoxes[level]=computeFieldInfo(level,target, false);
+	    m_nearFieldTargets[level]=computeFieldInfoTranspose(level,target, false);
 
 	    est_H/=2;
 	}
@@ -842,6 +845,48 @@ public:
 
 	
     
+    // Transpose of computeFieldInfo: for each source box, list the target points
+    FieldInfo computeFieldInfoTranspose(int level, const Octree& target, bool isFarField=false) const
+    {
+	FieldInfo info;
+	const size_t nBoxes = numBoxes(level);
+
+	// Count targets per box
+	size_t cnt = 0;
+	std::vector<size_t> nTargetsPerBox(nBoxes, 0);
+	for(size_t n = 0; n < nBoxes; ++n) {
+	    std::shared_ptr<OctreeNode> node = m_nodes[level][n];
+	    const std::vector<IndexRange>& tgts = isFarField ? node->farTargets() : node->nearTargets();
+	    for(const auto& tRange : tgts) {
+		nTargetsPerBox[n] += tRange.second - tRange.first;
+		cnt += tRange.second - tRange.first;
+	    }
+	}
+
+	info.starts.resize(nBoxes + 1);
+	info.starts[0] = 0;
+	for(size_t n = 0; n < nBoxes; ++n)
+	    info.starts[n+1] = info.starts[n] + nTargetsPerBox[n];
+
+	if(cnt > 0) {
+	    info.indices.resize(cnt);
+	    std::fill(nTargetsPerBox.begin(), nTargetsPerBox.end(), 0);
+	    for(size_t n = 0; n < nBoxes; ++n) {
+		std::shared_ptr<OctreeNode> node = m_nodes[level][n];
+		const std::vector<IndexRange>& tgts = isFarField ? node->farTargets() : node->nearTargets();
+		for(const auto& tRange : tgts) {
+		    for(size_t trg = tRange.first; trg < tRange.second; ++trg) {
+			info.indices[info.starts[n] + nTargetsPerBox[n]] = trg;
+			nTargetsPerBox[n]++;
+		    }
+		}
+	    }
+	} else {
+	    info.indices.resize(0);
+	}
+	return info;
+    }
+
     inline PointScalar diameter () const
     {
 	return m_diameter;
@@ -1239,8 +1284,9 @@ private:
     std::vector<std::vector<std::shared_ptr<OctreeNode> > > m_nodes;
     std::vector<std::array<std::vector<ConeRef>,N_STEPS> > m_activeCones;
     std::vector<std::vector<ConeRef> > m_leafCones;
-    std::vector< FieldInfo > m_farFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield
-    std::vector< FieldInfo > m_nearFieldBoxes;  // on each level: for each target point y store the source boxes such that y is in the farfield 
+    std::vector< FieldInfo > m_farFieldBoxes;   // on each level: for each target point y store the source boxes such that y is in the farfield
+    std::vector< FieldInfo > m_nearFieldBoxes;   // on each level: for each target point y store the source boxes such that y is in the nearfield
+    std::vector< FieldInfo > m_nearFieldTargets; // on each level: for each source box store the target points in its nearfield (transpose of m_nearFieldBoxes)
     std::vector<unsigned int> m_numBoxes;
     std::vector<unsigned int> m_numLeafCones;
 
@@ -1277,6 +1323,10 @@ public:
     nfB_indices(nfBi_vec),
     nfBs_vec(std::move(octree.m_nearFieldBoxes[level].starts)),
     nfB_starts(nfBs_vec),
+    nfTi_vec(std::move(octree.m_nearFieldTargets[level].indices)),
+    nfT_indices(nfTi_vec),
+    nfTs_vec(std::move(octree.m_nearFieldTargets[level].starts)),
+    nfT_starts(nfTs_vec),
     leafCones_vec((octree.m_leafCones[level])),
     leafCones(leafCones_vec),
     ftAFlags(octree.numBoxes(level)),
@@ -1344,6 +1394,7 @@ public:
 	for(int i=0;i<N_STEPS;i++){
 	    m_numActiveCones[i]=octree.numActiveCones(level,i);
 	}
+	m_numBoxes = octree.numBoxes(level);
 
 	//std::cout<<"done"<<std::endl;
 
@@ -1360,6 +1411,8 @@ public:
 	    ffB_starts(data.ffB_starts,h),
 	    nfB_indices(data.nfB_indices,h),
 	    nfB_starts(data.nfB_starts,h),
+	    nfT_indices(data.nfT_indices,h),
+	    nfT_starts(data.nfT_starts,h),
 	    points_start(data.points_start,h),
 	    points_end(data.points_end,h),
 	    leafCones(data.leafCones,h),
@@ -1402,6 +1455,19 @@ public:
 
 
 	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
+	}
+
+	// Transpose: for a given source box, return the target points in its nearfield
+	const inline  auto nearFieldTargets(size_t boxId) const
+	{
+	    const size_t start=nfT_starts[boxId];
+	    const size_t end=nfT_starts[boxId+1];
+	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfT_indices.cbegin()+start,nfT_indices.cbegin()+end);
+	}
+
+	size_t numNearFieldTargets(size_t boxId) const
+	{
+	    return nfT_starts[boxId+1] - nfT_starts[boxId];
 	}
 
     
@@ -1467,9 +1533,13 @@ public:
 	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_indices;
 	sycl::accessor< size_t,1,sycl::access_mode::read> ffB_starts;
 
-	//near field boxes
+	//near field boxes (target -> box direction)
 	sycl::accessor< size_t,1,sycl::access_mode::read> nfB_indices;
 	sycl::accessor< size_t,1,sycl::access_mode::read> nfB_starts;
+
+	//near field targets (box -> target direction, transpose)
+	sycl::accessor< size_t,1,sycl::access_mode::read> nfT_indices;
+	sycl::accessor< size_t,1,sycl::access_mode::read> nfT_starts;
 
 	//points
 	sycl::accessor< size_t,1,sycl::access_mode::read> points_start;
@@ -1520,6 +1590,10 @@ public:
 	return m_numActiveCones[step];
     }
 
+    size_t numBoxes() const {
+	return m_numBoxes;
+    }
+
 
     
 private:
@@ -1532,13 +1606,20 @@ private:
 
     
 
-    //near field boxes
+    //near field boxes (target -> box)
     
     std::vector<size_t> nfBs_vec;
     std::vector<size_t> nfBi_vec;
 
     sycl::buffer<size_t,1> nfB_indices;
     sycl::buffer<size_t,1> nfB_starts;
+
+    //near field targets (box -> target, transpose)
+    std::vector<size_t> nfTs_vec;
+    std::vector<size_t> nfTi_vec;
+
+    sycl::buffer<size_t,1> nfT_indices;
+    sycl::buffer<size_t,1> nfT_starts;
 
 
 
@@ -1567,6 +1648,7 @@ private:
     size_t childrenPerBox;
 
     std::array<size_t, N_STEPS> m_numActiveCones;
+    size_t m_numBoxes;
 
 };
 

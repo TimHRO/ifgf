@@ -149,6 +149,7 @@ public:
  	case 6:  return mult_impl<6>(weights);
 	case 7:  
 	case 8:  return mult_impl<8>(weights);
+	case 10:  return mult_impl<10>(weights);
 	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
 	}
 	
@@ -293,7 +294,7 @@ public:
 			static_cast<Derived *>(this)->kernelFunctions();
 
 
-		    auto out = sycl::stream(1024, 768, h);
+		    //auto out = sycl::stream(1024, 768, h);
 		    const size_t num_targets=m_octree->targetPoints().cols();
 
 		    //std::cout<<"setup complete"<<num_targets<<std::endl;
@@ -341,8 +342,7 @@ public:
                 std::cout<<"interp "<< m_octree->numLeafCones(level)<<b_hoChebNodes.size()<<std::endl;
 		{
 		Q.submit([&](sycl::handler &h) {
-		    // start by pushing  some data to the GPU (octree stuff)
-		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);		    
+		    sycl::accessor a_srcs(b_srcs, h, sycl::read_only);
 		    sycl::accessor a_weights(b_weights, h, sycl::read_only);
 
 		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
@@ -353,97 +353,59 @@ public:
 		    const auto functions =
 			static_cast<Derived *>(this)->kernelFunctions();
 
+		    const size_t stride = ho_chebNodes.cols();
+		    const size_t numLeafCones = m_octree->numLeafCones(level);
 
+		    // Exploid shared loacal memory, all near-field stay in SLM of one leaf cone
+		    // Each thread in one workgroup is mapped to one chebyshev node, soure and box data is cached
+		    sycl::local_accessor<PointScalar, 1> l_srcs(   sycl::range<1>(m_maxLeafSize * DIM), h);
+		    sycl::local_accessor<T, 1>           l_weights(sycl::range<1>(m_maxLeafSize),       h);
 
-		    const size_t stride=ho_chebNodes.cols();
+		    // One work-group per leaf cone, stride threads per group
+		    h.parallel_for(
+			sycl::nd_range<1>(sycl::range<1>(numLeafCones * stride),
+					  sycl::range<1>(stride)),
+			[=](sycl::nd_item<1> it)
+			{
+			    const size_t cone_idx = it.get_group(0);    // which leaf cone
+			    const size_t j        = it.get_local_id(0); // which Cheb node
 
+			    const ConeRef ref   = srcDataAcc.leafCone(cone_idx);
+			    const size_t boxId  = ref.boxId();
 
-		    const size_t sizeB=interpolationDataBuffer->size();
+			    if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId))
+				return;
 
-		    const size_t  numLeafCones=m_octree->numLeafCones(level);
-		    //std::cout<<"numm="<<numLeafCones<<std::endl;
-		    auto out = sycl::stream(1024, 1024, h);
-		    h.parallel_for(sycl::range<1>( numLeafCones),
-				   [=](sycl::id<1> i)
-				   {
+			    const IndexRange srcs = srcDataAcc.points(boxId);
+			    const size_t    nS   = srcs.second - srcs.first;
 
-				       const ConeRef ref=srcDataAcc.leafCone(i);
-				       const size_t boxId=ref.boxId();				       
-				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
-					   sycl::marray<PointScalar, DIM>  center=srcDataAcc.boxCenter(boxId);
-					   PointScalar H=srcDataAcc.boxSize(boxId);
+			    // Cooperatively load sources into SLM
+			    for(size_t s = j; s < nS; s += stride) {
+				for(int d = 0; d < DIM; d++)
+				    l_srcs[s * DIM + d] = a_srcs[(srcs.first + s) * DIM + d];
+				l_weights[s] = a_weights[srcs.first + s];
+			    }
+			    it.barrier(sycl::access::fence_space::local_space);
 
-					   auto grid=srcDataAcc.coneDomain(boxId,1);
-					   IndexRange srcs=srcDataAcc.points(boxId);
-					   const size_t nS=srcs.second-srcs.first;
+			    // Each thread evaluates one Cheb node against SLM sources
+			    const sycl::marray<PointScalar, DIM> center = srcDataAcc.boxCenter(boxId);
+			    const PointScalar H  = srcDataAcc.boxSize(boxId);
+			    const auto grid      = srcDataAcc.coneDomain(boxId, 1);
+			    const size_t offset  = ref.globalId() * stride;
 
-					   const size_t offset=ref.globalId()*stride;
-					   
+			    sycl::marray<PointScalar, DIM> transformed;
+			    sycl::marray<PointScalar, DIM> transformed2;
+			    grid.transform(ref.id(), a_hoChebNodes, transformed, j);
+			    Util::interpToCart(transformed, transformed2, center, H);
 
-					   sycl::marray<PointScalar,DIM> transformed;
-					   sycl::marray<PointScalar,DIM> transformed2;
-					   for(size_t j=0;j<stride;j++) {
-					       grid.transform(ref.id(),a_hoChebNodes,transformed,j);
-
-					       Util::interpToCart(transformed,transformed2,center,H);
-
- 
-					       a_intData[j+offset]=functions.evaluateFactoredKernel(a_srcs, srcs.first, srcs.second,
-					       							    transformed2, a_weights,center, H);
-
-					   }
-				       }
-
-				   });
+			    a_intData[j + offset] = functions.evaluateFactoredKernel(
+				l_srcs, 0, nS, transformed2, l_weights, center, H);
+			});
 		 });
 		//Q.wait();
 		}
 	    }
 
-	    //chebtrafo everything
-
-	    {
-                std::cout<<"chebtrafo"<<std::endl;
-		//Q.wait();
-		Q.submit([&](sycl::handler &h) {
-		    // start by pushing  some data to the GPU (octree stuff)
-
-		    sycl::accessor a_intData(*interpolationDataBuffer, h, sycl::read_write);
-				
-
-		    //TODO unify order type
-		    std::array<int,DIM> ns_ho;
-		    std::copy(high_order.begin(),high_order.end(),ns_ho.begin());
-		
-		
-		    const sycl::accessor a_chebvals(b_hoChebvals,h,sycl::read_only);
-		    const auto &srcDataAcc = srcData->accessor(h);
-
-		    const size_t sizeB=interpolationDataBuffer->size();
-		    const size_t numActiveCones= m_octree->numActiveCones(level,1);
-
-		    const size_t stride=ho_chebNodes.cols();
-		    //std::cout<<"survived setup"<<std::endl;
-		    auto out = sycl::stream(1024, 1024, h);
-
-
-		    h.parallel_for(sycl::range<1>( numActiveCones),
-				   [=](sycl::id<1> i)
-				   {
-				       
-				       const ConeRef ref=srcDataAcc.activeCone(i);
-				       const size_t boxId=ref.boxId();				       
-
-				       if( srcDataAcc.hasFarTargetsIncludingAncestors(boxId)){ // we dont need the interpolation info for those levels.
-					   //out<<"i="<<i<<"\n";
-					   //before we can use the interpolation data, we habe to run a chebychev transform on it
-					   SyclChebychevInterpolation::chebtransform_inplace<T,DIM, MAX_ORDER>( a_intData,  ns_ho, a_chebvals,i*stride);
-					   //out<<"i2="<<a_intData[i*stride].real()<<"\n";
-				       }
-				   });
-		});
-		//Q.wait();
-	    }
 	    initInterpolationData(level,0, parentInterpolationDataBuffer);
 	    {
                 std::cout<<"CTF"<<std::endl;
@@ -466,6 +428,7 @@ public:
 				    
 			
 			const sycl::accessor a_chebvals(b_chebvals,h,sycl::read_only);
+			const sycl::accessor a_hoChebvals(b_hoChebvals,h,sycl::read_only);
 
 
 
@@ -490,77 +453,66 @@ public:
 
 			const int nF=factor.prod();
 			//std::cout<<"doing it"<<std::endl;
-			h.parallel_for(sycl::range( {numActiveCones*nF}), [=](auto it)			
-			{		
-			    
-			    const size_t coneId=it/nF;		
-			    
-			    
-			    ConeRef hoCone=srcDataAcc.activeCone(coneId);
-			    if( srcDataAcc.hasFarTargetsIncludingAncestors(hoCone.boxId())){ // we dont need the interpolation info for those levels.
-				auto ho_id=SyclConeDomain<DIM>::indicesFromId(hoCone.id(),n_el);
+			constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-2,1);
+			constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
+			constexpr size_t MAX_HO_STRIDE=(size_t)MAX_ORDER*MAX_ORDER*MAX_ORDER;
+			h.parallel_for(sycl::range<1>(numActiveCones), [=](sycl::id<1> coneId)
+			{
+			    const ConeRef hoCone=srcDataAcc.activeCone(coneId);
+			    if( ! srcDataAcc.hasFarTargetsIncludingAncestors(hoCone.boxId()))
+				return;
 
-				auto lid=SyclConeDomain<DIM>::indicesFromId(it%nF,factors);
+			    const size_t int_data_offset=coneId*ho_stride;
+
+			    
+			    // a_intData is raw data, run cheb transform inside here
+			    sycl::marray<T,MAX_HO_STRIDE> coarse;
+			    for(size_t s=0;s<ho_stride;s++)
+				coarse[s]=a_intData[int_data_offset+s];
+
+			    SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( coarse, ns, a_hoChebvals, 0);
+
+			    const auto ho_id=SyclConeDomain<DIM>::indicesFromId(hoCone.id(),n_el);
+
+			    for(int sub=0; sub<nF; sub++) {
+				const auto lid=SyclConeDomain<DIM>::indicesFromId(sub,factors);
 				const size_t fine_el=
 				    (ho_id[2]*factors[2]+(lid[2]))*n_elements[1]*n_elements[0]+
 				    (ho_id[1]*factors[1]+(lid[1]))*n_elements[0]+
 				    (ho_id[0]*factors[0]+(lid[0]));
-		       
+
 				const size_t fineMemId=srcDataAcc.memId(hoCone.boxId(),fine_el);
-						
-				if(fineMemId<SIZE_MAX-1) { ///the target cone is active!
-				    for(int i=0;i<fine_stride;i++) {
-					a_parentIntData[fineMemId*fine_stride+i]=0;
+				if(fineMemId>=SIZE_MAX-1) continue; // target cone inactive
+
+				for(int i=0;i<fine_stride;i++)
+				    a_parentIntData[fineMemId*fine_stride+i]=0;
+
+				size_t offset=0;
+				sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
+				sycl::marray<T,BUF_SIZE> tmp;
+				tmp=0;
+				t_pnts=0;
+				for(int d=0;d<DIM;d++) {
+				    const PointScalar h=2;
+				    assert(lo_ns[d]<=MAX_LOW_ORDER);
+				    const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
+				    const PointScalar mmax=(mmin+(h/((PointScalar) factors[d])));
+				    const PointScalar a=0.5*(mmax-mmin);
+				    const PointScalar b=0.5*(mmax+mmin);
+				    for(size_t l=0;l<lo_ns[d];l++) {
+					t_pnts[offset]=a*a_points[offset]+b;
+					offset++;
 				    }
-				
-					
-				    //out<<it<<" "<<coneId<<"\n";
-				    size_t offset=0;
-				    constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-2,1);
-				    constexpr int BUF_SIZE=_CtFBufferSize<DIM>(MAX_LOW_ORDER,MAX_ORDER);
-
-				    sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
-				    
-				    sycl::marray<T,BUF_SIZE> tmp; //Temporary storage for the sum-factorization. 
-			
-
-
-				    tmp=0;
-				    t_pnts=0;		//Fill up the remaining points. otherwise the compiler optimization breaks the code
-				    for(int d=0;d<DIM;d++) {
-					const PointScalar h=2;
-					assert(lo_ns[d]<=MAX_LOW_ORDER);
-				    
-					const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
-					const PointScalar mmax=(mmin+(h/((PointScalar) factors[d])));
-					const PointScalar a=0.5*(mmax-mmin);
-					const PointScalar b=0.5*(mmax+mmin);
-
-					
-					for(size_t l=0;l<lo_ns[d];l++) {
-					    t_pnts[offset]=a*a_points[offset]+b;
-					    offset++;
-					}
-				    }
-		    								    
-
-				    const size_t int_data_offset=coneId*ho_stride;
-				    
-				    SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(t_pnts, a_intData, int_data_offset,
-										     ns,lo_ns, a_parentIntData,
-										     tmp,
-										     fineMemId*fine_stride, 0);
-
-
-				    //and chebtrafo all in one go
-				    SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( a_parentIntData,  lo_ns, a_chebvals,fineMemId*fine_stride);
-				    
-				
 				}
 
+				SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(t_pnts, coarse, 0,
+									 ns,lo_ns, a_parentIntData,
+									 tmp,
+									 fineMemId*fine_stride, 0);
+
+				SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( a_parentIntData, lo_ns, a_chebvals, fineMemId*fine_stride);
 			    }
-		    
-			});		  
+			});
 		    
 		    });
 
@@ -593,7 +545,7 @@ public:
 		    static_cast<Derived *>(this)->kernelFunctions();
 		
 		const size_t stride=order.prod();
-		auto out = sycl::stream(100, 100, h);
+		//auto out = sycl::stream(100, 100, h);
 
 		const size_t nT=m_octree->targetPoints().cols();
 		h.parallel_for(sycl::range<1>{nT}, [=](auto it)
@@ -690,7 +642,7 @@ public:
 		
 		const size_t stride=ho_chebNodes.cols();
 		const size_t lo_stride=chebNodes.cols();
-		auto out = sycl::stream(100, 100, h);
+		//auto out = sycl::stream(100, 100, h);
 		//std::cout<<"survived setup1234"<<std::endl;
 
 		const auto functions =
@@ -711,43 +663,45 @@ public:
 			return;
 		    }
 
-		    for(size_t j=0;j<stride;j++) {
-			sycl::marray<PointScalar,DIM> pnt;
-			sycl::marray<PointScalar,DIM> cart_pnt;
-			sycl::marray<PointScalar,DIM> pnt2;
-			
-			//std::copy(a_hoChebNodes.begin()+j*DIM,a_hoChebNodes.begin()+(j+1)*DIM,pnt.begin());
-			pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,j);
-			Util::interpToCart(pnt,cart_pnt,parent_center,pH);
-
-
+		    for(size_t j=0;j<stride;j++)
 			a_parentIntData[i*stride+j]=0;
-			for(size_t childBox : parentDataAcc.children(parentBoxId)) {
-			    if(childBox==SIZE_MAX) {
-				continue;
-			    }
 
-			    auto center = srcDataAcc.boxCenter(childBox);
-			    PointScalar H = srcDataAcc.boxSize(childBox);
-			    const auto grid=srcDataAcc.coneDomain(childBox,0);
-			    
-			    //Transfer to the interpolation domain relative to the child box
+		    // Child loop is now outer, center/H/grid are loaded once per child
+		    // and stay in registers across all stride iterations below,
+		    // instead of being reloaded once per (j, child) pair
+		    for(size_t childBox : parentDataAcc.children(parentBoxId)) {
+			if(childBox==SIZE_MAX) {
+			    continue;
+			}
+
+			const auto center = srcDataAcc.boxCenter(childBox);
+			const PointScalar H = srcDataAcc.boxSize(childBox);
+			const auto grid=srcDataAcc.coneDomain(childBox,0);
+
+			for(size_t j=0;j<stride;j++) {
+			    sycl::marray<PointScalar,DIM> pnt;
+			    sycl::marray<PointScalar,DIM> cart_pnt;
+			    sycl::marray<PointScalar,DIM> pnt2;
+
+			    pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,j);
+			    Util::interpToCart(pnt,cart_pnt,parent_center,pH);
+
 			    Util::cartToInterp(cart_pnt,pnt2,center,H);
-			
+
 			    const size_t el=grid.elementForPoint(pnt2);
-			
+
 			    assert(el<SIZE_MAX); //we used to cutoff targets like that
 
 			    const size_t memId=srcDataAcc.memId(childBox,el);
-			    if(memId < SIZE_MAX) {				
-				grid.transformBackwards(el,pnt2,pnt);						
-			
+			    if(memId < SIZE_MAX) {
+				grid.transformBackwards(el,pnt2,pnt);
+
 				SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
 				const size_t offset=lo_stride*memId;
 				T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
 
 				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
-			    
+
 				a_parentIntData[i*stride+j]+=res*TF;
 			    }
 			}

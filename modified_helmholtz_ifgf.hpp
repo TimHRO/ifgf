@@ -12,6 +12,9 @@ class ModifiedHelmholtzKernelFunctions
     typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<PointScalar,dim> Point;
 
+    // 1/(4*pi), hardcoded as RealScalar, avoids frequent recomputation on GPU
+    static constexpr RealScalar INV_4PI = RealScalar(0.07957747154594766788444188168625718L);
+
 public:
     ModifiedHelmholtzKernelFunctions(std::complex<RealScalar> waveNr):
 	k(waveNr)
@@ -21,11 +24,13 @@ public:
 
     inline T kernelFunction(const sycl::marray<PointScalar,3>& x) const
     {
-        RealScalar d = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-       if(std::abs(d)<=1e-15  || d*k.real() > HIGH_EXP_CUTOFF) {
+        RealScalar d = sycl::sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
+        const RealScalar kr = k.real();
+        const RealScalar ki = k.imag();
+       if(std::abs(d)<=RealScalar(1e-15)  || d*kr > RealScalar(HIGH_EXP_CUTOFF)) {
             return RealScalar(0.0);
         }
-	return RealScalar((1. / (4. * M_PI))) * T(exp(-k.real()*d))* T(cos(k.imag()*d),-sin(k.imag()*d)) / (d);
+	return INV_4PI * T(sycl::exp(-kr*d))* T(sycl::cos(ki*d),-sycl::sin(ki*d)) / (d);
     }
 
 
@@ -57,16 +62,16 @@ public:
 	T result=0;
 
 	sycl::marray<PointScalar,3> pnt{y[0]-xc[0],y[1]-xc[1],y[2]-xc[2]};
-	RealScalar dc = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+	RealScalar dc = sycl::sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+
+	const RealScalar kr = k.real();
+	const RealScalar ki = k.imag();
 
 	for(size_t i=x0;i<xend;i++) {
-	    sycl::marray<PointScalar,3> pnt{xs[i*dim]-y[0],xs[i*dim+1]-y[1],xs[i*dim+2]-y[2]};
-	    RealScalar d = sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+	    sycl::marray<PointScalar,3> p{xs[i*dim]-y[0],xs[i*dim+1]-y[1],xs[i*dim+2]-y[2]};
+	    RealScalar d = sycl::sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
 
-	    //result +=  ws[i] *  sycl::exp(T(0,k)* (d - dc)) * (dc) / d;
-
-	    result += (abs(d)<1e-15 ) ? RealScalar(0) :  ws[i] *  T(exp(-k.real()*(d-dc)))*T(sycl::cos(k.imag()*(d-dc)),-sycl::sin(k.imag()*(d-dc))) * (dc) / d;
-	    //result+=(d<1e-12) ? 0 :   (ws[i] * (sycl::cos(k*(d-dc))+T(0,1)*sycl::sin(k*(d-dc)))*(dc/(d)));
+	    result += (abs(d)<RealScalar(1e-15) ) ? T(RealScalar(0)) :  ws[i] *  T(sycl::exp(-kr*(d-dc)))*T(sycl::cos(ki*(d-dc)),-sycl::sin(ki*(d-dc))) * (dc) / d;
 	}
 	return result;
     }
@@ -77,13 +82,15 @@ public:
     {
 	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 
-	if(abs(d2)<1e-14) {
+	if(abs(d2)<RealScalar(1e-14)) {
 	    return 0;
 	}
 
 
-	const RealScalar id=1./(sqrt(d2));
+	const RealScalar id=RealScalar(1)/(sycl::sqrt(d2));
 	const RealScalar d=d2*id;
+	const RealScalar kr = k.real();
+	const RealScalar ki = k.imag();
 
         
         /*if(d*k.real()>HIGH_EXP_CUTOFF)
@@ -91,7 +98,7 @@ public:
             return 0.0;
         }*/
 
-	return T(sycl::exp(-k.real()*d))*T(sycl::cos(k.imag()*d),-sycl::sin(k.imag()*d))*id  *RealScalar(1./(4.0 * M_PI));	    
+	return T(sycl::exp(-kr*d))*T(sycl::cos(ki*d),-sycl::sin(ki*d))*id  *INV_4PI;
 
     }
 
@@ -101,17 +108,19 @@ public:
     {
 	auto z=x-xc;
 	auto zp=x-pxc;
-	const RealScalar d = sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
-	const RealScalar dp = sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
+	const RealScalar d = sycl::sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
+	const RealScalar dp = sycl::sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
 
-	if(abs(d)<1e-15 ) {
+	if(abs(d)<RealScalar(1e-15) ) {
 	    return 0;
 	}
         /*if((d-dp)*k.imag() <- HIGH_EXP_CUTOFF) { //truncate the transfer factor at around 10^16
     	        return T(exp(HIGH_EXP_CUTOFF))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
         }*/
 
-	return T(exp(-k.real()*(d-dp)))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
+	const RealScalar kr = k.real();
+	const RealScalar ki = k.imag();
+	return T(sycl::exp(-kr*(d-dp)))*T(sycl::cos(ki*(d-dp)),-sycl::sin(ki*(d-dp)))*dp/d;
 	
     }
 
@@ -159,7 +168,7 @@ public:
 
         std::cout<<"minSigma="<<minSigma<<std::endl;
         if(maxk<0) {
-	    maxk=std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
+	    maxk=0.5 * std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
             std::cout<<"maxk="<<maxk<<std::endl;
 	}
 
@@ -241,7 +250,7 @@ public:
 	}
 	    
 	for(int i=0;i<dim;i++) {
-            PointScalar delta=std::max( maxk*H, 1.0);
+            PointScalar delta=std::max((PointScalar) maxk*H, (PointScalar)1.);
 	    els[i]=std::max(base[i]*((int) ceil(delta)),(size_t) 1);	    
 	}
 	    
@@ -263,5 +272,3 @@ private:
 };
 
 #endif
-
-

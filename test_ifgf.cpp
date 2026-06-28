@@ -22,7 +22,7 @@
 const int dim=3;
 
 typedef std::complex<RealScalar> Complex;
-const Complex  kappa =Complex(32.35318922187804,12.6495537831048);//4.*Complex(5,-60);
+const Complex  kappa =((RealScalar) 1)*Complex(0.001,3.14*4.0);//4.*Complex(5,-60);
 //const double kappa=7;
 typedef Eigen::Vector<PointScalar,dim> Point;
 std::complex<double> my_kernel(const Point& x, const Point& y, const Point& normal)
@@ -31,16 +31,17 @@ std::complex<double> my_kernel(const Point& x, const Point& y, const Point& norm
     double nxy = -normal.dot(x-y);
     if(norm < 1e-14 ) return 0;
     /*auto kern = exp(Complex(0,kappa)*norm) / (4 * M_PI * norm*norm*norm)
-	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
-	// return kern;*/
+        * ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
+        // return kern;*/
 
 
     /*if(kappa.real()*norm>150) {
         return 0.;
     }*/
-    auto kern = exp(-std::complex<double>(kappa)*norm) / ((4.0 * M_PI * norm));
-    //x	* ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
-	// return kern;*/
+    auto kern = exp(-((std::complex<double>) kappa)*norm) /  ((4.0 * M_PI * norm));
+    //auto kern = exp(std::complex<double>(0,kappa)*norm) / ((4.0 * M_PI * norm));
+    //x * ( nxy * (Complex(1,0)*1. - Complex(0,kappa)*norm)  - Complex(0,kappa)*norm*norm);
+        // return kern;*/
     
 
     return kern;
@@ -48,7 +49,7 @@ std::complex<double> my_kernel(const Point& x, const Point& y, const Point& norm
 
 
 
-auto randomPointOnSphere() {
+auto randomPointOnSphere(double r) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -56,20 +57,23 @@ auto randomPointOnSphere() {
     PointScalar theta = dis(gen) * 2.0 * M_PI; // Random angle theta
     PointScalar phi = acos(2.0 * dis(gen) - 1.0); // Random angle phi
 
-    PointScalar x = sin(phi) * cos(theta);
-    PointScalar y = sin(phi) * sin(theta);
-    PointScalar z = cos(phi);
+    PointScalar x = r * sin(phi) * cos(theta);
+    PointScalar y = r * sin(phi) * sin(theta);
+    PointScalar z = r * cos(phi);
 
     return Eigen::Vector< PointScalar,3>(x, y, z);
 }
 
 
 
-int main()
+int main(int argc, char** argv)
 {
     srand((unsigned int) 1);    
     typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray ;
-    const int N = 1000000;
+    const int N = argc > 0 ? atoi(argv[1]) : 100000;
+    const double rad = atof(argv[2]);
+    const double alpha = atof(argv[3]);
+    const double beta = atof(argv[4]);
 
     for (auto platform : sycl::platform::get_platforms())
     {
@@ -86,8 +90,9 @@ int main()
     }
 
 
+    auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      32);
     //Eigen::initParallel();
-    //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      1);
+    //auto global_control = tbb::global_control( tbb::global_control::max_allowed_parallelism,      6);
     //oneapi::tbb::task_arena arena(1);
 
     //GradHelmholtzIfgfOperator<dim> op(kappa,10,3,1,1e-5); //3
@@ -103,22 +108,22 @@ int main()
     //srcs <<5*(PointArray::Random(dim,N).array());//,0.5+0.1*(PointArray::Random(dim,N).array()) ;
     tbb::parallel_for(tbb::blocked_range<size_t>(0,srcs.cols()), [&](tbb::blocked_range<size_t> r) {
         for(size_t i=r.begin();i<r.end();i++){
-	    srcs.col(i)=randomPointOnSphere();
-	}});
+            srcs.col(i)=randomPointOnSphere(rad);
+        }});
     PointArray normals = srcs;//(PointArray::Random(dim,srcs.cols()).array());
     PointArray targets = srcs;//(PointArray::Random(dim, N).array());
 //    for(int i=0;i<targets.cols();i++){
-//	targets.col(i)=srcs.col(i);//randomPointOnSphere();
+//      targets.col(i)=srcs.col(i);//randomPointOnSphere(r);
  //   }
 
 
 
     normals.colwise().normalize();
+    
 
-
-    for(int j=0;j<2;j++) {
-    ModifiedHelmholtzIfgfOperator<dim> op(kappa,300,8,2,-1.,-1.,-1.); //3
-    //HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
+    for(int j=0;j<1;j++) {
+        ModifiedHelmholtzIfgfOperator<dim> op(kappa,1000,8,1,-1.,-1.,-1.); //3
+        //HelmholtzIfgfOperator<dim> op(kappa,100,8,1,-1);
 
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -137,21 +142,26 @@ int main()
     std::cout <<"init"<< time_span.count() << " seconds" << std::endl;
     //first one is not timed!
     result = op.mult(weights);
+    
+    high_resolution_clock::time_point t13 = high_resolution_clock::now();
     const int Nmult=1;
     for(int i=0;i<Nmult;i++) {
-	std::cout<<"mult"<<std::endl;
-	result = op.mult(weights);
-	std::cout << "done multiplying" << std::endl;
+        std::cout<<"mult"<<std::endl;
+        result = op.mult(weights);
+        std::cout << "done multiplying" << std::endl;
     }
     high_resolution_clock::time_point t2 = high_resolution_clock::now();
 
-    time_span = duration_cast<duration<PointScalar>>(t2 - t1);
-    std::cout << time_span.count()/Nmult << " seconds" << std::endl;
+    time_span = duration_cast<duration<PointScalar>>(t2 - t13);
+    std::cout << "mult time per iter="<<time_span.count()/Nmult << " seconds" << std::endl;
+    std::cout << "qusi gmres total="<<time_span.count() << " seconds" << std::endl;
 
     fedisableexcept(FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW | FE_INVALID);
 
     srand((unsigned) time(NULL));
     double maxE = 0;
+    double e_n = 0;
+    double e_d = 0;
     for (int j = 0; j < 200; j++) {
         std::complex<double> val = 0;
         int index = rand() % targets.cols();
@@ -160,14 +170,18 @@ int main()
             val += std::complex<double>( weights[i]) * my_kernel(srcs.col(i), targets.col(index),normals.col(i));
         }
 
-        double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
-        if(e>maxE) {
-            std::cout<<"maxe="<<e<<" at"<<targets.col(index)<<std::endl;
-        }
-	maxE = std::max(e, maxE);
-        std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+        //double e = std::abs(val - std::complex<double>(result[index]))/std::abs(val);
+        e_n += std::abs(val - std::complex<double>(result[index])) * std::abs(val - std::complex<double>(result[index]));
+        e_d += std::abs(val) * std::abs(val);
+        //if(e>maxE) {
+        //    //std::cout<<"maxe="<<e<<" at"<<targets.col(index)<<std::endl;
+        //}
+        //maxE = std::max(e, maxE);
+        //std::cout<<"e="<<e<<" val="<<val<<" vs" <<result[index]<<std::endl;
+    }
+    double e_m = std::sqrt(e_n / e_d);
+    std::cout << "summary e_m: " << e_m << std::endl;
+    //std::cout << "summary: e=" << maxE << std::endl;
     }
 
-    std::cout << "summary: e=" << maxE << std::endl;
-    }
 }
