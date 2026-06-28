@@ -5,11 +5,11 @@
 
 #include <tbb/global_control.h>
 
-#include "PointScalar_layer_helmholtz_ifgf.hpp"
-#include "helmholtz_ifgf.hpp"
-#include "modified_helmholtz_ifgf.hpp"
-#include "grad_helmholtz_ifgf.hpp"
-#include "laplace_ifgf.hpp"
+//#include "PointScalar_layer_helmholtz_ifgf.hpp"
+#include "../core/helmholtz_ifgf.hpp"
+#include "../core/modified_helmholtz_ifgf.hpp"
+#include "../core/grad_helmholtz_ifgf.hpp"
+#include "../core/laplace_ifgf.hpp"
 
 namespace py = pybind11;
 

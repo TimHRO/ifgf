@@ -1,68 +1,145 @@
-
 if(UNIX)
-    # Direct CMake to use icpx rather than the default C++ compiler/linker
     set(CMAKE_CXX_COMPILER icpx)
-else() # Windows
-    # Force CMake to use icx-cl rather than the default C++ compiler/linker 
-    # (needed on Windows only)
-    include (CMakeForceCompiler)
-    CMAKE_FORCE_CXX_COMPILER (icx-cl IntelDPCPP)
-    include (Platform/Windows-Clang)
+else()
+    include(CMakeForceCompiler)
+    CMAKE_FORCE_CXX_COMPILER(icx-cl IntelDPCPP)
+    include(Platform/Windows-Clang)
 endif()
 
+cmake_minimum_required(VERSION 3.20)
+project(ifgf LANGUAGES CXX)
 
-cmake_minimum_required(VERSION 3.4...3.18)
-project(ifgf CXX)
-#
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#set(SYCL_TARGETS "nvptx64-nvidia-cuda,spir64")
+set(SYCL_TARGETS "spir64")
+set(SYCL_CUDA_ARCH "sm_86")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE "-march=native  -O3 -funroll-loops  -UUSE_NGSOLVE -flto=auto -fsycl -fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
-string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -O2  -flto=auto -O  -fsycl -fsycl-targets=nvptx64-nvidia-cuda,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_86")
-string(APPEND CMAKE_CXX_FLAGS_DEBUG " -O0  -flto=auto")
-#add_definitions(-DEIGEN_FAST_MATH=1 -DEIGEN_DONT_PARALLELIZE   )
+add_compile_options(
+  "$<$<CONFIG:Release>:-O3;-march=native;-funroll-loops>"
+  "$<$<CONFIG:RelWithDebInfo>:-O2;-g>"
+  "$<$<CONFIG:Debug>:-O0;-g>"
+)
 
-# find_package(unordered_dense CONFIG )
+add_compile_definitions(
+  EIGEN_FAST_MATH=1
+  EIGEN_DONT_PARALLELIZE
+)
 
-
-
-find_package (Eigen3 5.0 REQUIRED NO_MODULE)
-find_package (TBB REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR} ${TBB_INCLUDE_DIR})
-
-# find_package(pybind11 REQUIRED)
-# pybind11_add_module(pyifgf SHARED py_ifgf.cpp )
-# target_link_libraries (pyifgf PRIVATE tbb)
-
-
-
-
+find_package(Eigen3 CONFIG REQUIRED)
+find_package(TBB REQUIRED)
 find_package(IntelSYCL REQUIRED)
-set(TARGET_NAME "test_ifgf")
-set(SOURCE_FILE test_ifgf.cpp)
 
+add_library(ifgf_core SHARED)
 
-
-add_executable(${TARGET_NAME} ${SOURCE_FILE})
-add_sycl_to_target(TARGET ${TARGET_NAME}  SOURCES ${SOURCE_FILE} )
-set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 20)
-#target_link_libraries (${TARGET_NAME} PRIVATE tbb)
-
-
-add_library(ifgflib SHARED
-    ifgf_library.cpp)
-add_sycl_to_target(TARGET ifgflib ifgf_library.cpp)
-set_property(TARGET ifgflib PROPERTY CXX_STANDARD 20)
-#target_link_libraries (ifgflib PRIVATE tbb)
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
-        Eigen3::Eigen
-        TBB::tbb
+target_sources(ifgf_core
+  PRIVATE
+    core/ifgf_library.cpp
 )
 
-target_link_libraries(ifgflib
-    PRIVATE
-        Eigen3::Eigen
-        TBB::tbb
+target_include_directories(ifgf_core
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ifgf>
 )
 
+target_compile_options(ifgf_core PRIVATE
+  -fsycl
+  -fsycl-targets=${SYCL_TARGETS}
+  #-Xsycl-target-backend=nvptx64-nvidia-cuda
+  #--cuda-gpu-arch=${SYCL_CUDA_ARCH}
+)
+
+target_link_options(ifgf_core PRIVATE
+  -fsycl
+  -fsycl-targets=${SYCL_TARGETS}
+  #-Xsycl-target-backend=nvptx64-nvidia-cuda
+  #--cuda-gpu-arch=${SYCL_CUDA_ARCH}
+)
+
+target_link_libraries(ifgf_core
+  PUBLIC Eigen3::Eigen
+  PRIVATE TBB::tbb
+)
+
+add_sycl_to_target(
+  TARGET ifgf_core
+  SOURCES core/ifgf_library.cpp
+)
+
+set_target_properties(ifgf_core PROPERTIES
+  INTERFACE_LINK_OPTIONS ""
+)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS ifgf_core
+  EXPORT ifgfTargets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES
+  core/ifgf_library.hpp
+  core/config.hpp
+  core/unordered_dense.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ifgf
+)
+
+install(EXPORT ifgfTargets
+  FILE ifgfTargets.cmake
+  NAMESPACE ifgf::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ifgf
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/ifgfConfigVersion.cmake"
+  VERSION 1.0.0
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/ifgfConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/ifgfConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ifgf
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/ifgfConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/ifgfConfigVersion.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ifgf
+)
+
+option(IFGF_BUILD_TESTS "Build ifgf tests" ON)
+
+if(IFGF_BUILD_TESTS)
+  add_executable(ifgf_test ./test/ifgf_test.cpp)
+
+  target_compile_options(ifgf_test PRIVATE
+    -fsycl
+    -fsycl-targets=${SYCL_TARGETS}
+    -Xsycl-target-backend=nvptx64-nvidia-cuda
+    --cuda-gpu-arch=${SYCL_CUDA_ARCH}
+  )
+
+  target_link_options(ifgf_test PRIVATE
+    -fsycl
+    -fsycl-targets=${SYCL_TARGETS}
+    -Xsycl-target-backend=nvptx64-nvidia-cuda
+    --cuda-gpu-arch=${SYCL_CUDA_ARCH}
+  )
+
+  target_link_libraries(ifgf_test
+    PUBLIC Eigen3::Eigen
+    PRIVATE TBB::tbb
+    PRIVATE ifgf_core
+  )
+
+  add_sycl_to_target(
+    TARGET ifgf_test
+    SOURCES ./test/ifgf_test.cpp
+  )
+endif()
