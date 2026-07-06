@@ -5,15 +5,27 @@
 
 #define HIGH_EXP_CUTOFF 50  //constant where exp(-x) is considered zero  to avoid NaNs/denormalized numbers
 
+// Switch to either compute kernels in RealScalar or double precision
+// Allows to keep PointScalar double while computing expensive Kernels in FP32
+// Frequent sqrt computation is very expensive on A40 in FP64
+
+#ifdef KERNEL_HIGH_PRECISION
+    typedef double KernelComputeScalar;
+#else
+    typedef RealScalar KernelComputeScalar;
+#endif
+
 class ModifiedHelmholtzKernelFunctions
 {
     typedef std::complex<RealScalar> T;
+    typedef KernelComputeScalar Kp;
+    typedef std::complex<Kp>    Tk;
     const static  int dim=3;
     typedef Eigen::Array<PointScalar, dim, Eigen::Dynamic> PointArray;
     typedef Eigen::Vector<PointScalar,dim> Point;
 
     // 1/(4*pi), hardcoded as RealScalar, avoids frequent recomputation on GPU
-    static constexpr RealScalar INV_4PI = RealScalar(0.07957747154594766788444188168625718L);
+    static constexpr Kp INV_4PI = Kp(0.07957747154594766788444188168625718L);
 
 public:
     ModifiedHelmholtzKernelFunctions(std::complex<RealScalar> waveNr):
@@ -22,15 +34,16 @@ public:
     }
 
 
-    inline T kernelFunction(const sycl::marray<PointScalar,3>& x) const
+    inline T kernelFunction(const sycl::marray<Kp,3>& x) const
     {
-        RealScalar d = sycl::sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-        const RealScalar kr = k.real();
-        const RealScalar ki = k.imag();
-       if(std::abs(d)<=RealScalar(1e-15)  || d*kr > RealScalar(HIGH_EXP_CUTOFF)) {
+        const Kp d = sycl::sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
+        const Kp kr = Kp(k.real());
+        const Kp ki = Kp(k.imag());
+        if(sycl::fabs(d)<=Kp(1e-15)  || d*kr > Kp(HIGH_EXP_CUTOFF)) {
             return RealScalar(0.0);
         }
-	return INV_4PI * T(sycl::exp(-kr*d))* T(sycl::cos(ki*d),-sycl::sin(ki*d)) / (d);
+        const Tk val = Kp(INV_4PI) * Tk(sycl::exp(-kr*d)) * Tk(sycl::cos(ki*d),-sycl::sin(ki*d)) / d;
+        return T(RealScalar(val.real()), RealScalar(val.imag()));
     }
 
 
@@ -41,10 +54,10 @@ public:
     {
 	T result=0;
 
-	sycl::marray<PointScalar,3> pnt;
+	sycl::marray<Kp,3> pnt;
 	for (size_t i = x0; i < xend; i++) {
 	    for(int l=0;l<dim;l++)  {
-		pnt[l]=xs[i*dim+l]-ys[y0*dim+l];
+		pnt[l]=Kp(xs[i*dim+l])-Kp(ys[y0*dim+l]);
 	    }
 	    result += ws[i] * kernelFunction(pnt);	
         }
@@ -61,17 +74,25 @@ public:
 
 	T result=0;
 
-	sycl::marray<PointScalar,3> pnt{y[0]-xc[0],y[1]-xc[1],y[2]-xc[2]};
-	RealScalar dc = sycl::sqrt(pnt[0]*pnt[0]+pnt[1]*pnt[1]+pnt[2]*pnt[2]);
+	const Kp dcx=Kp(y[0])-Kp(xc[0]);
+	const Kp dcy=Kp(y[1])-Kp(xc[1]);
+	const Kp dcz=Kp(y[2])-Kp(xc[2]);
+	const Kp dc = sycl::sqrt(dcx*dcx+dcy*dcy+dcz*dcz);
 
-	const RealScalar kr = k.real();
-	const RealScalar ki = k.imag();
+	const Kp kr = Kp(k.real());
+	const Kp ki = Kp(k.imag());
 
 	for(size_t i=x0;i<xend;i++) {
-	    sycl::marray<PointScalar,3> p{xs[i*dim]-y[0],xs[i*dim+1]-y[1],xs[i*dim+2]-y[2]};
-	    RealScalar d = sycl::sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+	    const Kp px=Kp(xs[i*dim])   - Kp(y[0]);
+	    const Kp py=Kp(xs[i*dim+1]) - Kp(y[1]);
+	    const Kp pz=Kp(xs[i*dim+2]) - Kp(y[2]);
+	    const Kp d = sycl::sqrt(px*px+py*py+pz*pz);
 
-	    result += (abs(d)<RealScalar(1e-15) ) ? T(RealScalar(0)) :  ws[i] *  T(sycl::exp(-kr*(d-dc)))*T(sycl::cos(ki*(d-dc)),-sycl::sin(ki*(d-dc))) * (dc) / d;
+	    if(sycl::fabs(d)<Kp(1e-15)) continue;
+
+	    const Kp ddc = d-dc;
+	    const Tk val = Tk(sycl::exp(-kr*ddc)) * Tk(sycl::cos(ki*ddc),-sycl::sin(ki*ddc)) * (dc/d);
+	    result += ws[i] * T(RealScalar(val.real()), RealScalar(val.imag()));
 	}
 	return result;
     }
@@ -80,48 +101,45 @@ public:
     template<typename TX>
     inline T CF(TX x) const
     {
-	const RealScalar d2 = x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
+	const Kp d2 = Kp(x[0])*Kp(x[0])+Kp(x[1])*Kp(x[1])+Kp(x[2])*Kp(x[2]);
 
-	if(abs(d2)<RealScalar(1e-14)) {
+	if(sycl::fabs(d2)<Kp(1e-14)) {
 	    return 0;
 	}
 
+	const Kp id=Kp(1)/(sycl::sqrt(d2));
+	const Kp d=d2*id;
+	const Kp kr = Kp(k.real());
+	const Kp ki = Kp(k.imag());
 
-	const RealScalar id=RealScalar(1)/(sycl::sqrt(d2));
-	const RealScalar d=d2*id;
-	const RealScalar kr = k.real();
-	const RealScalar ki = k.imag();
-
-        
-        /*if(d*k.real()>HIGH_EXP_CUTOFF)
-        {
-            return 0.0;
-        }*/
-
-	return T(sycl::exp(-kr*d))*T(sycl::cos(ki*d),-sycl::sin(ki*d))*id  *INV_4PI;
-
+	const Tk val = Tk(sycl::exp(-kr*d))*Tk(sycl::cos(ki*d),-sycl::sin(ki*d))*id*Kp(INV_4PI);
+	return T(RealScalar(val.real()), RealScalar(val.imag()));
     }
 
     
     template<typename TX , typename TY>
     inline T transfer_factor(TX x, TY xc, PointScalar H, TY pxc, PointScalar pH) const
     {
-	auto z=x-xc;
-	auto zp=x-pxc;
-	const RealScalar d = sycl::sqrt(z[0]*z[0]+z[1]*z[1]+z[2]*z[2]);
-	const RealScalar dp = sycl::sqrt(zp[0]*zp[0]+zp[1]*zp[1]+zp[2]*zp[2]);
+	const Kp zx=Kp(x[0])-Kp(xc[0]);
+	const Kp zy=Kp(x[1])-Kp(xc[1]);
+	const Kp zz=Kp(x[2])-Kp(xc[2]);
+	const Kp zpx=Kp(x[0])-Kp(pxc[0]);
+	const Kp zpy=Kp(x[1])-Kp(pxc[1]);
+	const Kp zpz=Kp(x[2])-Kp(pxc[2]);
 
-	if(abs(d)<RealScalar(1e-15) ) {
+	const Kp d  = sycl::sqrt(zx*zx+zy*zy+zz*zz);
+	const Kp dp = sycl::sqrt(zpx*zpx+zpy*zpy+zpz*zpz);
+
+	if(sycl::fabs(d)<Kp(1e-15) ) {
 	    return 0;
 	}
-        /*if((d-dp)*k.imag() <- HIGH_EXP_CUTOFF) { //truncate the transfer factor at around 10^16
-    	        return T(exp(HIGH_EXP_CUTOFF))*T(sycl::cos(k.imag()*(d-dp)),-sycl::sin(k.imag()*(d-dp)))*dp/d;
-        }*/
 
-	const RealScalar kr = k.real();
-	const RealScalar ki = k.imag();
-	return T(sycl::exp(-kr*(d-dp)))*T(sycl::cos(ki*(d-dp)),-sycl::sin(ki*(d-dp)))*dp/d;
-	
+	const Kp kr = Kp(k.real());
+	const Kp ki = Kp(k.imag());
+	const Kp ddp = d-dp;
+
+	const Tk val = Tk(sycl::exp(-kr*ddp))*Tk(sycl::cos(ki*ddp),-sycl::sin(ki*ddp))*(dp/d);
+	return T(RealScalar(val.real()), RealScalar(val.imag()));
     }
 
 
@@ -129,7 +147,7 @@ public:
 
 
 private:
-    T k;
+    std::complex<Kp> k;
 };
 
 
@@ -168,7 +186,7 @@ public:
 
         std::cout<<"minSigma="<<minSigma<<std::endl;
         if(maxk<0) {
-	    maxk=0.5 * std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
+	    maxk=0.136 * std::abs(k.imag())/std::max((RealScalar) 1.0,k.real());
             std::cout<<"maxk="<<maxk<<std::endl;
 	}
 

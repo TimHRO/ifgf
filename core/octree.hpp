@@ -12,6 +12,7 @@
 #include <map>
 #include <sys/types.h>
 #include <vector>
+#include <algorithm> // sorting
 #include <execution>
 #include <iostream>
 
@@ -1337,6 +1338,9 @@ public:
     activeCones_vec(std::move(octree.m_activeCones[level][1])),
     activeCones(activeCones_vec),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
+    memBoxStart(sycl::range<1>(octree.numBoxes(level)+1)),
+    memEl(sycl::range<1>(1)),
+    memGid(sycl::range<1>(1)),
     childBoxes(octree.numChildBoxes(level)),
     childrenPerBox(octree.numChildBoxes(level)/octree.numBoxes(level))
     {
@@ -1396,6 +1400,49 @@ public:
 	}
 	m_numBoxes = octree.numBoxes(level);
 
+	// Build CSR cone map, for each box store active (el -> globalId) pairs
+	// Sort them by el such that binary search can be applied
+	{
+	    const auto& maps = octree.coneMaps(level); // vector<map<el,globalId>>, one per box
+	    const size_t nBoxes = octree.numBoxes(level);
+
+	    // Count total entries and per-box offsets.
+	    std::vector<size_t> startVec(nBoxes+1, 0);
+	    size_t total=0;
+	    for(size_t box=0; box<nBoxes; ++box) {
+		startVec[box]=total;
+		total += maps[box].size();
+	    }
+	    startVec[nBoxes]=total;
+
+	    // at least size 1 to keep buffers alive
+	    memEl  = sycl::buffer<size_t,1>(sycl::range<1>(std::max<size_t>(total,1)));
+	    memGid = sycl::buffer<size_t,1>(sycl::range<1>(std::max<size_t>(total,1)));
+
+	    sycl::host_accessor msA(memBoxStart, sycl::write_only);
+	    sycl::host_accessor meA(memEl,       sycl::write_only);
+	    sycl::host_accessor mgA(memGid,      sycl::write_only);
+
+	    for(size_t box=0; box<=nBoxes; ++box)
+			msA[box]=startVec[box];
+
+	    for(size_t box=0; box<nBoxes; ++box) {
+			std::vector<std::pair<size_t,size_t>> entries;
+			entries.reserve(maps[box].size());
+			for(const auto& kv : maps[box].values())
+				entries.emplace_back(kv.first, kv.second);
+			std::sort(entries.begin(), entries.end(),
+				[](const auto& a, const auto& b){ return a.first < b.first; });
+
+			size_t off=startVec[box];
+			for(const auto& e : entries) {
+				meA[off]=e.first;
+				mgA[off]=e.second;
+				++off;
+			}
+	    }
+	}
+
 	//std::cout<<"done"<<std::endl;
 
     }
@@ -1420,7 +1467,9 @@ public:
 	    boxCenters(data.boxCenters,h),
 	    boxSizes(data.boxSizes,h),
 	    activeCones(data.activeCones,h),
-	    coneMap(data.coneMap.accessor(h)),
+	    memBoxStart(data.memBoxStart,h),
+	    memEl(data.memEl,h),
+	    memGid(data.memGid,h),
 	    childBoxes(data.childBoxes,h),
 	    childrenPerBox(data.childrenPerBox)
 	{
@@ -1515,7 +1564,17 @@ public:
 	
 
 	size_t memId(size_t box, size_t el) const {
-	    return coneMap.find(box,el);
+	    // Find el with binary search
+	    size_t lo = memBoxStart[box];
+	    size_t hi = memBoxStart[box+1];
+	    while(lo < hi) {
+		const size_t mid = lo + ((hi-lo)>>1);
+		const size_t e = memEl[mid];
+		if(e == el)      return memGid[mid];
+		else if(e < el)  lo = mid+1;
+		else             hi = mid;
+	    }
+	    return SIZE_MAX;
 	}
 
 	
@@ -1566,7 +1625,10 @@ public:
 	sycl::accessor< SyclConeDomain<DIM> ,1,sycl::access_mode::read> coneDomains1;
 
 	
-	SyclHelpers::SyclIndexMap<size_t >::Accessor  coneMap;
+	// CSR cone map accessors (replace coneMap.find for memId)
+	sycl::accessor< size_t,1,sycl::access_mode::read> memBoxStart;
+	sycl::accessor< size_t,1,sycl::access_mode::read> memEl;
+	sycl::accessor< size_t,1,sycl::access_mode::read> memGid;
 
 	sycl::accessor< size_t ,1,sycl::access_mode::read> childBoxes;
 	size_t childrenPerBox;
@@ -1642,6 +1704,10 @@ private:
     
 
     SyclHelpers::SyclIndexMap<size_t> coneMap;
+
+    sycl::buffer<size_t,1> memBoxStart; // [numBoxes+1] offsets
+    sycl::buffer<size_t,1> memEl;       // [totalEntries] element indices (sorted per box)
+    sycl::buffer<size_t,1> memGid;      // [totalEntries] corresponding globalIds
 
 
     sycl::buffer<size_t,1> childBoxes;

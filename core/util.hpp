@@ -9,6 +9,7 @@
 #include <oneapi/tbb/parallel_for.h>
 #include <tbb/parallel_sort.h>
 #include <execution>
+#include <sycl/sycl.hpp>
 
 namespace Util
 {
@@ -108,13 +109,13 @@ namespace Util
     inline void interpToCart(const sycl::marray<PointScalar,DIM>& p, sycl::marray<PointScalar,DIM>& res, const sycl::marray<PointScalar,DIM>& xc, PointScalar H)
     {
         if constexpr(DIM==2) {
-	    res[0]= xc[0]+(H/p[0])*cos(p[1]);
-	    res[1]= xc[1]+(H/p[0])*sin(p[1]);
+	    res[0]= xc[0]+(H/p[0])*sycl::cos(p[1]);
+	    res[1]= xc[1]+(H/p[0])*sycl::sin(p[1]);
         }else {
             static_assert(DIM==3);
-	    res[0]=xc[0]+(H/p[0])*cos(p[2])*sin(p[1]);
-	    res[1]=xc[1]+(H/p[0])*sin(p[2])*sin(p[1]);
-	    res[2]=xc[2]+(H/p[0])*cos(p[1]);	    
+	    res[0]=xc[0]+(H/p[0])*sycl::cos(p[2])*sycl::sin(p[1]);
+	    res[1]=xc[1]+(H/p[0])*sycl::sin(p[2])*sycl::sin(p[1]);
+	    res[2]=xc[2]+(H/p[0])*sycl::cos(p[1]);	    
         }
     }
 
@@ -189,22 +190,20 @@ namespace Util
     template<size_t DIM>
     inline void cartToInterp(const sycl::marray<PointScalar,DIM>& p, sycl::marray<PointScalar,DIM>& res, const sycl::marray<PointScalar,DIM>& xc, PointScalar H)
     {
-	//This part we do in double precision.
-	sycl::marray<double, DIM> xp=p-xc;
+	sycl::marray<PointScalar, DIM> xp=p-xc;
         if constexpr (DIM==2) {
-	    const PointScalar r = sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
-
-	    const long double theta = atan2( (long double) xp[1], (long double) xp[0]);
+	    const PointScalar r = sycl::sqrt(xp[0]*xp[0]+xp[1]*xp[1]);
+	    const PointScalar theta = sycl::atan2(xp[1], xp[0]);
             
             res[0] = H/r;
             res[1] = theta ;
 
         }else{
             static_assert(DIM==3);
-            const double phi = atan2(xp[1], xp[0]);
-            const double a=(xp[0]*xp[0]+xp[1]*xp[1]);
-            const double theta= atan2(sqrt(a),xp[2]);
-            const double r= sqrt(a+xp[2]*xp[2]);
+            const PointScalar phi = sycl::atan2(xp[1], xp[0]);
+            const PointScalar a=(xp[0]*xp[0]+xp[1]*xp[1]);
+            const PointScalar theta= sycl::atan2(sycl::sqrt(a),xp[2]);
+            const PointScalar r= sycl::sqrt(a+xp[2]*xp[2]);
 
 
             res[0] = H/r;

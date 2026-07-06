@@ -143,7 +143,63 @@ namespace SyclChebychevInterpolation
 	}
     }
 
-        
+    template <typename Tc, int DIM, int DIMX, int MAX_ORDER, typename SrcType>
+    void chebtransform_impl_lp(const SrcType &src,
+                            sycl::marray<Tc, max_buffer_size<DIM>(MAX_ORDER) > & dest,
+                            const std::array<int,DIMX>& ns,
+                            const sycl::accessor< PointScalar,1, sycl::access_mode::read>& cv,
+                            size_t offset,
+                            size_t dest_offset,
+                            size_t cv_offset
+		       )
+    {
+	using Rc = float;   // Chebyshev factors in float
+
+	int nsigma=1;
+	for(int i=0;i<DIM-1;i++)
+	    nsigma*=ns[i];
+	if constexpr(DIM==1) {
+	    nsigma=1;
+	}
+	const int stride=nsigma;
+
+	dest=0;
+	assert(ns[DIM-1]<=MAX_ORDER);
+	const size_t Nd=ns[DIM-1];
+
+	if constexpr(DIM==1) {
+	    for(size_t idx=0;idx<ns[0];idx++) {
+		Tc acc=Tc(0);
+		for(size_t sigma=0;sigma<ns[0];sigma++)  {
+		    const Rc Td=Rc(cv[cv_offset+idx*Nd+sigma]);
+		    assert(nsigma==1);
+		    acc += Tc(src[offset+sigma])*Tc(Td);
+		}
+		acc *= Tc(Rc((idx ==0 ? 1.f:2.f )*(1.f/ns[0])));
+		dest[dest_offset+idx]=acc;
+	    }
+	}else {
+	    std::array<sycl::marray<Tc, max_buffer_size<DIM-1>(MAX_ORDER) >, MAX_ORDER > M;
+	    for(size_t idx=0;idx<ns[DIM-1];idx++) {
+		chebtransform_impl_lp<Tc,DIM-1,DIMX,MAX_ORDER>(src,
+				       M[idx], ns, cv,
+				       offset+idx*stride, 0, cv_offset+Nd*Nd);
+	    }
+	    for(size_t idx=0;idx<ns[DIM-1];idx++) {
+		for(size_t l=0;l<nsigma;l++) {
+		    Tc acc=Tc(0);
+		    for(size_t sigma=0;sigma<ns[DIM-1];sigma++)  {
+			const Rc Td=Rc(cv[cv_offset+idx*Nd+sigma]);
+			acc += M[sigma][l]*Tc(Td);
+		    }
+		    acc *= Tc(Rc((idx ==0 ? 1.f:2.f )*(1.f/ns[DIM-1])));
+		    dest[dest_offset+idx*stride+l]=acc;
+		}
+	    }
+	}
+    }
+
+
     template <typename T, int DIM, int MAX_ORDER,typename BufType>
     void chebtransform_inplace(BufType &buf,
 			       const std::array<int,DIM>& ns,
@@ -160,6 +216,27 @@ namespace SyclChebychevInterpolation
 	    size*=ns[i];
 	}
 	std::copy(tmp.begin(),tmp.begin()+size,buf.begin()+offset);
+    }
+
+
+    template <typename T, int DIM, int MAX_ORDER,typename BufType>
+    void chebtransform_inplace_lp(BufType &buf,
+			       const std::array<int,DIM>& ns,
+			       const sycl::accessor<PointScalar,1, sycl::access_mode::read>& cv,
+			       size_t offset
+			       )
+    {
+	using Tc = std::complex<float>;   // float compute type
+	sycl::marray<Tc, max_buffer_size<DIM>(MAX_ORDER)> tmp;
+	tmp=0;
+	chebtransform_impl_lp<Tc,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,offset,0,0);
+
+	size_t size=1;
+	for(int i=0;i<DIM;i++) {
+	    size*=ns[i];
+	}
+	for(size_t i=0;i<size;i++)
+	    buf[offset+i]=T(tmp[i]);
     }
 
 

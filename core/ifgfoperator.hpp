@@ -356,6 +356,8 @@ public:
 		    const size_t stride = ho_chebNodes.cols();
 		    const size_t numLeafCones = m_octree->numLeafCones(level);
 
+		    const size_t numHoCones = m_octree->numActiveCones(level,1);
+
 		    // Exploid shared loacal memory, all near-field stay in SLM of one leaf cone
 		    // Each thread in one workgroup is mapped to one chebyshev node, soure and box data is cached
 		    sycl::local_accessor<PointScalar, 1> l_srcs(   sycl::range<1>(m_maxLeafSize * DIM), h);
@@ -391,14 +393,14 @@ public:
 			    const sycl::marray<PointScalar, DIM> center = srcDataAcc.boxCenter(boxId);
 			    const PointScalar H  = srcDataAcc.boxSize(boxId);
 			    const auto grid      = srcDataAcc.coneDomain(boxId, 1);
-			    const size_t offset  = ref.globalId() * stride;
+			    const size_t gid = ref.globalId();
 
 			    sycl::marray<PointScalar, DIM> transformed;
 			    sycl::marray<PointScalar, DIM> transformed2;
 			    grid.transform(ref.id(), a_hoChebNodes, transformed, j);
 			    Util::interpToCart(transformed, transformed2, center, H);
 
-			    a_intData[j + offset] = functions.evaluateFactoredKernel(
+			    a_intData[j*numHoCones + gid] = functions.evaluateFactoredKernel(
 				l_srcs, 0, nS, transformed2, l_weights, center, H);
 			});
 		 });
@@ -462,13 +464,10 @@ public:
 			    if( ! srcDataAcc.hasFarTargetsIncludingAncestors(hoCone.boxId()))
 				return;
 
-			    const size_t int_data_offset=coneId*ho_stride;
-
-			    
-			    // a_intData is raw data, run cheb transform inside here
+			    // Coalesced coarse read from transposed a_intData layout
 			    sycl::marray<T,MAX_HO_STRIDE> coarse;
 			    for(size_t s=0;s<ho_stride;s++)
-				coarse[s]=a_intData[int_data_offset+s];
+				coarse[s]=a_intData[s*numActiveCones + coneId];
 
 			    SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( coarse, ns, a_hoChebvals, 0);
 
@@ -510,7 +509,7 @@ public:
 									 tmp,
 									 fineMemId*fine_stride, 0);
 
-				SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_ORDER>( a_parentIntData, lo_ns, a_chebvals, fineMemId*fine_stride);
+				SyclChebychevInterpolation::chebtransform_inplace<T,DIM,MAX_LOW_ORDER>( a_parentIntData, lo_ns, a_chebvals, fineMemId*fine_stride);
 			    }
 			});
 		    
@@ -636,8 +635,8 @@ public:
 
 		sycl::accessor a_hoChebNodes(b_hoChebNodes,h,sycl::read_only);
 		
-		const auto &srcDataAcc = srcData->accessor(h);
-		const auto &parentDataAcc = parentData->accessor(h);
+		const auto srcDataAcc = srcData->accessor(h);
+		const auto parentDataAcc = parentData->accessor(h);
 	
 		
 		const size_t stride=ho_chebNodes.cols();
@@ -663,8 +662,9 @@ public:
 			return;
 		    }
 
+		    // Transposed a_parentIntData[j*numParentCones + i]
 		    for(size_t j=0;j<stride;j++)
-			a_parentIntData[i*stride+j]=0;
+			a_parentIntData[j*numActiveParentCones + i]=0;
 
 		    // Child loop is now outer, center/H/grid are loaded once per child
 		    // and stay in registers across all stride iterations below,
@@ -702,7 +702,7 @@ public:
 
 				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
 
-				a_parentIntData[i*stride+j]+=res*TF;
+				a_parentIntData[j*numActiveParentCones + i]+=res*TF;
 			    }
 			}
 		    }

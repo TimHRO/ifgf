@@ -379,9 +379,9 @@ public:
 
 
 	    
-	    PointScalar b=m_min[j]+(idx+0.5)*m_h[j];	
+	    PointScalar b=m_min[j]+(idx+PointScalar(0.5))*m_h[j];	
 	    
-	    dest[j]=(0.5*pnts[i*DIM+j]*m_h[j])+b;	    
+	    dest[j]=(PointScalar(0.5)*pnts[i*DIM+j]*m_h[j])+b;	    
 	}
 
     }
@@ -398,8 +398,8 @@ public:
 
 
 	    
-	    PointScalar b=m_min[j]+(idx+0.5)*m_h[j];	
-	    PointScalar a=0.5*m_h[j];
+	    PointScalar b=m_min[j]+(idx+PointScalar(0.5))*m_h[j];	
+	    PointScalar a=PointScalar(0.5)*m_h[j];
 	    
 	    dest[j]=(pnt[j]-b)/a;	    
 	}
@@ -444,7 +444,7 @@ public:
 	int stride=1;
    
 	for(int j=0;j<DIM;j++) {	    
-	    const int q=std::floor( (pnt[j]-m_min[j])/m_h[j]);
+	    const int q=(int)sycl::floor( (pnt[j]-m_min[j])/m_h[j]);
 	    
 
 	    const size_t ij=( std::clamp(q,0, (int) ( m_numEls[j]-1)));
