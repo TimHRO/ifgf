@@ -25,6 +25,7 @@
 #include <iostream>
 
 #include <memory>
+#include <optional>
 
 
 template<int DIM>
@@ -41,6 +42,36 @@ constexpr int _CtFBufferSize(int order,int high_order)
     }
 	
     return buffer_size;
+}
+
+
+// empty placeholder
+struct NoNormals {};
+
+// Returns a real read accessor when the kernel uses normals, otherwise the
+// empty NoNormals placeholder. Nothing is allocated in case of no normals
+template<typename Derived, typename BufOpt>
+inline auto makeNormalsAccessor(BufOpt& b_normals, sycl::handler& h)
+{
+    if constexpr (Derived::HAS_NORMALS) {
+	return sycl::accessor(*b_normals, h, sycl::read_only);
+    } else {
+	(void)b_normals; (void)h;
+	return NoNormals{};
+    }
+}
+
+// Local-memory for normals when needed
+// otherwise the empty tag, no shared local memory is reserved at all
+template<typename Derived>
+inline auto makeLocalNormals(size_t n, sycl::handler& h)
+{
+    if constexpr (Derived::HAS_NORMALS) {
+	return sycl::local_accessor<PointScalar, 1>(sycl::range<1>(n), h);
+    } else {
+	(void)n; (void)h;
+	return NoNormals{};
+    }
 }
 
 
@@ -102,7 +133,7 @@ public:
 
 	}
 
-	static_cast<Derived *>(this)->onOctreeReady();
+	//static_cast<Derived *>(this)->onOctreeReady();
         //m_octree->sanitize();
 
         m_numTargets = targets.cols();
@@ -131,6 +162,9 @@ public:
 	    m_octree=std::make_shared<FlatOctree<T,DIM> >(*tmp_src_octree,*tmp_target_octree);
 	    
 	}
+
+	// sort normals at the very end (sorting happens in onOctreeReady)
+	static_cast<Derived *>(this)->onOctreeReady();
 	
 	std::cout<<"done initializing"<<std::endl;
     }
@@ -147,7 +181,7 @@ public:
 	case 4:  return mult_impl<4>(weights);
 	case 5:  
  	case 6:  return mult_impl<6>(weights);
-	case 7:  
+	case 7:  return mult_impl<7>(weights);
 	case 8:  return mult_impl<8>(weights);
 	case 10:  return mult_impl<10>(weights);
 	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
@@ -181,6 +215,13 @@ public:
 	sycl::buffer<const T, 1> b_weights(new_weights.data(),weights.size());
 	sycl::buffer<const PointScalar, 1> b_srcs(m_octree->srcPoints().data(),m_octree->srcPoints().cols()*DIM);
 	sycl::buffer<const PointScalar, 1> b_targets(m_octree->targetPoints().data(),m_octree->targetPoints().cols()*DIM);
+
+	// Normals buffer exists ONLY for kernels that use normals
+	std::optional<sycl::buffer<const PointScalar, 1> > b_normals;
+	if constexpr (Derived::HAS_NORMALS) {
+	    b_normals.emplace(static_cast<Derived *>(this)->sourceNormalsData(),
+			      m_octree->srcPoints().cols()*DIM);
+	}
 
 	sycl::buffer<T, 1> b_result(result.data(),result.size());       
 
@@ -293,6 +334,9 @@ public:
 		    const auto functions =
 			static_cast<Derived *>(this)->kernelFunctions();
 
+		    // Accessor for normal-dependent kernels, empty tag type otherwise
+		    // occupies no memory and generates no loads on the device
+		    auto a_normals = makeNormalsAccessor<Derived>(b_normals, h);
 
 		    //auto out = sycl::stream(1024, 768, h);
 		    const size_t num_targets=m_octree->targetPoints().cols();
@@ -312,7 +356,7 @@ public:
 					   }
 			  
 					   a_result[i]+=functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
-										 a_targets, i, a_weights);
+										 a_targets, i, a_weights, a_normals);
 				       }
 				   });
 		});
@@ -353,6 +397,8 @@ public:
 		    const auto functions =
 			static_cast<Derived *>(this)->kernelFunctions();
 
+		    auto a_normals = makeNormalsAccessor<Derived>(b_normals, h);
+
 		    const size_t stride = ho_chebNodes.cols();
 		    const size_t numLeafCones = m_octree->numLeafCones(level);
 
@@ -362,6 +408,8 @@ public:
 		    // Each thread in one workgroup is mapped to one chebyshev node, soure and box data is cached
 		    sycl::local_accessor<PointScalar, 1> l_srcs(   sycl::range<1>(m_maxLeafSize * DIM), h);
 		    sycl::local_accessor<T, 1>           l_weights(sycl::range<1>(m_maxLeafSize),       h);
+		    // no shared local memory is reserved when the kernel has no normals
+		    auto l_normals = makeLocalNormals<Derived>(m_maxLeafSize * DIM, h);
 
 		    // One work-group per leaf cone, stride threads per group
 		    h.parallel_for(
@@ -386,6 +434,10 @@ public:
 				for(int d = 0; d < DIM; d++)
 				    l_srcs[s * DIM + d] = a_srcs[(srcs.first + s) * DIM + d];
 				l_weights[s] = a_weights[srcs.first + s];
+				if constexpr (Derived::HAS_NORMALS) {
+				    for(int d = 0; d < DIM; d++)
+					l_normals[s * DIM + d] = a_normals[(srcs.first + s) * DIM + d];
+				}
 			    }
 			    it.barrier(sycl::access::fence_space::local_space);
 
@@ -401,7 +453,7 @@ public:
 			    Util::interpToCart(transformed, transformed2, center, H);
 
 			    a_intData[j*numHoCones + gid] = functions.evaluateFactoredKernel(
-				l_srcs, 0, nS, transformed2, l_weights, center, H);
+				l_srcs, 0, nS, transformed2, l_weights, l_normals, center, H);
 			});
 		 });
 		//Q.wait();
@@ -786,6 +838,8 @@ public:
     bool farfieldCanBeSkipped(PointScalar H) const {    
          return false;
     }
+
+	static constexpr bool HAS_NORMALS = false;
 
 protected:
     void onOctreeReady()

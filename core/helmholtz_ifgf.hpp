@@ -28,10 +28,11 @@ public:
 
 
     
-    template <typename AT1,typename AT2,typename AT3>
+    template <typename AT1,typename AT2,typename AT3, typename AT4>
     T evaluateKernel(const AT1& xs, size_t x0, size_t xend, const AT2& ys, size_t y0,
-			     const AT3& ws)  const
+			     const AT3& ws, const AT4& ns)  const
     {
+	(void) ns;
 	T result=0;
 
 	sycl::marray<PointScalar,3> pnt;
@@ -46,12 +47,12 @@ public:
 
 
 
-    template <typename AT1,typename AT2>
+    template <typename AT1,typename AT2, typename AT3>
     T  evaluateFactoredKernel(
 			      const AT1& xs, size_t x0, size_t xend, const sycl::marray<PointScalar,dim>& y,
-			      const AT2& ws, const sycl::marray<PointScalar,dim>& xc, PointScalar H) const
+			      const AT2& ws, const AT3& ns, const sycl::marray<PointScalar,dim>& xc, PointScalar H) const
     {
-
+    (void) ns;
 	T result=0;
 
 	sycl::marray<PointScalar,3> pnt{y[0]-xc[0],y[1]-xc[1],y[2]-xc[2]};
