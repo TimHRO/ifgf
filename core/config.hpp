@@ -4,8 +4,9 @@
 #define MIN_RECURSIVE_BOXES 32
 
 
-#define PointScalar float
+#define PointScalar double
 typedef float  RealScalar;
+#define KERNEL_HIGH_PRECISION
 //#define  RECURSIVE_MULT
 //#define CHECK_CONNECTIVITY
 //#define BE_FAST

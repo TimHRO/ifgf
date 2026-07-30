@@ -1,241 +1,301 @@
 #include "ifgf_library.hpp"
 
 #include <Eigen/Dense>
+#include <cassert>
+#include <cmath>
 #include <iostream>
 
-#include <cmath>
-
-#include <cassert>
-#include <chrono>
-#include <cstdlib>
-#include <fenv.h>
-#include <oneapi/tbb/blocked_range.h>
-#include <random>
-#include <tbb/global_control.h>
-#include <tbb/task_arena.h>
-
-#include "combined_field_helmholtz_ifgf.hpp"
 #include "config.hpp"
-#include "double_layer_helmholtz_ifgf.hpp"
-#include "helmholtz_ifgf.hpp"
+#include "helmholtz_operators.hpp"
 #include "ifgfoperator.hpp"
-#include "modified_helmholtz_ifgf.hpp"
 #include "octree.hpp"
 
 namespace ifgf {
 
-class HIfgfSLPrivate {
-public:
-  std::unique_ptr<HelmholtzIfgfOperator<3>> ptr;
+namespace {
+
+typedef Eigen::Array<PointScalar, 3, Eigen::Dynamic> PointArray;
+
+static inline PointArray make_points(const double* p, size_t n)
+{
+    Eigen::Map<const Eigen::Array<double, 3, Eigen::Dynamic>> m(p, 3, n);
+    return m.cast<PointScalar>();   // no-op copy if PointScalar == double
+}
+
+// Public wavenumber is std::complex<double>; internal is std::complex<RealScalar>
+static inline std::complex<RealScalar> to_internal_k(std::complex<double> k)
+{
+    return std::complex<RealScalar>(RealScalar(k.real()), RealScalar(k.imag()));
+}
+
+
+
+
+// operators without normals
+struct OpNoNormals {
+    virtual ~OpNoNormals() = default;
+    virtual void init(const Eigen::Ref<const PointArray>& srcs,
+                      const Eigen::Ref<const PointArray>& targets) = 0;
+    virtual void mult(const std::complex<RealScalar>* w, size_t nw,
+                      std::complex<RealScalar>* out, size_t nt) = 0;
 };
 
-HelmholtzSL3D::HelmholtzSL3D(RealScalar waveNumber, size_t leafSize,
-                             size_t order, size_t n_elem, PointScalar tol) {
-  d = std::make_unique<HIfgfSLPrivate>();
-  d->ptr = std::make_unique<HelmholtzIfgfOperator<3>>(waveNumber, leafSize,
-                                                      order, n_elem, tol);
+template <typename Op>
+struct OpNoNormalsImpl final : OpNoNormals {
+    Op op;
+
+    template <typename... Args>
+    explicit OpNoNormalsImpl(Args&&... args) : op(std::forward<Args>(args)...) {}
+
+    void init(const Eigen::Ref<const PointArray>& srcs,
+              const Eigen::Ref<const PointArray>& targets) override
+    {
+        op.init(PointArray(srcs), PointArray(targets));
+    }
+
+    void mult(const std::complex<RealScalar>* w, size_t nw,
+              std::complex<RealScalar>* out, size_t nt) override
+    {
+        Eigen::Map<const Eigen::Vector<std::complex<RealScalar>, Eigen::Dynamic>>
+            e_w(w, nw);
+        Eigen::Map<Eigen::Array<std::complex<RealScalar>, Eigen::Dynamic, 1>>
+            e_out(out, nt);
+        e_out = op.mult(e_w);
+    }
+};
+
+// operators with normals
+struct OpWithNormals {
+    virtual ~OpWithNormals() = default;
+    virtual void init(const Eigen::Ref<const PointArray>& srcs,
+                      const Eigen::Ref<const PointArray>& targets,
+                      const Eigen::Ref<const PointArray>& normals) = 0;
+    virtual void mult(const std::complex<RealScalar>* w, size_t nw,
+                      std::complex<RealScalar>* out, size_t nt) = 0;
+};
+
+template <typename Op>
+struct OpWithNormalsImpl final : OpWithNormals {
+    Op op;
+
+    template <typename... Args>
+    explicit OpWithNormalsImpl(Args&&... args) : op(std::forward<Args>(args)...) {}
+
+    void init(const Eigen::Ref<const PointArray>& srcs,
+              const Eigen::Ref<const PointArray>& targets,
+              const Eigen::Ref<const PointArray>& normals) override
+    {
+        op.init(PointArray(srcs), PointArray(targets), PointArray(normals));
+    }
+
+    void mult(const std::complex<RealScalar>* w, size_t nw,
+              std::complex<RealScalar>* out, size_t nt) override
+    {
+        Eigen::Map<const Eigen::Vector<std::complex<RealScalar>, Eigen::Dynamic>>
+            e_w(w, nw);
+        Eigen::Map<Eigen::Array<std::complex<RealScalar>, Eigen::Dynamic, 1>>
+            e_out(out, nt);
+        e_out = op.mult(e_w);
+    }
+};
+
+// A real wavenumber means no decay, reduce instantiation
+// TODO keep this or remove decayisRealPart since it is always
+inline bool isPurelyOscillatory(const std::complex<double>& k,
+                                bool decayIsRealPart)
+{
+    return decayIsRealPart ? (k.real() == 0.0)
+                           : (k.imag() == 0.0);
+}
+
+// what if ngsolve uses double weights and results but ifgf should use RealScalar float
+// mult_cast does internal cast
+template <typename Holder, typename Scalar>
+inline void mult_cast(Holder& h, const std::complex<Scalar>* weights,
+                      size_t n_weights, std::complex<Scalar>* result,
+                      size_t n_targets)
+{
+    Eigen::Map<const Eigen::Array<std::complex<Scalar>, Eigen::Dynamic, 1>>
+        e_weights(weights, n_weights);
+
+    Eigen::Array<std::complex<RealScalar>, Eigen::Dynamic, 1> in =
+        e_weights.template cast<std::complex<RealScalar>>();
+    Eigen::Array<std::complex<RealScalar>, Eigen::Dynamic, 1> out(n_targets);
+
+    h->mult(in.data(), n_weights, out.data(), n_targets);
+
+    Eigen::Map<Eigen::Array<std::complex<Scalar>, Eigen::Dynamic, 1>>
+        e_res(result, n_targets);
+    e_res = out.template cast<std::complex<Scalar>>();
+}
+
+} // namespace
+
+
+// define mult here, its the same for all operators
+// provide double and float API mult
+#define IFGF_DEFINE_MULT(Class)                                               \
+    void Class::mult(const std::complex<float>* weights, size_t n_weights,    \
+                     std::complex<float>* result, size_t n_targets)           \
+    {                                                                         \
+        mult_cast(d->ptr, weights, n_weights, result, n_targets);             \
+    }                                                                         \
+    void Class::mult(const std::complex<double>* weights, size_t n_weights,   \
+                     std::complex<double>* result, size_t n_targets)          \
+    {                                                                         \
+        mult_cast(d->ptr, weights, n_weights, result, n_targets);             \
+    }
+
+
+
+class HelmholtzSLPrivate {
+public:
+    std::unique_ptr<OpNoNormals> ptr;
+};
+
+HelmholtzSL3D::HelmholtzSL3D(std::complex<double> waveNumber,
+                             size_t leafSize, size_t order, size_t n_elem,
+                             double tol, double maxk, double minSigma)
+{
+    using ifgf_operators::ModifiedHelmholtz;
+
+    d = std::make_unique<HelmholtzSLPrivate>();
+
+    const std::complex<RealScalar> k = to_internal_k(waveNumber);
+
+    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+        d->ptr = std::make_unique<
+            OpNoNormalsImpl<ModifiedHelmholtz<3, false>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    } else {
+        d->ptr = std::make_unique<
+            OpNoNormalsImpl<ModifiedHelmholtz<3, true>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    }
+}
+
+HelmholtzSL3D::HelmholtzSL3D(double waveNumber, size_t leafSize,
+                             size_t order, size_t n_elem, double tol,
+                             double maxk, double minSigma)
+    : HelmholtzSL3D(std::complex<double>(0.0, waveNumber),
+                    leafSize, order, n_elem, tol, maxk, minSigma)
+{
+
 }
 
 HelmholtzSL3D::~HelmholtzSL3D() {}
 
-void HelmholtzSL3D::init(const PointScalar *srcs, size_t n_srcs,
-                         const PointScalar *targets, size_t n_targets) {
-  std::cout << "init!" << std::endl;
-  Eigen::Map<const PointArray> e_srcs(srcs, 3, n_srcs);
-  Eigen::Map<const PointArray> e_targets(targets, 3, n_targets);
-
-  d->ptr->init(e_srcs, e_targets);
+void HelmholtzSL3D::init(const double* srcs, size_t n_srcs,
+                         const double* targets, size_t n_targets)
+{
+    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets));
 }
 
-void HelmholtzSL3D::mult(const std::complex<float> *weights, size_t n_weights,
-                         std::complex<float> *result, size_t n_targets) {
-  Eigen::Map<const Eigen::Array<std::complex<float>, Eigen::Dynamic, 1>>
-      e_weights(weights, n_weights);
+IFGF_DEFINE_MULT(HelmholtzSL3D)
 
-  Eigen::Map<Eigen::Array<std::complex<float>, Eigen::Dynamic, 1>> e_res(
-      result, n_targets);
 
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<float>>();
-}
 
-// for convenience also provide a double version that casts
-void HelmholtzSL3D::mult(const std::complex<double> *weights, size_t n_weights,
-                         std::complex<double> *result, size_t n_targets) {
-  Eigen::Map<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>>
-      e_weights(weights, n_weights);
-
-  Eigen::Map<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>> e_res(
-      result, n_targets);
-
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<double>>();
-}
-
-class MHIfgfSLPrivate {
+class HelmholtzDLPrivate {
 public:
-  std::unique_ptr<ModifiedHelmholtzIfgfOperator<3>> ptr;
+    std::unique_ptr<OpWithNormals> ptr;
 };
 
-ModHelmholtzSL3D::ModHelmholtzSL3D(std::complex<RealScalar> waveNumber,
-                                   size_t leafSize, size_t order, size_t n_elem,
-                                   PointScalar tol, double maxk,
-                                   double minSigma) {
-  d = std::make_unique<MHIfgfSLPrivate>();
-  d->ptr = std::make_unique<ModifiedHelmholtzIfgfOperator<3>>(
-      waveNumber, leafSize, order, n_elem, tol, maxk, minSigma);
+HelmholtzDL3D::HelmholtzDL3D(std::complex<double> waveNumber,
+                             size_t leafSize, size_t order, size_t n_elem,
+                             double tol, double maxk, double minSigma)
+{
+    using ifgf_operators::DoubleLayerHelmholtz;
+
+    d = std::make_unique<HelmholtzDLPrivate>();
+
+    const std::complex<RealScalar> k = to_internal_k(waveNumber);
+
+    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+        d->ptr = std::make_unique<
+            OpWithNormalsImpl<DoubleLayerHelmholtz<3, false>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    } else {
+        d->ptr = std::make_unique<
+            OpWithNormalsImpl<DoubleLayerHelmholtz<3, true>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    }
 }
 
-ModHelmholtzSL3D::~ModHelmholtzSL3D() {}
-
-void ModHelmholtzSL3D::init(const PointScalar *srcs, size_t n_srcs,
-                            const PointScalar *targets, size_t n_targets) {
-  std::cout << "init!" << std::endl;
-  Eigen::Map<const PointArray> e_srcs(srcs, 3, n_srcs);
-  Eigen::Map<const PointArray> e_targets(targets, 3, n_targets);
-
-  d->ptr->init(e_srcs, e_targets);
+HelmholtzDL3D::HelmholtzDL3D(double waveNumber, size_t leafSize,
+                             size_t order, size_t n_elem, double tol,
+                             double maxk, double minSigma)
+    : HelmholtzDL3D(std::complex<double>(0.0, waveNumber),
+                    leafSize, order, n_elem, tol, maxk, minSigma)
+{
 }
 
-void ModHelmholtzSL3D::mult(const std::complex<float> *weights,
-                            size_t n_weights, std::complex<float> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Vector<std::complex<float>, Eigen::Dynamic>>
-      e_weights(weights, n_weights);
+HelmholtzDL3D::~HelmholtzDL3D() {}
 
-  Eigen::Map<Eigen::Vector<std::complex<float>, Eigen::Dynamic>> e_res(
-      result, n_targets);
+void HelmholtzDL3D::init(const double* srcs, size_t n_srcs,
+                         const double* targets, size_t n_targets,
+                         const double* normals, size_t n_normals)
+{
+    // the kernel needs one normal per source
+    assert(n_normals == n_srcs && "double layer: need one normal per source");
 
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<float>>();
+    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets),
+                 make_points(normals, n_normals));
 }
 
-// for convenience also provide a double version that casts
-void ModHelmholtzSL3D::mult(const std::complex<double> *weights,
-                            size_t n_weights, std::complex<double> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>>
-      e_weights(weights, n_weights);
+IFGF_DEFINE_MULT(HelmholtzDL3D)
 
-  Eigen::Map<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>> e_res(
-      result, n_targets);
 
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<double>>();
-}
 
-class MHIfgfDLPrivate {
+class HelmholtzCFPrivate {
 public:
-  std::unique_ptr<DoubleLayerHelmholtzIfgfOperator<3>> ptr;
+    std::unique_ptr<OpWithNormals> ptr;
 };
 
-ModHelmholtzDL3D::ModHelmholtzDL3D(std::complex<RealScalar> waveNumber,
-                                   size_t leafSize, size_t order, size_t n_elem,
-                                   PointScalar tol, double maxk,
-                                   double minSigma) {
-  d = std::make_unique<MHIfgfDLPrivate>();
-  d->ptr = std::make_unique<DoubleLayerHelmholtzIfgfOperator<3>>(
-      waveNumber, leafSize, order, n_elem, tol, maxk, minSigma);
+HelmholtzCF3D::HelmholtzCF3D(std::complex<double> waveNumber,
+                             size_t leafSize, size_t order, size_t n_elem,
+                             double tol, double maxk, double minSigma)
+{
+    using ifgf_operators::CombinedFieldHelmholtz;
+
+    d = std::make_unique<HelmholtzCFPrivate>();
+
+    const std::complex<RealScalar> k = to_internal_k(waveNumber);
+
+    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+        d->ptr = std::make_unique<
+            OpWithNormalsImpl<CombinedFieldHelmholtz<3, false>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    } else {
+        d->ptr = std::make_unique<
+            OpWithNormalsImpl<CombinedFieldHelmholtz<3, true>>>(
+                k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
+    }
 }
 
-ModHelmholtzDL3D::~ModHelmholtzDL3D() {}
+HelmholtzCF3D::HelmholtzCF3D(double waveNumber, size_t leafSize,
+                             size_t order, size_t n_elem, double tol,
+                             double maxk, double minSigma)
+    : HelmholtzCF3D(std::complex<double>(waveNumber, 0.0),
+                    leafSize, order, n_elem, tol, maxk, minSigma)
+{
 
-void ModHelmholtzDL3D::init(const PointScalar *srcs, size_t n_srcs,
-                            const PointScalar *targets, size_t n_targets,
-                            const PointScalar *normals, size_t n_normals) {
-  std::cout << "init!" << std::endl;
-  // the kernel needs one normal per source
-  assert(n_normals == n_srcs && "double layer: need one normal per source");
-
-  Eigen::Map<const PointArray> e_srcs(srcs, 3, n_srcs);
-  Eigen::Map<const PointArray> e_targets(targets, 3, n_targets);
-  Eigen::Map<const PointArray> e_normals(normals, 3, n_normals);
-
-  d->ptr->init(e_srcs, e_targets, e_normals);
 }
 
-void ModHelmholtzDL3D::mult(const std::complex<float> *weights,
-                            size_t n_weights, std::complex<float> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Vector<std::complex<float>, Eigen::Dynamic>>
-      e_weights(weights, n_weights);
+HelmholtzCF3D::~HelmholtzCF3D() {}
 
-  Eigen::Map<Eigen::Vector<std::complex<float>, Eigen::Dynamic>> e_res(
-      result, n_targets);
+void HelmholtzCF3D::init(const double* srcs, size_t n_srcs,
+                         const double* targets, size_t n_targets,
+                         const double* normals, size_t n_normals)
+{
+    // the kernel needs one normal per source
+    assert(n_normals == n_srcs && "combined field: need one normal per source");
 
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<float>>();
+    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets),
+                 make_points(normals, n_normals));
 }
 
-// for convenience also provide a double version that casts
-void ModHelmholtzDL3D::mult(const std::complex<double> *weights,
-                            size_t n_weights, std::complex<double> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>>
-      e_weights(weights, n_weights);
+IFGF_DEFINE_MULT(HelmholtzCF3D)
 
-  Eigen::Map<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>> e_res(
-      result, n_targets);
-
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<double>>();
-}
-
-class MHIfgfCFPrivate {
-public:
-  std::unique_ptr<CombinedFieldHelmholtzIfgfOperator<3>> ptr;
-};
-
-ModHelmholtzCF3D::ModHelmholtzCF3D(std::complex<RealScalar> waveNumber,
-                                   size_t leafSize, size_t order, size_t n_elem,
-                                   PointScalar tol, double maxk,
-                                   double minSigma) {
-  d = std::make_unique<MHIfgfCFPrivate>();
-  d->ptr = std::make_unique<CombinedFieldHelmholtzIfgfOperator<3>>(
-      waveNumber, leafSize, order, n_elem, tol, maxk, minSigma);
-}
-
-ModHelmholtzCF3D::~ModHelmholtzCF3D() {}
-
-void ModHelmholtzCF3D::init(const PointScalar *srcs, size_t n_srcs,
-                            const PointScalar *targets, size_t n_targets,
-                            const PointScalar *normals, size_t n_normals) {
-  std::cout << "init!" << std::endl;
-  // the kernel needs one normal per source
-  assert(n_normals == n_srcs && "combined field: need one normal per source");
-
-  Eigen::Map<const PointArray> e_srcs(srcs, 3, n_srcs);
-  Eigen::Map<const PointArray> e_targets(targets, 3, n_targets);
-  Eigen::Map<const PointArray> e_normals(normals, 3, n_normals);
-
-  d->ptr->init(e_srcs, e_targets, e_normals);
-}
-
-void ModHelmholtzCF3D::mult(const std::complex<float> *weights,
-                            size_t n_weights, std::complex<float> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Vector<std::complex<float>, Eigen::Dynamic>>
-      e_weights(weights, n_weights);
-
-  Eigen::Map<Eigen::Vector<std::complex<float>, Eigen::Dynamic>> e_res(
-      result, n_targets);
-
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<float>>();
-}
-
-// for convenience also provide a double version that casts
-void ModHelmholtzCF3D::mult(const std::complex<double> *weights,
-                            size_t n_weights, std::complex<double> *result,
-                            size_t n_targets) {
-  Eigen::Map<const Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>>
-      e_weights(weights, n_weights);
-
-  Eigen::Map<Eigen::Array<std::complex<double>, Eigen::Dynamic, 1>> e_res(
-      result, n_targets);
-
-  e_res = d->ptr->mult(e_weights.template cast<std::complex<RealScalar>>())
-              .template cast<std::complex<double>>();
-}
+#undef IFGF_DEFINE_MULT
 
 } // namespace ifgf

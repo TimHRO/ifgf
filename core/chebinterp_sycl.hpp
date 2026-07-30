@@ -226,7 +226,7 @@ namespace SyclChebychevInterpolation
 			       size_t offset
 			       )
     {
-	using Tc = std::complex<float>;   // float compute type
+	using Tc = std::complex<double>;   // force double compute type
 	sycl::marray<Tc, max_buffer_size<DIM>(MAX_ORDER)> tmp;
 	tmp=0;
 	chebtransform_impl_lp<Tc,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,offset,0,0);
