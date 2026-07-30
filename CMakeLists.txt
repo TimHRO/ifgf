@@ -12,8 +12,8 @@ project(ifgf LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(SYCL_TARGETS "nvptx64-nvidia-cuda,spir64")
-set(SYCL_TARGETS "spir64")
+set(SYCL_TARGETS "nvptx64-nvidia-cuda,spir64")
+#set(SYCL_TARGETS "spir64")
 set(SYCL_CUDA_ARCH "sm_86")
 
 add_compile_options(

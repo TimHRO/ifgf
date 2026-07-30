@@ -97,17 +97,18 @@ int main(int argc, char **argv) {
   srand((unsigned int)1);
   typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray;
 
-  // Command line: <N> <k.real> <k.imag> <operator>
+  // Command line: <N> <k.real> <k.imag> <order> <operator>
   const int N = argc > 1 ? atoi(argv[1]) : 100000;
   const double kre = argc > 2 ? atof(argv[2]) : 0.001;
   const double kim = argc > 3 ? atof(argv[3]) : 3.14 * 4.0;
-  if (argc > 4) op = argv[4];
+  const int order = argc > 4 ? atoi(argv[4]) : 8;
+  if (argc > 5) op = argv[5];
 
   kappa = Complex((RealScalar)kre, (RealScalar)kim);
   const double rad = 1.0;
 
-  std::cout << "N=" << N << "  kappa=(" << kre << ", " << kim << ")"
-            << "  operator=" << op << "  radius=" << rad << std::endl;
+  std::cout << "N=" << N << "  kappa=(" << kre << ", " << kim << ")" << " order="
+	    << order << "  operator=" << op << "  radius=" << rad << std::endl;
 
   for (auto platform : sycl::platform::get_platforms()) {
     std::cout << "Platform: "
@@ -147,17 +148,17 @@ int main(int argc, char **argv) {
     std::unique_ptr<ifgf::HelmholtzCF3D> op_cf;
 
     if (op == "DL") {
-      op_dl = std::make_unique<ifgf::HelmholtzDL3D>(kappa, 1000, 8, 1, -1., -1.,
+      op_dl = std::make_unique<ifgf::HelmholtzDL3D>(kappa, 300, order, 1, -1., -1.,
                                                     -1.);
       op_dl->init(p_srcs, srcs.cols(), p_targets, targets.cols(), p_normals,
                   normals.cols());
     } else if (op == "CF") {
-      op_cf = std::make_unique<ifgf::HelmholtzCF3D>(kappa, 1000, 8, 1, -1., -1.,
+      op_cf = std::make_unique<ifgf::HelmholtzCF3D>(kappa, 300, order, 1, -1., -1.,
                                                     -1.);
       op_cf->init(p_srcs, srcs.cols(), p_targets, targets.cols(), p_normals,
                   normals.cols());
     } else {
-      op_sl = std::make_unique<ifgf::HelmholtzSL3D>(kappa, 1000, 8, 1, -1., -1.,
+      op_sl = std::make_unique<ifgf::HelmholtzSL3D>(kappa, 300, order, 1, -1., -1.,
                                                     -1.);
       op_sl->init(p_srcs, srcs.cols(), p_targets, targets.cols());
     }

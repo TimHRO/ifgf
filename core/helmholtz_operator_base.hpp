@@ -115,7 +115,7 @@ public:
         Eigen::Vector<int, dim> order = baseOrder;
 
         if (step == 0) {
-            order = (baseOrder.array() - 3).cwiseMax(2);
+            order = (baseOrder.array() - 2).cwiseMax(2);
         }
         return order;
     }
@@ -135,7 +135,7 @@ public:
         Eigen::Vector<size_t, dim> els;
 
         if (step == 0) {
-            base *= 3;
+            base *= 2;
         }
 
         for (int i = 0; i < (int)dim; i++) {

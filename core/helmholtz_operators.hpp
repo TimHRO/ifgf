@@ -34,7 +34,7 @@ public:
     {
         this->initDefaults(
             /*MinSigma=*/ this->k.real(),
-            /*Maxk=*/     RealScalar(0.136) * std::abs(this->k.imag())
+            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
                                  / std::max((RealScalar)1.0, this->k.real()));
     }
 
@@ -72,7 +72,7 @@ public:
     {
         this->initDefaults(
             /*MinSigma=*/ this->k.real(),
-            /*Maxk=*/     RealScalar(0.136) * std::abs(this->k.imag())
+            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
                                  / std::max((RealScalar)1.0, this->k.real()));
     }
 
@@ -110,7 +110,7 @@ public:
     {
         this->initDefaults(
             /*MinSigma=*/ std::abs(this->k.real()),
-            /*Maxk=*/     RealScalar(0.136) * std::abs(this->k.imag())
+            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
                                  / std::max((RealScalar)1.0, this->k.real()));
     }
 
