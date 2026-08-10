@@ -24,20 +24,24 @@ typedef std::complex<double> Complex;
 typedef Eigen::Vector<double, dim> Point;
 
 
-Complex kappa = Complex(0.001, 3.14 * 4.0);
+Complex kappa = Complex(3.14 * 4.0, 0.001);
 std::string op = "SL";  // "SL", "DL", or "CF"
 
-// Single layer:  exp(-k r) / (4 pi r)
+// G = exp(i*kappa*r) / (4 pi r)
+static const std::complex<double> I_UNIT(0.0, 1.0);
+
+// Single layer:  exp(i kappa r) / (4 pi r)
 std::complex<double> kernel_sl(const Point &x, const Point &y,
                                const Point &normal) {
   (void)normal;
   const double r = (x - y).norm();
   if (r < 1e-14)
     return 0;
-  return std::exp(-((std::complex<double>)kappa) * r) / (4.0 * M_PI * r);
+  const std::complex<double> kap = (std::complex<double>)kappa;
+  return std::exp(I_UNIT * kap * r) / (4.0 * M_PI * r);
 }
 
-// Double layer: -1/(4 pi) * 1/r^2 * exp(-k r) * (-k - 1/r) * <x-y, n>
+// Double layer: -1/(4 pi) * 1/r^2 * exp(i kappa r) * (i*kappa - 1/r) * <x-y, n>
 std::complex<double> kernel_dl(const Point &x, const Point &y,
                                const Point &normal) {
   const Point d = x - y;
@@ -45,18 +49,17 @@ std::complex<double> kernel_dl(const Point &x, const Point &y,
   if (r < 1e-14)
     return 0;
 
-  const std::complex<double> k = (std::complex<double>)kappa;
+  const std::complex<double> kap = (std::complex<double>)kappa;
   const double xn = d.dot(normal);
   const double id = 1.0 / r;
 
-  return -(1.0 / (4.0 * M_PI)) * (id * id) * std::exp(-k * r) *
-         (-k - std::complex<double>(id)) * xn;
+  // Sign flipped (leading + instead of -) to match NGSolve's dG/dn_y orientation
+  return (1.0 / (4.0 * M_PI)) * (id * id) * std::exp(I_UNIT * kap * r) *
+         (I_UNIT * kap - std::complex<double>(id)) * xn;
 }
 
-// Combined field:
-// G = exp(-k r)/(4 pi r), as dG/dn_y - eta*G with eta = -k:
-//   exp(-k r)/(4 pi r^3) * ( <n_y, x-y>(1 + k r) + k r^2 )
-// nxy = +<n_y, x-y>
+// Combined field, G = exp(i kappa r)/(4 pi r), dG/dn_y - eta*G
+//   exp(i kappa r)/(4 pi r^3) * ( <n_y, x-y>(1 + (-i kappa) r) + (-i kappa) r^2 )
 std::complex<double> kernel_cf(const Point &x, const Point &y,
                                const Point &normal) {
   const Point d = x - y;
@@ -64,10 +67,12 @@ std::complex<double> kernel_cf(const Point &x, const Point &y,
   if (r < 1e-14)
     return 0;
 
-  const std::complex<double> k = (std::complex<double>)kappa;
-  const double nxy = normal.dot(d);
+  const std::complex<double> kap = (std::complex<double>)kappa;
+  const std::complex<double> k = -I_UNIT * kap;
+  // normal points opposite NGSolve's n_y: normal-derivative term needs extra minus
+  const double nxy = -normal.dot(d);
 
-  return std::exp(-k * r) / (4.0 * M_PI * r * r * r) *
+  return std::exp(I_UNIT * kap * r) / (4.0 * M_PI * r * r * r) *
          (nxy * (1.0 + k * r) + k * r * r);
 }
 
@@ -97,18 +102,18 @@ int main(int argc, char **argv) {
   srand((unsigned int)1);
   typedef Eigen::Matrix<PointScalar, dim, Eigen::Dynamic> PointArray;
 
-  // Command line: <N> <k.real> <k.imag> <order> <operator>
+  // Command line: <N> <kappa.real=oscillation> <kappa.imag=decay> <order> <operator>
   const int N = argc > 1 ? atoi(argv[1]) : 100000;
-  const double kre = argc > 2 ? atof(argv[2]) : 0.001;
-  const double kim = argc > 3 ? atof(argv[3]) : 3.14 * 4.0;
+  const double kre = argc > 2 ? atof(argv[2]) : 3.14 * 4.0;  // oscillation
+  const double kim = argc > 3 ? atof(argv[3]) : 0.001;       // decay
   const int order = argc > 4 ? atoi(argv[4]) : 8;
   if (argc > 5) op = argv[5];
 
   kappa = Complex((RealScalar)kre, (RealScalar)kim);
   const double rad = 1.0;
 
-  std::cout << "N=" << N << "  kappa=(" << kre << ", " << kim << ")" << " order="
-	    << order << "  operator=" << op << "  radius=" << rad << std::endl;
+  std::cout << "N=" << N << "  kappa=(" << kre << ", " << kim << ")"
+            << "  operator=" << op << "  radius=" << rad << std::endl;
 
   for (auto platform : sycl::platform::get_platforms()) {
     std::cout << "Platform: "
@@ -216,7 +221,9 @@ int main(int argc, char **argv) {
       int index = rand() % targets.cols();
       for (int i = 0; i < srcs.cols(); i++) {
         val += std::complex<double>(weights[i]) *
-               my_kernel(srcs.col(i), targets.col(index), normals.col(i));
+	my_kernel(srcs.col(i).cast<double>(),
+          targets.col(index).cast<double>(),
+          normals.col(i).cast<double>());
       }
 
       const std::complex<double> got = std::complex<double>(result[index]);

@@ -1,5 +1,7 @@
 #ifndef __IFGFOPERATOR_HPP_
 #define __IFGFOPERATOR_HPP_
+#include <stdexcept>
+#include <string>
 
 #include "Eigen/src/Core/util/Constants.h"
 #include "config.hpp"
@@ -183,7 +185,7 @@ public:
  	case 6:  return mult_impl<6>(weights);
 	case 7:  return mult_impl<7>(weights);
 	case 8:  return mult_impl<8>(weights);
-	case 10:  return mult_impl<10>(weights);
+	//case 10:  return mult_impl<10>(weights);
 	default: std::cout<<"not implemented"<<m_baseOrder.transpose()<<std::endl; return mult_impl<8>(weights);
 	}
 	
@@ -219,7 +221,16 @@ public:
 	// Normals buffer exists ONLY for kernels that use normals
 	std::optional<sycl::buffer<const PointScalar, 1> > b_normals;
 	if constexpr (Derived::HAS_NORMALS) {
-	    b_normals.emplace(static_cast<Derived *>(this)->sourceNormalsData(),
+	    const PointScalar* normalsPtr = static_cast<Derived *>(this)->sourceNormalsData();
+	    if (normalsPtr == nullptr) {
+		throw std::runtime_error(
+		    "IfgfOperator::mult_impl: HAS_NORMALS is true but "
+		    "sourceNormalsData() returned nullptr. Call "
+		    "init(srcs, targets, normals) with a populated normals array "
+		    "before mult(). AdaptiveCpp rejects a null sycl::buffer host "
+		    "pointer (icpx tolerated it).");
+	    }
+	    b_normals.emplace(normalsPtr,
 			      m_octree->srcPoints().cols()*DIM);
 	}
 
@@ -240,7 +251,6 @@ public:
 	const auto& ho_chebNodes=ChebychevInterpolation::chebnodesNdd<PointScalar,DIM>(high_order);
 
 	//Cache chebychev nodes on the GPU
-	sycl::buffer<const PointScalar,1> b_chebNodes(chebNodes.data(),chebNodes.cols()*DIM);
 	sycl::buffer<const PointScalar,1> b_hoChebNodes(ho_chebNodes.data(),ho_chebNodes.cols()*DIM);
 
 
@@ -404,12 +414,12 @@ public:
 
 		    const size_t numHoCones = m_octree->numActiveCones(level,1);
 
-		    // Exploid shared loacal memory, all near-field stay in SLM of one leaf cone
-		    // Each thread in one workgroup is mapped to one chebyshev node, soure and box data is cached
-		    sycl::local_accessor<PointScalar, 1> l_srcs(   sycl::range<1>(m_maxLeafSize * DIM), h);
-		    sycl::local_accessor<T, 1>           l_weights(sycl::range<1>(m_maxLeafSize),       h);
+			// do it in chunks, tiling approach 
+		    const size_t CHUNK = m_maxLeafSize;
+		    sycl::local_accessor<PointScalar, 1> l_srcs(   sycl::range<1>(CHUNK * DIM), h);
+		    sycl::local_accessor<T, 1>           l_weights(sycl::range<1>(CHUNK),       h);
 		    // no shared local memory is reserved when the kernel has no normals
-		    auto l_normals = makeLocalNormals<Derived>(m_maxLeafSize * DIM, h);
+		    auto l_normals = makeLocalNormals<Derived>(CHUNK * DIM, h);
 
 		    // One work-group per leaf cone, stride threads per group
 		    h.parallel_for(
@@ -422,26 +432,11 @@ public:
 
 			    const ConeRef ref   = srcDataAcc.leafCone(cone_idx);
 			    const size_t boxId  = ref.boxId();
-
-			    if(!srcDataAcc.hasFarTargetsIncludingAncestors(boxId))
-				return;
+			    const bool active = srcDataAcc.hasFarTargetsIncludingAncestors(boxId);
 
 			    const IndexRange srcs = srcDataAcc.points(boxId);
 			    const size_t    nS   = srcs.second - srcs.first;
 
-			    // Cooperatively load sources into SLM
-			    for(size_t s = j; s < nS; s += stride) {
-				for(int d = 0; d < DIM; d++)
-				    l_srcs[s * DIM + d] = a_srcs[(srcs.first + s) * DIM + d];
-				l_weights[s] = a_weights[srcs.first + s];
-				if constexpr (Derived::HAS_NORMALS) {
-				    for(int d = 0; d < DIM; d++)
-					l_normals[s * DIM + d] = a_normals[(srcs.first + s) * DIM + d];
-				}
-			    }
-			    it.barrier(sycl::access::fence_space::local_space);
-
-			    // Each thread evaluates one Cheb node against SLM sources
 			    const sycl::marray<PointScalar, DIM> center = srcDataAcc.boxCenter(boxId);
 			    const PointScalar H  = srcDataAcc.boxSize(boxId);
 			    const auto grid      = srcDataAcc.coneDomain(boxId, 1);
@@ -449,11 +444,42 @@ public:
 
 			    sycl::marray<PointScalar, DIM> transformed;
 			    sycl::marray<PointScalar, DIM> transformed2;
-			    grid.transform(ref.id(), a_hoChebNodes, transformed, j);
-			    Util::interpToCart(transformed, transformed2, center, H);
+			    if(active) {
+				grid.transform(ref.id(), a_hoChebNodes, transformed, j);
+				Util::interpToCart(transformed, transformed2, center, H);
+			    }
 
-			    a_intData[j*numHoCones + gid] = functions.evaluateFactoredKernel(
-				l_srcs, 0, nS, transformed2, l_weights, l_normals, center, H);
+			    T result = 0;
+
+			    // tile over sources in blocks of CHUNK
+			    for(size_t base = 0; base < nS; base += CHUNK) {
+				const size_t cnt = sycl::min(CHUNK, nS - base);
+
+				// cooperatively load this chunk into SLM
+				for(size_t s = j; s < cnt; s += stride) {
+				    const size_t g = base + s;
+				    for(int d = 0; d < DIM; d++)
+					l_srcs[s * DIM + d] = a_srcs[(srcs.first + g) * DIM + d];
+				    l_weights[s] = a_weights[srcs.first + g];
+				    if constexpr (Derived::HAS_NORMALS) {
+					for(int d = 0; d < DIM; d++)
+					    l_normals[s * DIM + d] = a_normals[(srcs.first + g) * DIM + d];
+				    }
+				}
+				it.barrier(sycl::access::fence_space::local_space);
+
+				if(active) {
+				    result += functions.evaluateFactoredKernel(
+					l_srcs, 0, cnt, transformed2, l_weights, l_normals, center, H);
+				}
+
+				// All threads must finish reading SLM before next chunk uses it
+				it.barrier(sycl::access::fence_space::local_space);
+			    }
+
+			    if(active) {
+				a_intData[j*numHoCones + gid] = result;
+			    }
 			});
 		 });
 		//Q.wait();
@@ -503,8 +529,6 @@ public:
 			std::array<size_t, DIM> n_el=SyclHelpers::EigenVectorToCPPArray<size_t,DIM>(coarse_N);
 
 
-			sycl::accessor a_chebNodes(b_chebNodes,h,sycl::read_only);
-
 			const int nF=factor.prod();
 			//std::cout<<"doing it"<<std::endl;
 			constexpr int MAX_LOW_ORDER=std::max(MAX_ORDER-2,1);
@@ -527,10 +551,12 @@ public:
 
 			    for(int sub=0; sub<nF; sub++) {
 				const auto lid=SyclConeDomain<DIM>::indicesFromId(sub,factors);
+				const size_t ne0=static_cast<size_t>(n_elements[0]);
+				const size_t ne1=static_cast<size_t>(n_elements[1]);
 				const size_t fine_el=
-				    (ho_id[2]*factors[2]+(lid[2]))*n_elements[1]*n_elements[0]+
-				    (ho_id[1]*factors[1]+(lid[1]))*n_elements[0]+
-				    (ho_id[0]*factors[0]+(lid[0]));
+				    (static_cast<size_t>(ho_id[2])*factors[2]+lid[2])*ne1*ne0+
+				    (static_cast<size_t>(ho_id[1])*factors[1]+lid[1])*ne0+
+				    (static_cast<size_t>(ho_id[0])*factors[0]+lid[0]);
 
 				const size_t fineMemId=srcDataAcc.memId(hoCone.boxId(),fine_el);
 				if(fineMemId>=SIZE_MAX-1) continue; // target cone inactive
@@ -541,22 +567,24 @@ public:
 				size_t offset=0;
 				sycl::marray<PointScalar,MAX_LOW_ORDER*DIM> t_pnts;
 				sycl::marray<T,BUF_SIZE> tmp;
-				tmp=0;
-				t_pnts=0;
+				SyclHelpers::zero_marray(tmp);
+				SyclHelpers::zero_marray(t_pnts);
 				for(int d=0;d<DIM;d++) {
-				    const PointScalar h=2;
+				    // node placement within a bounded [-1,1] subinterval, no
+				    // cancellation, so compute in float
+				    const float h=2;
 				    assert(lo_ns[d]<=MAX_LOW_ORDER);
-				    const PointScalar mmin=-1+(lid[d]*(h/((PointScalar) factors[d])));
-				    const PointScalar mmax=(mmin+(h/((PointScalar) factors[d])));
-				    const PointScalar a=0.5*(mmax-mmin);
-				    const PointScalar b=0.5*(mmax+mmin);
+				    const float mmin=-1.f+(lid[d]*(h/((float) factors[d])));
+				    const float mmax=(mmin+(h/((float) factors[d])));
+				    const float a=0.5f*(mmax-mmin);
+				    const float b=0.5f*(mmax+mmin);
 				    for(size_t l=0;l<lo_ns[d];l++) {
-					t_pnts[offset]=a*a_points[offset]+b;
+					t_pnts[offset]=a*float(a_points[offset])+b;
 					offset++;
 				    }
 				}
 
-				SyclChebychevInterpolation::tp_evaluate_t<T,DIM>(t_pnts, coarse, 0,
+				SyclChebychevInterpolation::tp_evaluate_t_lp<T,DIM>(t_pnts, coarse, 0,
 									 ns,lo_ns, a_parentIntData,
 									 tmp,
 									 fineMemId*fine_stride, 0);
@@ -617,7 +645,7 @@ public:
 			const auto cf = functions.CF(target_pnt - center);
 						
 
-			transformed=0;
+			SyclHelpers::zero_marray(transformed);
 
 			Util::cartToInterp(target_pnt,transformed,center,H);
 			
@@ -636,14 +664,17 @@ public:
 			}
 			assert(memId<SIZE_MAX); //the requested element should always be active since it contains a target point
 
-			target_pnt=0;
+			SyclHelpers::zero_marray(target_pnt);
 
 			grid.transformBackwards(el,transformed,target_pnt);
 						
 			
-			SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
+			SyclChebychevInterpolation::ClenshawEvaluator_lp<T,1, DIM,DIM, DIMOUT> clenshaw;
 			const size_t offset=stride*memId;
-			T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(target_pnt), a_intData, ns, offset);
+			// coordinate is box-local [-1,1], narrow to float
+			sycl::marray<float,DIM> target_pnt_lp;
+			for(int d=0;d<DIM;d++) target_pnt_lp[d]=float(target_pnt[d]);
+			T res=clenshaw(SyclRowMatrix<float, DIM,1>(target_pnt_lp), a_intData, ns, offset);
 			
 			
 			
@@ -748,9 +779,12 @@ public:
 			    if(memId < SIZE_MAX) {
 				grid.transformBackwards(el,pnt2,pnt);
 
-				SyclChebychevInterpolation::ClenshawEvaluator<T,1, DIM,DIM, DIMOUT> clenshaw;
+				SyclChebychevInterpolation::ClenshawEvaluator_lp<T,1, DIM,DIM, DIMOUT> clenshaw;
 				const size_t offset=lo_stride*memId;
-				T res=clenshaw(SyclRowMatrix<PointScalar, DIM,1>(pnt), a_intData, ns, offset);
+				// coordinate is box-local [-1,1], narrow to float
+				sycl::marray<float,DIM> pnt_lp;
+				for(int d=0;d<DIM;d++) pnt_lp[d]=float(pnt[d]);
+				T res=clenshaw(SyclRowMatrix<float, DIM,1>(pnt_lp), a_intData, ns, offset);
 
 				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
 
@@ -796,7 +830,9 @@ public:
         auto order = static_cast<Derived *>(this)->orderForBox(H, m_baseOrder,step);
 
 	//make sure no old buffer is around	
-	buf=std::make_unique<sycl::buffer<T,1> > (m_octree->numActiveCones(level,step)*order.prod());
+    // guard against zero sized buffer
+	const size_t bufSize = std::max<size_t>(m_octree->numActiveCones(level,step)*order.prod(), 1);
+	buf=std::make_unique<sycl::buffer<T,1> > (bufSize);
     }
 
 

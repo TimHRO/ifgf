@@ -366,7 +366,24 @@ class QueueSingleton
     
     };
 
+// AdaptiveCPP rejects a null buffer pointer (icpx tolerates), pad one dummy element
+// Future work, USM instead of buffers
+template<typename T>
+inline std::vector<T> pad_min1(std::vector<T> v, T fill = T())
+{
+    if(v.empty()) v.push_back(fill);
+    return v;
+}
 
+// Zero-fills a sycl::marray element-by-element
+// marray = 0 is not valid with AdaptiveCpp
+template<typename T, size_t N>
+inline void zero_marray(sycl::marray<T,N>& m)
+{
+    for(size_t i=0;i<N;i++) {
+	m[i]=T(0);
+    }
+}
 
 template<typename T, int size>
 sycl::marray<T,size>  EigenVectorToMArray( const Eigen::Vector<T,size>& vec)

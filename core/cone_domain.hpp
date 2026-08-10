@@ -266,7 +266,7 @@ public:
     size_t elementForPoint(const Eigen::Ref<const Eigen::Vector<PointScalar,DIM> > & pnt) const
     {
 	size_t idx=0;
-	int stride=1;
+	size_t stride=1;
 
 	if(m_domain.squaredExteriorDistance(pnt)>0) {
 	    return SIZE_MAX;
@@ -441,7 +441,7 @@ public:
     size_t elementForPoint(const sycl::marray<PointScalar,DIM> & pnt) const
     {
 	size_t idx=0;
-	int stride=1;
+	size_t stride=1;
    
 	for(int j=0;j<DIM;j++) {	    
 	    const int q=(int)sycl::floor( (pnt[j]-m_min[j])/m_h[j]);

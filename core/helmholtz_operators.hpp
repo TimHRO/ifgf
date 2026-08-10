@@ -33,9 +33,9 @@ public:
         : Base(waveNumber, leafSize, order, n_elem, tol, p_maxk, p_minSigma)
     {
         this->initDefaults(
-            /*MinSigma=*/ this->k.real(),
-            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
-                                 / std::max((RealScalar)1.0, this->k.real()));
+            /*MinSigma=*/ this->k.imag(),
+            /*Maxk=*/     RealScalar(0.4) * std::abs(this->k.real())
+                                 / std::max((RealScalar)1.0, this->k.imag()));
     }
 
     ~ModifiedHelmholtz()
@@ -71,9 +71,9 @@ public:
         : Base(waveNumber, leafSize, order, n_elem, tol, p_maxk, p_minSigma)
     {
         this->initDefaults(
-            /*MinSigma=*/ this->k.real(),
-            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
-                                 / std::max((RealScalar)1.0, this->k.real()));
+            /*MinSigma=*/ this->k.imag(),
+            /*Maxk=*/     RealScalar(0.4) * std::abs(this->k.real())
+                                 / std::max((RealScalar)1.0, this->k.imag()));
     }
 
     ~DoubleLayerHelmholtz()
@@ -109,9 +109,9 @@ public:
         : Base(waveNumber, leafSize, order, n_elem, tol, p_maxk, p_minSigma)
     {
         this->initDefaults(
-            /*MinSigma=*/ std::abs(this->k.real()),
-            /*Maxk=*/     RealScalar(0.3) * std::abs(this->k.imag())
-                                 / std::max((RealScalar)1.0, this->k.real()));
+            /*MinSigma=*/ std::abs(this->k.imag()),
+            /*Maxk=*/     RealScalar(0.4) * std::abs(this->k.real())
+                                 / std::max((RealScalar)1.0, this->k.imag()));
     }
 
     ~CombinedFieldHelmholtz()

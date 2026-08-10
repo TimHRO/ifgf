@@ -16,10 +16,11 @@ namespace {
 
 typedef Eigen::Array<PointScalar, 3, Eigen::Dynamic> PointArray;
 
-static inline PointArray make_points(const double* p, size_t n)
+template <typename Coord>
+static inline PointArray make_points(const Coord* p, size_t n)
 {
-    Eigen::Map<const Eigen::Array<double, 3, Eigen::Dynamic>> m(p, 3, n);
-    return m.cast<PointScalar>();   // no-op copy if PointScalar == double
+    Eigen::Map<const Eigen::Array<Coord, 3, Eigen::Dynamic>> m(p, 3, n);
+    return m.template cast<PointScalar>();  // no-op copy if Coord == PointScalar
 }
 
 // Public wavenumber is std::complex<double>; internal is std::complex<RealScalar>
@@ -100,12 +101,12 @@ struct OpWithNormalsImpl final : OpWithNormals {
 };
 
 // A real wavenumber means no decay, reduce instantiation
-// TODO keep this or remove decayisRealPart since it is always
+// TODO keep this or remove decayisImagPart since it is always
 inline bool isPurelyOscillatory(const std::complex<double>& k,
-                                bool decayIsRealPart)
+                                bool decayIsImagPart)
 {
-    return decayIsRealPart ? (k.real() == 0.0)
-                           : (k.imag() == 0.0);
+    return decayIsImagPart ? (k.imag() == 0.0)
+                           : (k.real() == 0.0);
 }
 
 // what if ngsolve uses double weights and results but ifgf should use RealScalar float
@@ -146,6 +147,43 @@ inline void mult_cast(Holder& h, const std::complex<Scalar>* weights,
         mult_cast(d->ptr, weights, n_weights, result, n_targets);             \
     }
 
+// define init (no normals) for both double and float coordinates
+// make_points<Coord> casts to PointScalar
+#define IFGF_DEFINE_INIT(Class)                                               \
+    void Class::init(const double* srcs, size_t n_srcs,                       \
+                     const double* targets, size_t n_targets)                 \
+    {                                                                         \
+        d->ptr->init(make_points(srcs, n_srcs),                              \
+                     make_points(targets, n_targets));                        \
+    }                                                                         \
+    void Class::init(const float* srcs, size_t n_srcs,                        \
+                     const float* targets, size_t n_targets)                  \
+    {                                                                         \
+        d->ptr->init(make_points(srcs, n_srcs),                              \
+                     make_points(targets, n_targets));                        \
+    }
+
+// define init (with normals) for both double and float coordinates
+#define IFGF_DEFINE_INIT_NORMALS(Class, what)                                 \
+    void Class::init(const double* srcs, size_t n_srcs,                       \
+                     const double* targets, size_t n_targets,                 \
+                     const double* normals, size_t n_normals)                 \
+    {                                                                         \
+        assert(n_normals == n_srcs && what ": need one normal per source");   \
+        d->ptr->init(make_points(srcs, n_srcs),                              \
+                     make_points(targets, n_targets),                         \
+                     make_points(normals, n_normals));                        \
+    }                                                                         \
+    void Class::init(const float* srcs, size_t n_srcs,                        \
+                     const float* targets, size_t n_targets,                  \
+                     const float* normals, size_t n_normals)                  \
+    {                                                                         \
+        assert(n_normals == n_srcs && what ": need one normal per source");   \
+        d->ptr->init(make_points(srcs, n_srcs),                              \
+                     make_points(targets, n_targets),                         \
+                     make_points(normals, n_normals));                        \
+    }
+
 
 
 class HelmholtzSLPrivate {
@@ -163,7 +201,7 @@ HelmholtzSL3D::HelmholtzSL3D(std::complex<double> waveNumber,
 
     const std::complex<RealScalar> k = to_internal_k(waveNumber);
 
-    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+    if (isPurelyOscillatory(waveNumber, /*decayIsImagPart=*/true)) {
         d->ptr = std::make_unique<
             OpNoNormalsImpl<ModifiedHelmholtz<3, false>>>(
                 k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
@@ -185,11 +223,7 @@ HelmholtzSL3D::HelmholtzSL3D(double waveNumber, size_t leafSize,
 
 HelmholtzSL3D::~HelmholtzSL3D() {}
 
-void HelmholtzSL3D::init(const double* srcs, size_t n_srcs,
-                         const double* targets, size_t n_targets)
-{
-    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets));
-}
+IFGF_DEFINE_INIT(HelmholtzSL3D)
 
 IFGF_DEFINE_MULT(HelmholtzSL3D)
 
@@ -210,7 +244,7 @@ HelmholtzDL3D::HelmholtzDL3D(std::complex<double> waveNumber,
 
     const std::complex<RealScalar> k = to_internal_k(waveNumber);
 
-    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+    if (isPurelyOscillatory(waveNumber, /*decayIsImagPart=*/true)) {
         d->ptr = std::make_unique<
             OpWithNormalsImpl<DoubleLayerHelmholtz<3, false>>>(
                 k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
@@ -231,16 +265,7 @@ HelmholtzDL3D::HelmholtzDL3D(double waveNumber, size_t leafSize,
 
 HelmholtzDL3D::~HelmholtzDL3D() {}
 
-void HelmholtzDL3D::init(const double* srcs, size_t n_srcs,
-                         const double* targets, size_t n_targets,
-                         const double* normals, size_t n_normals)
-{
-    // the kernel needs one normal per source
-    assert(n_normals == n_srcs && "double layer: need one normal per source");
-
-    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets),
-                 make_points(normals, n_normals));
-}
+IFGF_DEFINE_INIT_NORMALS(HelmholtzDL3D, "double layer")
 
 IFGF_DEFINE_MULT(HelmholtzDL3D)
 
@@ -261,7 +286,7 @@ HelmholtzCF3D::HelmholtzCF3D(std::complex<double> waveNumber,
 
     const std::complex<RealScalar> k = to_internal_k(waveNumber);
 
-    if (isPurelyOscillatory(waveNumber, /*decayIsRealPart=*/true)) {
+    if (isPurelyOscillatory(waveNumber, /*decayIsImagPart=*/true)) {
         d->ptr = std::make_unique<
             OpWithNormalsImpl<CombinedFieldHelmholtz<3, false>>>(
                 k, leafSize, order, n_elem, PointScalar(tol), maxk, minSigma);
@@ -283,19 +308,12 @@ HelmholtzCF3D::HelmholtzCF3D(double waveNumber, size_t leafSize,
 
 HelmholtzCF3D::~HelmholtzCF3D() {}
 
-void HelmholtzCF3D::init(const double* srcs, size_t n_srcs,
-                         const double* targets, size_t n_targets,
-                         const double* normals, size_t n_normals)
-{
-    // the kernel needs one normal per source
-    assert(n_normals == n_srcs && "combined field: need one normal per source");
-
-    d->ptr->init(make_points(srcs, n_srcs), make_points(targets, n_targets),
-                 make_points(normals, n_normals));
-}
+IFGF_DEFINE_INIT_NORMALS(HelmholtzCF3D, "combined field")
 
 IFGF_DEFINE_MULT(HelmholtzCF3D)
 
 #undef IFGF_DEFINE_MULT
+#undef IFGF_DEFINE_INIT
+#undef IFGF_DEFINE_INIT_NORMALS
 
 } // namespace ifgf

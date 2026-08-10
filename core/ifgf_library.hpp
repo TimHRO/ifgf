@@ -6,13 +6,14 @@
 #include <memory>
 
 // ---------------------------------------------------------------------------
-// The API speaks only in double: wavenumbers, tol, and
-// point coordinates are all double.
-// The only exception are float weights that do not get promoted to double.
+// Point coordinates may be passed as either double or float: each init()
+// has both overloads, and the coordinates are converted to the internal
+// PointScalar inside. Weights likewise have float and double overloads.
+// Wavenumbers and tol are still double.
 // The internal compute precision is not exposed here. It can be set in the
 // config and the kernel file.
 // It is possible to set RealScalar=float and still call every function
-// with double arguments, the conversion happens inside.
+// with double arguments (or vice versa), the conversion happens inside.
 // ---------------------------------------------------------------------------
 
 namespace ifgf {
@@ -23,6 +24,21 @@ namespace ifgf {
               std::complex<float>* result, size_t n_targets);                 \
     void mult(const std::complex<double>* weights, size_t n_weights,          \
               std::complex<double>* result, size_t n_targets)
+
+// provide float and double coordinate paths
+#define IFGF_DECLARE_INIT()                                                   \
+    void init(const double* srcs, size_t n_srcs,                             \
+              const double* targets, size_t n_targets);                       \
+    void init(const float* srcs, size_t n_srcs,                              \
+              const float* targets, size_t n_targets)
+
+#define IFGF_DECLARE_INIT_NORMALS()                                          \
+    void init(const double* srcs, size_t n_srcs,                             \
+              const double* targets, size_t n_targets,                        \
+              const double* normals, size_t n_normals);                       \
+    void init(const float* srcs, size_t n_srcs,                             \
+              const float* targets, size_t n_targets,                         \
+              const float* normals, size_t n_normals)
 
 
 class HelmholtzSLPrivate;
@@ -39,9 +55,8 @@ public:
 
     ~HelmholtzSL3D();
 
-    // Coordinates are assumed to be always double and DIM-major (x0,y0,z0, x1,y1,z1, ...)!!!
-    void init(const double* srcs, size_t n_srcs,
-              const double* targets, size_t n_targets);
+    // Coordinates are DIM-major (x0,y0,z0, x1,y1,z1, ...) float or double
+    IFGF_DECLARE_INIT();
 
     IFGF_DECLARE_MULT();
 
@@ -64,9 +79,7 @@ public:
 
     ~HelmholtzDL3D();
 
-    void init(const double* srcs, size_t n_srcs,
-              const double* targets, size_t n_targets,
-              const double* normals, size_t n_normals);
+    IFGF_DECLARE_INIT_NORMALS();
 
     IFGF_DECLARE_MULT();
 
@@ -89,9 +102,7 @@ public:
 
     ~HelmholtzCF3D();
 
-    void init(const double* srcs, size_t n_srcs,
-              const double* targets, size_t n_targets,
-              const double* normals, size_t n_normals);
+    IFGF_DECLARE_INIT_NORMALS();
 
     IFGF_DECLARE_MULT();
 
@@ -100,6 +111,8 @@ private:
 };
 
 #undef IFGF_DECLARE_MULT
+#undef IFGF_DECLARE_INIT
+#undef IFGF_DECLARE_INIT_NORMALS
 
 } // namespace ifgf
 

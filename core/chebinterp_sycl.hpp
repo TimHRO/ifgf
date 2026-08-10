@@ -4,7 +4,7 @@
 #include "Eigen/src/Core/util/Constants.h"
 #include "boundingbox.hpp"
 #include <cstddef>
-#include <sycl/access/access.hpp>
+//#include <sycl/access/access.hpp>
 #include <tuple>
 
 #include <fenv.h>
@@ -75,7 +75,7 @@ namespace SyclChebychevInterpolation
 	const int stride=nsigma;
 
 
-	dest=0;
+	SyclHelpers::zero_marray(dest);
 	assert(ns[DIM-1]<=MAX_ORDER); //We have a max buffer size since we are working on the stack
 	
 	const size_t Nd=ns[DIM-1];
@@ -163,7 +163,7 @@ namespace SyclChebychevInterpolation
 	}
 	const int stride=nsigma;
 
-	dest=0;
+	SyclHelpers::zero_marray(dest);
 	assert(ns[DIM-1]<=MAX_ORDER);
 	const size_t Nd=ns[DIM-1];
 
@@ -208,7 +208,7 @@ namespace SyclChebychevInterpolation
 			       )
     {
 	sycl::marray<T, max_buffer_size<DIM>(MAX_ORDER)> tmp;
-	tmp=0;
+	SyclHelpers::zero_marray(tmp);
 	chebtransform_impl<T,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,offset,0,0);
 
 	size_t size=1;
@@ -228,7 +228,7 @@ namespace SyclChebychevInterpolation
     {
 	using Tc = std::complex<double>;   // force double compute type
 	sycl::marray<Tc, max_buffer_size<DIM>(MAX_ORDER)> tmp;
-	tmp=0;
+	SyclHelpers::zero_marray(tmp);
 	chebtransform_impl_lp<Tc,DIM,DIM,MAX_ORDER>(buf,tmp,ns,cv,offset,0,0);
 
 	size_t size=1;
@@ -240,7 +240,7 @@ namespace SyclChebychevInterpolation
     }
 
 
-    template <typename T, int POINTS_AT_COMPILE_TIME, int DIM, int DIM_X,unsigned int DIMOUT, int ND=-1, int... Ns>    
+    template <typename T, int POINTS_AT_COMPILE_TIME, int DIM, int DIM_X,unsigned int DIMOUT, int ND=-1, int... Ns>
     class ClenshawEvaluator
     {
     public:
@@ -268,7 +268,7 @@ namespace SyclChebychevInterpolation
 	    const int Nd= ND >0 ? ND : ns[0];
 	    if(Nd<=2) {
 		if(Nd==1) {
-		    result=vals[0+offset];
+		    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) result[j]=vals[0+offset];
 		    return result;
 		}else {
 		    //result = vals[1+offset]*x.row(0)+vals[0+offset];
@@ -279,22 +279,24 @@ namespace SyclChebychevInterpolation
 		}
 	    }
 
-	    b1=2*x.row(0);
-	    b1*=vals[Nd-1+offset];
-	    b1+=vals[Nd-2+offset];
-	    
-	    b2=(vals[Nd-1+offset]);
-	
+	    // elementwise (AdaptiveCpp marray broadcast ctor fails for complex T)
+	    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+		b1[j]=T(2)*T(x(0,j))*vals[Nd-1+offset]+vals[Nd-2+offset];
+		b2[j]=vals[Nd-1+offset];
+	    }
 
 	    for(size_t j=Nd-3;j>0;j--) {
-		tmp=(2.*((b1)*x.row(0))-(b2))+vals[j+offset];
-	    
+		for(int p=0;p<POINTS_AT_COMPILE_TIME;p++) {
+		    tmp[p]=(T(2)*(b1[p]*T(x(0,p)))-b2[p])+vals[j+offset];
+		}
 		b2=b1;
 		b1=tmp;
-	    
 	    }
-	    
-	    return (b1*x.row(0)-b2)+vals[0+offset];
+
+	    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+		result[j]=(b1[j]*T(x(0,j))-b2[j])+vals[0+offset];
+	    }
+	    return result;
 	}else //recurse down
 	{	   	    
 	    size_t stride = 1;
@@ -315,8 +317,8 @@ namespace SyclChebychevInterpolation
 				vals,
 				ns,offset+stride); //offset=stride i.e., shifted by 1 package
 
-		    result=b1*(x.row(DIM-1));
-		    result+=c0;
+		    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+			result[p]=b1[p]*T(x(DIM-1,p))+c0[p];
 		    return result;
 		}
 	    }
@@ -331,26 +333,185 @@ namespace SyclChebychevInterpolation
                                     ns,(Nd-2)*stride+offset); //second to last package
 
 
-	    b1=2.*b2*x.row(DIM-1)+cn2;
+	    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		b1[p]=T(2)*b2[p]*T(x(DIM-1,p))+cn2[p];
 
 	    const auto& c0=clenshaw(x,
 			     vals,
                              ns,0+offset);
 	    for(size_t j=Nd-3;j>0;j--) {
-		tmp= clenshaw(x,
+		const sycl::marray<T,POINTS_AT_COMPILE_TIME>& cj= clenshaw(x,
 			      vals,
 			      ns,j*stride+offset); //offset=j*stride
-		tmp+=(2.*(b1*x.row(DIM-1))-b2);
+		for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		    tmp[p]=(T(2)*(b1[p]*T(x(DIM-1,p)))-b2[p])+cj[p];
 		b2=b1;
 		b1=tmp;
 		
 	    }
 
-	    return (b1*x.row(DIM-1)-b2) + c0;
+	    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		result[p]=(b1[p]*T(x(DIM-1,p))-b2[p])+c0[p];
+	    return result;
 
 	}
     }
     };
+
+    // _lp variant of ClenshawEvaluator
+    template <typename T, int POINTS_AT_COMPILE_TIME, int DIM, int DIM_X,unsigned int DIMOUT, int ND=-1, int... Ns>
+    class ClenshawEvaluator_lp
+    {
+    public:
+	using Rc = float;   // coordinate precision
+
+	template <typename AccessorType>
+	inline  sycl::marray<T, POINTS_AT_COMPILE_TIME>
+	operator()(const SyclRowMatrix<Rc,DIM_X, POINTS_AT_COMPILE_TIME>  &x,
+		   const AccessorType &vals,
+		   const std::array<int,DIM_X>& ns, size_t offset=0)
+    {
+	static_assert(DIMOUT==1);
+	static_assert(DIM>0);
+	static_assert(DIM<=DIM_X);
+
+	sycl::marray<T, POINTS_AT_COMPILE_TIME> b1;
+	sycl::marray<T, POINTS_AT_COMPILE_TIME> b2;
+	sycl::marray<T, POINTS_AT_COMPILE_TIME> tmp;
+
+	sycl::marray<T, POINTS_AT_COMPILE_TIME> result;
+
+	const int Nd= ND >0 ? ND : ns[DIM-1];
+
+	if constexpr (DIM<=1)
+	{
+	    const int Nd= ND >0 ? ND : ns[0];
+	    if(Nd<=2) {
+		if(Nd==1) {
+		    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) result[j]=vals[0+offset];
+		    return result;
+		}else {
+		    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+			result[j]=vals[1+offset]*T(x(0,j))+vals[0+offset];
+		    }
+		    return result;
+		}
+	    }
+
+	    // elementwise (AdaptiveCpp marray broadcast ctor fails for complex T)
+	    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+		b1[j]=T(Rc(2))*T(x(0,j))*vals[Nd-1+offset]+vals[Nd-2+offset];
+		b2[j]=vals[Nd-1+offset];
+	    }
+
+	    for(size_t j=Nd-3;j>0;j--) {
+		for(int p=0;p<POINTS_AT_COMPILE_TIME;p++) {
+		    tmp[p]=(T(Rc(2))*(b1[p]*T(x(0,p)))-b2[p])+vals[j+offset];
+		}
+		b2=b1;
+		b1=tmp;
+	    }
+
+	    for(int j=0;j<POINTS_AT_COMPILE_TIME;j++) {
+		result[j]=(b1[j]*T(x(0,j))-b2[j])+vals[0+offset];
+	    }
+	    return result;
+	}else //recurse down
+	{
+	    size_t stride = 1;
+	    for(int i=0;i<DIM-1;i++)
+		stride*=ns[i];
+
+	    ClenshawEvaluator_lp<T, POINTS_AT_COMPILE_TIME, std::max(DIM-1,1), DIM_X,DIMOUT,Ns...> clenshaw;
+	    if(Nd<=2) {
+		const sycl::marray<T,POINTS_AT_COMPILE_TIME>& c0=clenshaw(x,
+					vals,
+					ns,0+offset);
+
+		if(Nd==1) {
+		    return c0;
+		}else {
+		    b1=clenshaw(x,
+				vals,
+				ns,offset+stride);
+
+		    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+			result[p]=b1[p]*T(x(DIM-1,p))+c0[p];
+		    return result;
+		}
+	    }
+
+	    b2=clenshaw(x,
+			vals,
+			ns,(Nd-1) * stride+offset);
+	    const auto& cn2=clenshaw(x,
+				    vals,
+                                    ns,(Nd-2)*stride+offset);
+
+	    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		b1[p]=T(Rc(2))*b2[p]*T(x(DIM-1,p))+cn2[p];
+
+	    const auto& c0=clenshaw(x,
+			     vals,
+                             ns,0+offset);
+	    for(size_t j=Nd-3;j>0;j--) {
+		const sycl::marray<T,POINTS_AT_COMPILE_TIME>& cj= clenshaw(x,
+			      vals,
+			      ns,j*stride+offset);
+		for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		    tmp[p]=(T(Rc(2))*(b1[p]*T(x(DIM-1,p)))-b2[p])+cj[p];
+		b2=b1;
+		b1=tmp;
+	    }
+
+	    for(int p=0;p<POINTS_AT_COMPILE_TIME;p++)
+		result[p]=(b1[p]*T(x(DIM-1,p))-b2[p])+c0[p];
+	    return result;
+	}
+    }
+    };
+
+
+    // _lp evaluator entry: coordinates narrowed to float before Clenshaw
+    template <typename T, unsigned int DIM,  char package, typename PointAccessorType, typename ValueAccessorType, typename DestAccessorType>
+    inline int eval_lp(const PointAccessorType& points,
+		    size_t pnt_offset,
+		    const ValueAccessorType &interp_values,
+		    size_t v_offset,
+		    const std::array<int,DIM>& ns,
+		    DestAccessorType dest,
+		    size_t dest_offset,
+		    size_t i, size_t n_points)
+    {
+	const int DIMOUT=1;
+	const unsigned int packageSize = 1 << package;
+	const size_t np = n_points / packageSize;
+	n_points = n_points % packageSize;
+
+	SyclRowMatrix<float,DIM,packageSize> tmp;   // float coordinates
+
+	SyclChebychevInterpolation::ClenshawEvaluator_lp<T, packageSize,  DIM,DIM, DIMOUT> clenshaw;
+	for (int j = 0; j < np; j++) {
+	    for(int l=0;l<packageSize;l++) {
+		for(int k=0;k<DIM;k++) {
+		    tmp(k,l)=float(points[pnt_offset+(i+l)*DIM+k]);  // narrow here
+		}
+	    }
+	    const sycl::marray<T,packageSize>& result=clenshaw(tmp, interp_values,ns,v_offset);
+	    for(int l=0;l<packageSize;l++)
+	    {
+		dest[dest_offset+l+i]=result[l];
+	    }
+	    i += packageSize;
+	}
+	if constexpr(package > 0) {
+	    if (n_points > 0) {
+		i = eval_lp < T,  DIM,  package - 1> (points,pnt_offset, interp_values,v_offset, ns, dest,dest_offset, i, n_points);
+	    }
+	}
+
+	return i;
+    }
 
 
     template <typename T, unsigned int DIM,  char package,int... Ns>
@@ -606,6 +767,126 @@ namespace SyclChebychevInterpolation
 	tp_evaluate_int<T, DIM, DIM>(points,pnt_offset,  interp_values, offset, dest, ns,np,tmp, dest_offset, tmp_offset);
 	
 
+    }
+
+
+    // _lp variant of the tensor-product evaluation
+    template <typename T, unsigned int DIM, unsigned int DIMX, size_t POINTS_AT_CTIME, typename DestType, typename TmpType, typename InterpAccessorType>
+    void tp_evaluate_int_lp(
+			 const sycl::marray<PointScalar, POINTS_AT_CTIME> &points,
+			 int pnt_offset,
+			 const InterpAccessorType &interp_values,
+			 size_t offset,
+			 DestType& dest,
+			 const std::array<int, DIMX> &ns,
+			 const std::array<int, DIMX> &nps,
+			 TmpType& tmp,
+			 size_t dest_offset,
+			 size_t tmp_offset
+			 )
+    {
+	using Pc = float;   // coordinate precision
+
+	assert(pnt_offset>=0);
+        if constexpr (DIM == 1) {
+	    assert(pnt_offset==0);
+            ClenshawEvaluator_lp<T, 1, 1, 1, 1> eval;
+	    SyclRowMatrix<Pc, 1, 1>  mp;
+	    std::array<int,1> mn;
+	    mn[0]=ns[0];
+	    for(int i=0;i<nps[0];i++) {
+		mp[0][0]=Pc(points[pnt_offset+i]);
+		auto res=eval(mp,interp_values, mn,offset);
+		dest[dest_offset+i]=res[0];
+            }
+        } else {
+	    assert(DIM>1);
+	    size_t Np=1;
+	    size_t n_values = 1;
+	    for(int i=0;i<DIM-1;i++) {
+		Np*=nps[i];
+		n_values*=ns[i];
+	    }
+
+	    const size_t Ny = nps[DIM-1];
+	    assert(Ny< POINTS_AT_CTIME);
+
+            for (size_t idx = 0; idx < ns[DIM - 1]; idx++) {
+		size_t new_pnt_offset= DIM >= 2 ?   pnt_offset-nps[DIM-2] : 0;
+		assert(new_pnt_offset>=0);
+		tp_evaluate_int_lp<T, DIM - 1, DIMX, POINTS_AT_CTIME>(
+									   points,
+									   new_pnt_offset,
+									   interp_values,
+									   offset+idx * n_values,
+									   tmp,
+									   ns,
+									   nps,
+									   tmp,
+									   tmp_offset+idx*Np,
+									   tmp_offset+ns[DIM-1]*Np
+									   );
+            }
+
+	    for(size_t p=0;p<Np;p++)
+	    {
+		T b1=0;
+		T b2=0;
+		T tmp2=0;
+
+		for (size_t sigma = 0; sigma < Ny; sigma++) {
+		    const Pc xc = Pc(points[pnt_offset+sigma]);   // narrow coordinate
+		    if (ns[DIM - 1] <= 2) {
+			if (ns[DIM - 1] == 0) {
+			    b1=tmp[tmp_offset+p];
+			} else {
+			    b1= T(xc) * tmp[tmp_offset+1*Np+p]
+				+ tmp[tmp_offset+0*Np+p];
+			}
+
+			dest[dest_offset+p+sigma*Np]=b1;
+		    } else {
+			b1 = Pc(2) * T(xc) *
+			    tmp[tmp_offset+(ns[DIM-1]-1)*Np+p]+
+			    tmp[tmp_offset+(ns[DIM-1]-2)*Np+p];
+			b2 = tmp[tmp_offset+(ns[DIM-1]-1)*Np+p];
+
+			for (size_t j = ns[DIM - 1] - 3; j > 0; j--) {
+			    tmp2 = (Pc(2) * (T(xc)*(b1)) - (b2)) +
+				tmp[tmp_offset+(j)*Np+p];
+
+			    b2 = b1;
+			    b1 = tmp2;
+			}
+
+			const T result=(T(xc)*b1 - b2) + tmp[tmp_offset+(0)*Np+p];
+
+			dest[dest_offset+sigma*Np+p]=result;
+		    }
+		}
+	    }
+        }
+    }
+
+    template <typename T, unsigned int DIM, size_t PointsAtCompileTime ,typename AccessorType1,typename AccessorType2,typename AccessorType3>
+    void tp_evaluate_t_lp(
+	       const sycl::marray<PointScalar, PointsAtCompileTime>& points,
+	       const AccessorType1& interp_values,
+	       size_t offset,
+	       const std::array<int, DIM>& ns,
+	       const std::array<int,DIM>& np,
+	       AccessorType2& dest,
+	       AccessorType3& tmp,
+	       size_t dest_offset,
+	       size_t tmp_offset
+	       )
+    {
+	int pnt_offset=0;
+	for(int i=0;i<DIM-1;i++) {
+	    pnt_offset+=np[i];
+	}
+
+	tp_evaluate_int_lp<T, DIM, DIM>(points,pnt_offset,  interp_values, offset, dest, ns,np,tmp, dest_offset, tmp_offset);
     }
 
 

@@ -1316,26 +1316,26 @@ public:
     OctreeLevelData<T,DIM>(const Octree<T,DIM>& octree,size_t level):
     points_start(octree.numBoxes(level)),
     points_end(octree.numBoxes(level)),
-    ffBi_vec(std::move(octree.m_farFieldBoxes[level].indices)),
+    ffBi_vec(SyclHelpers::pad_min1(std::move(octree.m_farFieldBoxes[level].indices))),
     ffB_indices(ffBi_vec),
-    ffBs_vec(std::move(octree.m_farFieldBoxes[level].starts)),
+    ffBs_vec(SyclHelpers::pad_min1(std::move(octree.m_farFieldBoxes[level].starts))),
     ffB_starts(ffBs_vec),
-    nfBi_vec(std::move(octree.m_nearFieldBoxes[level].indices)),
+    nfBi_vec(SyclHelpers::pad_min1(std::move(octree.m_nearFieldBoxes[level].indices))),
     nfB_indices(nfBi_vec),
-    nfBs_vec(std::move(octree.m_nearFieldBoxes[level].starts)),
+    nfBs_vec(SyclHelpers::pad_min1(std::move(octree.m_nearFieldBoxes[level].starts))),
     nfB_starts(nfBs_vec),
-    nfTi_vec(std::move(octree.m_nearFieldTargets[level].indices)),
+    nfTi_vec(SyclHelpers::pad_min1(std::move(octree.m_nearFieldTargets[level].indices))),
     nfT_indices(nfTi_vec),
-    nfTs_vec(std::move(octree.m_nearFieldTargets[level].starts)),
+    nfTs_vec(SyclHelpers::pad_min1(std::move(octree.m_nearFieldTargets[level].starts))),
     nfT_starts(nfTs_vec),
-    leafCones_vec((octree.m_leafCones[level])),
+    leafCones_vec(SyclHelpers::pad_min1(std::vector<ConeRef>(octree.m_leafCones[level]), ConeRef(0,0,0,0,0))),
     leafCones(leafCones_vec),
     ftAFlags(octree.numBoxes(level)),
     boxCenters(octree.numBoxes(level)*DIM),
     boxSizes(octree.numBoxes(level)),
     coneDomains0(octree.numBoxes(level)),
     coneDomains1(octree.numBoxes(level)),
-    activeCones_vec(std::move(octree.m_activeCones[level][1])),
+    activeCones_vec(SyclHelpers::pad_min1(std::move(octree.m_activeCones[level][1]), ConeRef(0,0,0,0,0))),
     activeCones(activeCones_vec),
     coneMap(SyclHelpers::SyclIndexMap<size_t>::fromList(octree.coneMaps(level))),
     memBoxStart(sycl::range<1>(octree.numBoxes(level)+1)),
@@ -1494,7 +1494,7 @@ public:
 
 
 	    
-	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(ffB_indices.cbegin()+start,ffB_indices.cbegin()+end);
+	    return SyclHelpers::SubRange<sycl::accessor<size_t,1,sycl::access_mode::read> >(ffB_indices.cbegin()+start,ffB_indices.cbegin()+end);
 	}
 
 	const inline  auto nearFieldBoxes(size_t targetPoint) const
@@ -1503,7 +1503,7 @@ public:
 	    const size_t end=nfB_starts[targetPoint+1];
 
 
-	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
+	    return SyclHelpers::SubRange<sycl::accessor<size_t,1,sycl::access_mode::read> >(nfB_indices.cbegin()+start,nfB_indices.cbegin()+end);
 	}
 
 	// Transpose: for a given source box, return the target points in its nearfield
@@ -1511,7 +1511,7 @@ public:
 	{
 	    const size_t start=nfT_starts[boxId];
 	    const size_t end=nfT_starts[boxId+1];
-	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(nfT_indices.cbegin()+start,nfT_indices.cbegin()+end);
+	    return SyclHelpers::SubRange<sycl::accessor<size_t,1,sycl::access_mode::read> >(nfT_indices.cbegin()+start,nfT_indices.cbegin()+end);
 	}
 
 	size_t numNearFieldTargets(size_t boxId) const
@@ -1583,7 +1583,7 @@ public:
 	    const size_t start=boxId*childrenPerBox;
 	    const size_t end=(boxId+1)*childrenPerBox;
 	    
-	    return SyclHelpers::SubRange<sycl::accessor<const size_t,1,sycl::access_mode::read> >(childBoxes.cbegin()+start,childBoxes.cbegin()+end);
+	    return SyclHelpers::SubRange<sycl::accessor<size_t,1,sycl::access_mode::read> >(childBoxes.cbegin()+start,childBoxes.cbegin()+end);
 	}
 
 
