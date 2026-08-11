@@ -1852,9 +1852,9 @@ class OctreeCache
 public:
     static OctreeCache& getInstance()
     {
-	static OctreeCache    instance; // Guaranteed to be destroyed.
+	static OctreeCache* instance = new OctreeCache(); // Guaranteed NOT to be destroyed.
 	// Instantiated on first use.
-	return instance;
+	return *instance;
     }
     public:
     OctreeCache(OctreeCache const&)               = delete;
