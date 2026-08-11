@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
       op_cf->init(p_srcs, srcs.cols(), p_targets, targets.cols(), p_normals,
                   normals.cols());
     } else {
-      op_sl = std::make_unique<ifgf::HelmholtzSL3D>(kappa, 300, order, 1, -1., -1.,
+      op_sl = std::make_unique<ifgf::HelmholtzSL3D>(kappa, 300, order, 1, 1e-6, -1.,
                                                     -1.);
       op_sl->init(p_srcs, srcs.cols(), p_targets, targets.cols());
     }

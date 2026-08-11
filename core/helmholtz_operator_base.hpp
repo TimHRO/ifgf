@@ -1,6 +1,8 @@
 #ifndef __HELMHOLTZ_OPERATOR_BASE_HPP__
 #define __HELMHOLTZ_OPERATOR_BASE_HPP__
 
+#include <cmath>
+#include <functional>
 #include "helmholtz_kernels.hpp"
 #include "ifgfoperator.hpp"
 #include "util.hpp"
@@ -147,8 +149,7 @@ public:
 
     bool farfieldCanBeSkipped(PointScalar H)
     {
-        (void)H;
-        return false;
+    	return (H * this->k.imag()) > 40.0;
     }
 
 protected:
@@ -161,8 +162,8 @@ protected:
 
         if (maxk < 0) {
             maxk = defaultMaxk;
-            std::cout << "maxk=" << maxk << std::endl;
         }
+        std::cout << "maxk=" << maxk << std::endl;
     }
 
     void initCommon(const PointArray& srcs, const PointArray targets)
@@ -179,12 +180,25 @@ protected:
             this->m_octree = oct;
         }
 
-        BaseOp::init(srcs, targets);
+	// CutOff in build interaction list
+        std::function<bool(double)> cutOff;
+        const double kim = static_cast<double>(this->k.imag());
+        const double tol = static_cast<double>(this->tolerance());
+        if (tol > 0.0 && kim > 0.0) {
+            cutOff = [kim, tol](double dist) {
+                return std::exp(-dist * kim) < tol;
+            };
+        } else {
+            cutOff = [](double) { return false; };
+        }
 
-#ifdef CACHE_OCTREE
+        BaseOp::init(srcs, targets, cutOff);
+
+	#ifdef CACHE_OCTREE
         OctreeCache<T, dim, OctreeKeyType>::getInstance().add(key, this->m_octree);
-#endif
+	#endif
     }
+
 
     std::complex<RealScalar> k;
     RealScalar               maxk;

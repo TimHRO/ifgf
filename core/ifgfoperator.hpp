@@ -117,7 +117,8 @@ public:
 
 
 
-    void init(const PointArray &srcs, const PointArray targets)
+    void init(const PointArray &srcs, const PointArray targets,
+		 std::function<bool(double)> cutOff = [](double dist) {return false;})
     {
 	std::cout<<"init"<<std::endl;
 
@@ -131,7 +132,7 @@ public:
 	    tmp_src_octree->build(srcs);
 	    tmp_target_octree->build(targets);
 	
-	    tmp_src_octree->buildInteractionList(*tmp_target_octree);
+	    tmp_src_octree->buildInteractionList(*tmp_target_octree, cutOff);
 
 	}
 
@@ -871,16 +872,17 @@ public:
 	return m_octree->levels();
     }
 
-    bool farfieldCanBeSkipped(PointScalar H) const {    
-         return false;
-    }
-
-	static constexpr bool HAS_NORMALS = false;
+    static constexpr bool HAS_NORMALS = false;
 
 protected:
     void onOctreeReady()
     {
 	//do nothing. but give subclasses the opportunity to initialize some things
+    }
+
+    bool farfieldCanBeSkipped(PointScalar H)
+    {
+       //do nothing. give helmholtz_operator_base opportunity to initialize
     }
 
     std::shared_ptr<FlatOctree<T, DIM> > m_octree;

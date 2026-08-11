@@ -54,6 +54,12 @@ public:
 	std::vector<size_t> starts;
     };
 
+	struct InteractionCounter {
+		size_t near{};
+		size_t far{};
+		size_t toFar{};
+	};
+
     class OctreeNode
     { 
     private:
@@ -235,12 +241,13 @@ public:
 
     Octree(int maxLeafSize):
         m_maxLeafSize(maxLeafSize),
-	m_levels(0)
+		m_levels(0)
     {
-
-	PointScalar eta=(PointScalar) sqrt((PointScalar) DIM);
-	m_isAdmissible= [eta] (const BoundingBox<DIM>& src,const BoundingBox<DIM>& target) { return target.exteriorDistance(src.center()) >= eta* src.sideLength();};
-
+		PointScalar eta=(PointScalar) sqrt((PointScalar) DIM);
+		m_isAdmissible= [eta] (const BoundingBox<DIM>& src,const BoundingBox<DIM>& target) {
+			auto exteriorDistance = target.exteriorDistance(src.center()); 
+			return std::tuple(exteriorDistance >= eta * src.sideLength(), exteriorDistance);
+		};
     }
 
     ~Octree()
@@ -302,18 +309,23 @@ public:
 		    
     }
 
-    void buildInteractionList(const Octree&  target_tree)
+    void buildInteractionList(const Octree&  target_tree,
+		std::function<bool(double)> cutOff = [](double){return false;})
     {
-	buildInteractionList(m_root,target_tree.m_root);
+	buildInteractionList(m_root,target_tree.m_root, cutOff);
 
 	/*printInteractionList(m_root);
 	for(int i=0;i<N_Children;i++){
 	    printInteractionList(m_root->child(i));
 	    }*/
+	   std::cout << "Interaction Counter: " << "\n";
+	   std::cout << "to far: " << intCounter.toFar << "\n";
+	   std::cout << "far: "  << intCounter.far << "\n";
+	   std::cout << "near: " << intCounter.near << "\n";
 
     }
 
-    void buildInteractionList(std::shared_ptr<OctreeNode>  src,std::shared_ptr<const OctreeNode>  target)
+    void buildInteractionList(std::shared_ptr<OctreeNode>  src,std::shared_ptr<const OctreeNode>  target, std::function<bool(double)> cutOff)
     {
 	if(!src || !target || !src->hasPoints() || ! target->hasPoints()) {
 	    return;
@@ -321,9 +333,21 @@ public:
 
 
 	//Ideally, this interaction is admissible, so we can interpolate it at this level
-	if(m_isAdmissible(src->boundingBox(),target->boundingBox())) {
-	    src->addFarInteraction(*target);
-	    return;
+	auto [isAdmissible, dist] = m_isAdmissible(src->boundingBox(), target->boundingBox());
+    auto toFar = cutOff(dist);
+
+	if(isAdmissible) {
+		if (toFar)
+		{
+			intCounter.toFar++;
+			return;
+		}
+		else
+		{
+	    	src->addFarInteraction(*target);
+			intCounter.far++;
+	    	return;
+		}
 	}
 
 	
@@ -331,20 +355,21 @@ public:
 	//do it the hard way	
 	if(src->isLeaf() && target->isLeaf()) {	    
 	    src->addNearInteraction(*target);
+		intCounter.near++;
 	    return;
 	}
 
 	//If either src or target has children recurse down
 	if(src->isLeaf() && !target->isLeaf()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src,target->child(j).lock());
+		buildInteractionList(src,target->child(j).lock(), cutOff);
 	    }
 	    return;
 	}
 
 	if(target->isLeaf() && !src->isLeaf()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src->child(j).lock(),target);
+		buildInteractionList(src->child(j).lock(),target, cutOff);
 	    }
 	    return;
 	}
@@ -352,12 +377,12 @@ public:
 	//if both src and target have children, we recurse down the one with the larger bbox
 	if(src->boundingBox().sideLength() > target->boundingBox().sideLength()) {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src->child(j).lock(),target);
+		buildInteractionList(src->child(j).lock(),target, cutOff);
 	    }
 	    return;
 	}else {
 	    for (int j = 0; j < N_Children; j++) {
-		buildInteractionList(src,target->child(j).lock());
+		buildInteractionList(src,target->child(j).lock(), cutOff);
 	    }
 	    return;
 	}
@@ -1296,13 +1321,14 @@ private:
     std::vector<std::vector<ConeMap> > m_coneMaps;
 
     unsigned int m_depth;
-    size_t m_maxLeafSize;
+    int m_maxLeafSize;
     PointArray m_pnts;
     std::vector<size_t> m_permutation;
     PointScalar m_diameter;
     PointScalar m_sideLength;
 
-    std::function<bool(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
+    std::function<std::tuple<bool, double>(const BoundingBox<DIM>&, const BoundingBox<DIM>&) > m_isAdmissible;
+	InteractionCounter intCounter;
 };
 
 
@@ -1885,3 +1911,4 @@ private:
 
 
 #endif
+
