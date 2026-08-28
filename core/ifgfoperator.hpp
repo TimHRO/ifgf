@@ -357,7 +357,8 @@ public:
 		    h.parallel_for(
 				   sycl::range(num_targets),
 				   [=](sycl::id<1> i) {
-				       //out<<"pnt"<<i<<"\n";
+				       // try different structure to avoid global add	
+				       std::complex<float> acc(0.f, 0.f);
 				       for( size_t boxId : srcDataAcc.nearFieldBoxes(i)) {
 			  
 					   IndexRange srcs = srcDataAcc.points(boxId);	
@@ -366,9 +367,10 @@ public:
 					       continue;
 					   }
 			  
-					   a_result[i]+=functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
+					   acc += functions.evaluateKernel(a_srcs, srcs.first, srcs.second,
 										 a_targets, i, a_weights, a_normals);
 				       }
+				       a_result[i] += T(RealScalar(acc.real()), RealScalar(acc.imag()));
 				   });
 		});
 
@@ -733,69 +735,62 @@ public:
 
 
 		    
-		h.parallel_for(sycl::range<1>( numActiveParentCones), [=](sycl::id<1> i)
-		{
-		    ConeRef parentCone=parentDataAcc.activeCone(i); //parent!!
-		    size_t parentBoxId = parentCone.boxId();
-		    auto pGrid= parentDataAcc.coneDomain(parentBoxId,1);//m_octree->coneDomain(level-1,parentId,1);				    
-                    auto parent_center = parentDataAcc.boxCenter(parentBoxId);
-                    PointScalar pH = parentDataAcc.boxSize(parentBoxId);
+h.parallel_for(sycl::range<2>(stride, numActiveParentCones), [=](sycl::id<2> idx)
+{
+    const size_t j = idx[0];   // node index within a cone (small)
+    const size_t i = idx[1];   // parent cone index (large, fast-varying -> coalesced)
 
+    ConeRef parentCone = parentDataAcc.activeCone(i);
+    size_t parentBoxId = parentCone.boxId();
 
-		    if( ! parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)){ //we dont need the interpolation info for those levels.
-			return;
-		    }
+    if (!parentDataAcc.hasFarTargetsIncludingAncestors(parentBoxId)) {
+        return; // matches original: no write, buffer assumed pre-zeroed elsewhere
+    }
 
-		    // Transposed a_parentIntData[j*numParentCones + i]
-		    for(size_t j=0;j<stride;j++)
-			a_parentIntData[j*numActiveParentCones + i]=0;
+    auto pGrid         = parentDataAcc.coneDomain(parentBoxId, 1);
+    auto parent_center = parentDataAcc.boxCenter(parentBoxId);
+    PointScalar pH     = parentDataAcc.boxSize(parentBoxId);
 
-		    // Child loop is now outer, center/H/grid are loaded once per child
-		    // and stay in registers across all stride iterations below,
-		    // instead of being reloaded once per (j, child) pair
-		    for(size_t childBox : parentDataAcc.children(parentBoxId)) {
-			if(childBox==SIZE_MAX) {
-			    continue;
-			}
+    // Child-invariant: depends only on (i,j), computed once per work-item
+    // instead of once per (child, j)
+    sycl::marray<PointScalar,DIM> pnt, cart_pnt;
+    pGrid.transform(parentCone.id(), a_hoChebNodes, pnt, j);
+    Util::interpToCart(pnt, cart_pnt, parent_center, pH);
 
-			const auto center = srcDataAcc.boxCenter(childBox);
-			const PointScalar H = srcDataAcc.boxSize(childBox);
-			const auto grid=srcDataAcc.coneDomain(childBox,0);
+    T out = 0;  // accumulate in a register, single write at the end
 
-			for(size_t j=0;j<stride;j++) {
-			    sycl::marray<PointScalar,DIM> pnt;
-			    sycl::marray<PointScalar,DIM> cart_pnt;
-			    sycl::marray<PointScalar,DIM> pnt2;
+    for (size_t childBox : parentDataAcc.children(parentBoxId)) {
+        if (childBox == SIZE_MAX) continue;
 
-			    pGrid.transform(parentCone.id(),a_hoChebNodes,pnt,j);
-			    Util::interpToCart(pnt,cart_pnt,parent_center,pH);
+        const auto center = srcDataAcc.boxCenter(childBox);
+        const PointScalar H = srcDataAcc.boxSize(childBox);
+        const auto grid = srcDataAcc.coneDomain(childBox, 0);
 
-			    Util::cartToInterp(cart_pnt,pnt2,center,H);
+        sycl::marray<PointScalar,DIM> pnt2;
+        Util::cartToInterp(cart_pnt, pnt2, center, H);
 
-			    const size_t el=grid.elementForPoint(pnt2);
+        const size_t el = grid.elementForPoint(pnt2);
+        assert(el < SIZE_MAX);
 
-			    assert(el<SIZE_MAX); //we used to cutoff targets like that
+        const size_t memId = srcDataAcc.memId(childBox, el);
+        if (memId < SIZE_MAX) {
+            sycl::marray<PointScalar,DIM> pnt_local;
+            grid.transformBackwards(el, pnt2, pnt_local);
 
-			    const size_t memId=srcDataAcc.memId(childBox,el);
-			    if(memId < SIZE_MAX) {
-				grid.transformBackwards(el,pnt2,pnt);
+            SyclChebychevInterpolation::ClenshawEvaluator_lp<T,1,DIM,DIM,DIMOUT> clenshaw;
+            const size_t offset = lo_stride * memId;
+            sycl::marray<float,DIM> pnt_lp;
+            for (int d = 0; d < DIM; d++) pnt_lp[d] = float(pnt_local[d]);
+            T res = clenshaw(SyclRowMatrix<float,DIM,1>(pnt_lp), a_intData, ns, offset);
 
-				SyclChebychevInterpolation::ClenshawEvaluator_lp<T,1, DIM,DIM, DIMOUT> clenshaw;
-				const size_t offset=lo_stride*memId;
-				// coordinate is box-local [-1,1], narrow to float
-				sycl::marray<float,DIM> pnt_lp;
-				for(int d=0;d<DIM;d++) pnt_lp[d]=float(pnt[d]);
-				T res=clenshaw(SyclRowMatrix<float, DIM,1>(pnt_lp), a_intData, ns, offset);
+            T TF = functions.transfer_factor(cart_pnt, center, H, parent_center, pH);
+            out += res * TF;
+        }
+    }
 
-				T TF=functions.transfer_factor(cart_pnt,center,H,parent_center,pH);
-
-				a_parentIntData[j*numActiveParentCones + i]+=res*TF;
-			    }
-			}
-		    }
-
-
-		});});
+    // Consecutive i at fixed j -> coalesced write
+    a_parentIntData[j*numActiveParentCones + i] = out;
+});});
 
 
 	    Q.wait();
